@@ -42,7 +42,6 @@ targets:
         NSMicrophoneUsageDescription: 음성으로 일정을 입력할 때 마이크를 사용합니다.
         NSSpeechRecognitionUsageDescription: 말한 내용을 일정으로 바꿀 때 음성 인식을 사용합니다.
         UILaunchScreen: {}
-        UIRequiresFullScreen: true
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         "UISupportedInterfaceOrientations~ipad":
