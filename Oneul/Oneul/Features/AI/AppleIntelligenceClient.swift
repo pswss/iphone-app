@@ -43,7 +43,7 @@ struct AppleIntelligenceUnavailable: LocalizedError {
 enum AppleAI {
     @Generable
     struct GenSchedule {
-        @Guide(description: "입력이 일정/계획/약속이거나 기존 일정 수정·삭제 요청이면 true, 의미 없는 글자면 false")
+        @Guide(description: "할 일이나 시간이 담긴 일정/약속이거나 기존 일정 수정·삭제 요청이면 true. 단순 단어·이름·노래제목·사물명 등 일정과 무관하면 false")
         var isSchedule: Bool
         @Guide(description: "만들거나 수정/삭제할 일정 목록. isSchedule이 false면 빈 배열")
         var events: [GenEvent]
@@ -68,7 +68,7 @@ enum AppleAI {
     // 정적 instructions로 세션 1개 재사용 (동적 컨텍스트는 프롬프트로 전달 → prewarm 가능).
     private static let instructions = """
     너는 한국어 일정 비서다. 사용자의 자연어를 해석해 일정을 새로 만들거나, 기존 일정을 수정/삭제한다.
-    - 입력이 일정/계획/약속이 아니면(의미 없는 글자, 잡담) isSchedule=false, events=[].
+    - 일정/계획/약속/할 일이 아니면 isSchedule=false, events=[]. 특히 시간이나 할 일이 없는 단순 단어·이름·노래제목·사물명·잡담(예: "아리랑", "안녕", "사과")은 반드시 isSchedule=false.
     - 새 일정: action="create", targetIndex=0.
     - "○○ 취소/삭제/지워" 등 기존 일정을 없애라는 요청: action="delete", targetIndex=그 일정 번호.
     - "○○를 △시로 바꿔/옮겨/변경" 등 기존 일정 변경: action="update", targetIndex=그 일정 번호, 바뀐 내용 반영.
@@ -77,17 +77,15 @@ enum AppleAI {
     - 장소 없으면 location="".
     """
 
-    private static var _session: LanguageModelSession?
-    private static var session: LanguageModelSession {
-        if let s = _session { return s }
-        let s = LanguageModelSession(instructions: instructions)
-        _session = s
-        return s
-    }
+    // 매 요청마다 새 세션을 쓴다(대화가 누적돼 컨텍스트를 초과하지 않도록). 1개 미리 데워 첫 응답 지연만 줄인다.
+    private static var _primed: LanguageModelSession?
 
     static func prewarm() {
         guard case .available = SystemLanguageModel.default.availability else { return }
-        session.prewarm()
+        guard _primed == nil else { return }
+        let s = LanguageModelSession(instructions: instructions)
+        _primed = s
+        s.prewarm()
     }
 
     static func availability() -> AIValidation {
@@ -115,7 +113,11 @@ enum AppleAI {
         }
         prompt += "\n요청: \(text)"
 
+        // 미리 데운 세션을 1회만 쓰고 버린다(transcript 누적 → 컨텍스트 초과 방지).
+        let session = _primed ?? LanguageModelSession(instructions: instructions)
+        _primed = nil
         let response = try await session.respond(to: prompt, generating: GenSchedule.self)
+        prewarm()   // 다음 요청을 위해 새 세션을 미리 데움
         guard response.content.isSchedule else { return [] }
 
         return response.content.events.compactMap { e -> ParsedEvent? in
