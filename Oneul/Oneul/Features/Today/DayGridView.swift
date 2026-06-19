@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 /// 애플 캘린더식 시간 그리드(=시간표) 일간뷰. 앱 스타일 유지.
 /// - 빈 곳 탭 → 일정 추가, 일정 탭 → 수정
@@ -58,12 +59,11 @@ struct DayGridView: View {
                                 }
                                 Rectangle().fill(.white.opacity(0.12))   // 시간 ↔ 일정 구분선
                                     .frame(width: 1, height: gridHeight).offset(x: leftInset)
-                                Color.clear
-                                    .frame(width: geo.size.width, height: gridHeight)
-                                    .contentShape(Rectangle())
-                                    .onTapGesture { if selectedID != nil { selectedID = nil } }   // 빈 곳 한 번 탭 → 선택 해제
-                                    .gesture(SpatialTapGesture(count: 2, coordinateSpace: .local)   // 빈 곳 더블탭 → 그 위치에 새 일정(탭이라 스크롤 막지 않음)
-                                        .onEnded { v in selectedID = nil; addAt(y: v.location.y); Haptics.impact(.light) })
+                                LongPressArea(minimumDuration: 0.4) { y in     // 애플 캘린더식: 스크롤·꾹 누르기 동시(UIKit recognizer)
+                                    selectedID = nil; addAt(y: y); Haptics.impact(.medium)
+                                }
+                                .frame(width: geo.size.width, height: gridHeight)
+                                .onTapGesture { if selectedID != nil { selectedID = nil } }   // 한 번 탭 → 선택 해제
                                 if cal.isDateInToday(day) { nowLine(width: geo.size.width) }
                                 ForEach(laidOut, id: \.event.id) { eventBlock($0, gridW: gridW) }
                                 if let ps = previewStart { previewBlock(ps, gridW: gridW) }
@@ -374,6 +374,36 @@ struct DayGridView: View {
         return "\(h < 12 || h == 24 ? "오전" : "오후") \(h12)시"
     }
     private func timeText(_ d: Date) -> String { d.formatted(.dateTime.hour().minute().locale(lang.locale)) }
+}
+
+// MARK: - 꾹 누르기(UIKit) — UIScrollView 스크롤과 "동시 인식"되어 스크롤을 막지 않음(애플 캘린더식)
+private struct LongPressArea: UIViewRepresentable {
+    var minimumDuration: Double = 0.4
+    var onPress: (CGFloat) -> Void
+
+    func makeUIView(context: Context) -> UIView {
+        let v = UIView()
+        v.backgroundColor = .clear
+        let lp = UILongPressGestureRecognizer(target: context.coordinator,
+                                              action: #selector(Coordinator.handle(_:)))
+        lp.minimumPressDuration = minimumDuration
+        lp.delegate = context.coordinator
+        v.addGestureRecognizer(lp)
+        return v
+    }
+    func updateUIView(_ uiView: UIView, context: Context) { context.coordinator.onPress = onPress }
+    func makeCoordinator() -> Coordinator { Coordinator(onPress: onPress) }
+
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        var onPress: (CGFloat) -> Void
+        init(onPress: @escaping (CGFloat) -> Void) { self.onPress = onPress }
+        @objc func handle(_ g: UILongPressGestureRecognizer) {
+            if g.state == .began { onPress(g.location(in: g.view).y) }   // 손가락 거의 정지로 0.4초 → 발동(움직이면 자동 취소)
+        }
+        // 스크롤 팬 제스처와 동시에 인식 → 둘 다 작동
+        func gestureRecognizer(_ g: UIGestureRecognizer,
+                               shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
+    }
 }
 
 // MARK: - 스크롤 진행량 추적(앵커 대비) — 타임라인 연속 접기. iOS 18+에서만, 그 이하는 그대로
