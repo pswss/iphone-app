@@ -13,6 +13,7 @@ struct TodayView: View {
     @State private var eventsByDay: [Date: [ScheduleEvent]] = [:]
     @State private var timelineProgress: CGFloat = 0   // 0=펼침, 1=완전 접힘 (스크롤에 연속 연동)
     @State private var timelineH: CGFloat = 0          // 타임라인 카드 자연 높이
+    @State private var sharedScrollHour: Int?          // 모든 날 grid가 공유하는 세로 스크롤 위치(슬라이드해도 유지)
     private let lang = AppLanguage.shared
     @AppStorage("userType") private var userType = "general"
     @Environment(\.horizontalSizeClass) private var hSize
@@ -57,7 +58,6 @@ struct TodayView: View {
         }
         .onAppear { seedIfRequested(); rebuildIndex(); syncLiveActivity() }
         .onChange(of: events) { _, _ in rebuildIndex(); syncLiveActivity() }
-        .onChange(of: selectedDay) { _, _ in withAnimation(.snappy(duration: 0.28)) { timelineProgress = 0 } }   // 날짜 바꾸면 타임라인 다시 펼침
     }
 
     private func grid(_ p: DayPlan, _ d: Date, onScrollDelta: ((CGFloat) -> Void)? = nil) -> some View {
@@ -65,7 +65,8 @@ struct TodayView: View {
                     onEdit: { editing = $0 },
                     onAdd: { addStart = $0; showingAdd = true },
                     onScrollDelta: onScrollDelta,
-                    previewStart: previewFor(d))
+                    previewStart: previewFor(d),
+                    scrollHour: $sharedScrollHour)
     }
 
     /// 새 일정 추가 시트가 떠 있고 그 시작 시각이 이 날짜면 미리보기 블록 표시.

@@ -13,6 +13,7 @@ struct DayGridView: View {
     var onAdd: (Date) -> Void
     var onScrollDelta: ((CGFloat) -> Void)? = nil    // 앵커 대비 스크롤 진행량 — 타임라인 연속 접기/펼치기
     var previewStart: Date? = nil                    // 탭으로 추가 중인 새 일정 미리보기(1시간)
+    @Binding var scrollHour: Int?                    // 모든 날이 공유하는 세로 스크롤 위치(애플 캘린더식)
 
     @Environment(\.modelContext) private var context
     private let lang = AppLanguage.shared
@@ -28,7 +29,6 @@ struct DayGridView: View {
     @State private var resizeID: UUID?
     @State private var resizeDY: CGFloat = 0
     @State private var selectedID: UUID?
-    @State private var scrollBase: CGFloat?
 
     private let firstHour = 0
     private let lastHour = 24
@@ -41,6 +41,7 @@ struct DayGridView: View {
         let first = plan.singleDayEvents.map { cal.component(.hour, from: $0.start) }.min()
         return max(0, (first ?? 8) - 1)
     }
+    private var anchorY: CGFloat { CGFloat(scrollAnchorHour) * hourHeight }
 
     var body: some View {
         VStack(spacing: 8) {
@@ -49,31 +50,30 @@ struct DayGridView: View {
             GeometryReader { geo in
                 let gridW = geo.size.width - leftInset - 8
                 ZStack(alignment: .bottom) {
-                    ScrollViewReader { proxy in
-                        ScrollView(showsIndicators: false) {
-                            ZStack(alignment: .topLeading) {
-                                VStack(spacing: 0) {
-                                    ForEach(firstHour..<lastHour, id: \.self) { h in
-                                        hourRow(h, width: geo.size.width).id(h)
-                                    }
+                    ScrollView(showsIndicators: false) {
+                        ZStack(alignment: .topLeading) {
+                            VStack(spacing: 0) {
+                                ForEach(firstHour..<lastHour, id: \.self) { h in
+                                    hourRow(h, width: geo.size.width).id(h)
                                 }
-                                Rectangle().fill(.white.opacity(0.12))   // 시간 ↔ 일정 구분선
-                                    .frame(width: 1, height: gridHeight).offset(x: leftInset)
-                                LongPressArea(minimumDuration: 0.4,                           // 빈 곳 꾹 → 그 위치에 새 일정(스크롤과 동시)
-                                              onBegan: { y in selectedID = nil; addAt(y: y); Haptics.impact(.medium) })
-                                    .frame(width: geo.size.width, height: gridHeight)
-                                    .onTapGesture { if selectedID != nil { selectedID = nil } }   // 한 번 탭 → 선택 해제
-                                if cal.isDateInToday(day) { nowLine(width: geo.size.width) }
-                                ForEach(laidOut, id: \.event.id) { eventBlock($0, gridW: gridW) }
-                                if let ps = previewStart { previewBlock(ps, gridW: gridW) }
                             }
-                            .frame(height: gridHeight, alignment: .topLeading)
+                            .scrollTargetLayout()
+                            Rectangle().fill(.white.opacity(0.12))   // 시간 ↔ 일정 구분선
+                                .frame(width: 1, height: gridHeight).offset(x: leftInset)
+                            LongPressArea(minimumDuration: 0.4,                           // 빈 곳 꾹 → 그 위치에 새 일정(스크롤과 동시)
+                                          onBegan: { y in selectedID = nil; addAt(y: y); Haptics.impact(.medium) })
+                                .frame(width: geo.size.width, height: gridHeight)
+                                .onTapGesture { if selectedID != nil { selectedID = nil } }   // 한 번 탭 → 선택 해제
+                            if cal.isDateInToday(day) { nowLine(width: geo.size.width) }
+                            ForEach(laidOut, id: \.event.id) { eventBlock($0, gridW: gridW) }
+                            if let ps = previewStart { previewBlock(ps, gridW: gridW) }
                         }
-                        .scrollDisabled(dragID != nil || resizeID != nil)   // 이동/리사이즈 중에만 스크롤 잠금
-                        .onAppear { proxy.scrollTo(scrollAnchorHour, anchor: .top) }
-                        .trackScrollDelta(enabled: onScrollDelta != nil,
-                                          base: $scrollBase, onDelta: onScrollDelta)
+                        .frame(height: gridHeight, alignment: .topLeading)
                     }
+                    .scrollPosition(id: $scrollHour, anchor: .top)            // 모든 날 공유 → 슬라이드해도 위치 유지(튐 없음)
+                    .scrollDisabled(dragID != nil || resizeID != nil)         // 이동/리사이즈 중에만 스크롤 잠금
+                    .onAppear { if scrollHour == nil { scrollHour = scrollAnchorHour } }
+                    .trackScrollDelta(enabled: onScrollDelta != nil, anchorY: anchorY, onDelta: onScrollDelta)
                     if dragID != nil { trashBar }
                 }
                 .coordinateSpace(name: "grid")
@@ -431,12 +431,11 @@ private struct LongPressArea: UIViewRepresentable {
 private extension View {
     @ViewBuilder
     func trackScrollDelta(enabled: Bool,
-                          base: Binding<CGFloat?>,
+                          anchorY: CGFloat,
                           onDelta: ((CGFloat) -> Void)?) -> some View {
         if #available(iOS 18, *), enabled {
             self.onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { _, y in
-                if base.wrappedValue == nil { base.wrappedValue = y }
-                onDelta?(y - (base.wrappedValue ?? y))   // 앵커(처음 보여준 위치) 대비 이동량
+                onDelta?(y - anchorY)   // 앵커(절대 위치) 대비 이동량 — 공유 스크롤이라 페이지 무관 일관
             }
         } else {
             self
