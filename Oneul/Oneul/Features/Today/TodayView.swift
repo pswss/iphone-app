@@ -10,7 +10,8 @@ struct TodayView: View {
     @State private var showingAdd = false
     @State private var addStart: Date?
     @State private var eventsByDay: [Date: [ScheduleEvent]] = [:]
-    @State private var timelineHidden = false
+    @State private var timelineProgress: CGFloat = 0   // 0=펼침, 1=완전 접힘 (스크롤에 연속 연동)
+    @State private var timelineH: CGFloat = 0          // 타임라인 카드 자연 높이
     private let lang = AppLanguage.shared
     @AppStorage("userType") private var userType = "general"
     @Environment(\.horizontalSizeClass) private var hSize
@@ -54,14 +55,14 @@ struct TodayView: View {
         }
         .onAppear { seedIfRequested(); rebuildIndex(); syncLiveActivity() }
         .onChange(of: events) { _, _ in rebuildIndex(); syncLiveActivity() }
-        .onChange(of: selectedDay) { _, _ in if timelineHidden { withAnimation(.snappy(duration: 0.28)) { timelineHidden = false } } }
+        .onChange(of: selectedDay) { _, _ in withAnimation(.snappy(duration: 0.28)) { timelineProgress = 0 } }   // 날짜 바꾸면 타임라인 다시 펼침
     }
 
-    private func grid(_ p: DayPlan, _ d: Date, onCollapseChange: ((Bool) -> Void)? = nil) -> some View {
+    private func grid(_ p: DayPlan, _ d: Date, onScrollDelta: ((CGFloat) -> Void)? = nil) -> some View {
         DayGridView(plan: p, day: d,
                     onEdit: { editing = $0 },
                     onAdd: { addStart = $0; showingAdd = true },
-                    onCollapseChange: onCollapseChange,
+                    onScrollDelta: onScrollDelta,
                     previewStart: previewFor(d))
     }
 
@@ -90,16 +91,24 @@ struct TodayView: View {
 
     private func dayPage(_ d: Date) -> some View {
         let p = dayPlan(for: d)
+        let active = Calendar.current.isDate(d, inSameDayAs: selectedDay)
+        let prog = active ? timelineProgress : 0     // 보이는 페이지에만 접힘 적용(옆 페이지는 펼침)
         return VStack(spacing: 12) {
-            if !timelineHidden {
-                timelineCard(p, live: Calendar.current.isDateInToday(d))
-                    .transition(.move(edge: .top).combined(with: .opacity))
-            }
-            grid(p, d, onCollapseChange: { hidden in
-                withAnimation(.snappy(duration: 0.28)) { timelineHidden = hidden }
-            })
+            timelineCard(p, live: Calendar.current.isDateInToday(d))
+                .fixedSize(horizontal: false, vertical: true)                 // 자연 높이 고정(측정용)
+                .background(GeometryReader { g in
+                    Color.clear.preference(key: TimelineHeightKey.self, value: g.size.height)
+                })
+                .frame(height: timelineH > 0 ? max(0, timelineH * (1 - prog)) : nil, alignment: .top)
+                .clipped()
+                .opacity(Double(1 - prog))
+            grid(p, d, onScrollDelta: active ? { delta in            // 스크롤량 → 0…1 진행률로 연속 반영
+                guard timelineH > 0 else { return }
+                timelineProgress = min(1, max(0, delta / timelineH))
+            } : nil)
         }
         .padding(.horizontal, 16)
+        .onPreferenceChange(TimelineHeightKey.self) { if active, $0 > 0 { timelineH = $0 } }
     }
 
     private func dayFor(_ offset: Int) -> Date {
@@ -295,6 +304,11 @@ struct TodayView: View {
         f.dateFormat = "M월 d일 EEEE"
         return f.string(from: .now)
     }
+}
+
+private struct TimelineHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
 }
 
 #Preview {

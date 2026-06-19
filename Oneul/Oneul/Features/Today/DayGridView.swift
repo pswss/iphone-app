@@ -10,7 +10,7 @@ struct DayGridView: View {
     let day: Date
     var onEdit: (ScheduleEvent) -> Void
     var onAdd: (Date) -> Void
-    var onCollapseChange: ((Bool) -> Void)? = nil   // 위로 스크롤 시 헤더(타임라인) 접기 신호
+    var onScrollDelta: ((CGFloat) -> Void)? = nil    // 앵커 대비 스크롤 진행량 — 타임라인 연속 접기/펼치기
     var previewStart: Date? = nil                    // 탭으로 추가 중인 새 일정 미리보기(1시간)
 
     @Environment(\.modelContext) private var context
@@ -28,7 +28,6 @@ struct DayGridView: View {
     @State private var resizeDY: CGFloat = 0
     @State private var selectedID: UUID?
     @State private var scrollBase: CGFloat?
-    @State private var headerCollapsed = false
 
     private let firstHour = 0
     private let lastHour = 24
@@ -70,9 +69,8 @@ struct DayGridView: View {
                             .frame(height: gridHeight, alignment: .topLeading)
                         }
                         .onAppear { proxy.scrollTo(scrollAnchorHour, anchor: .top) }
-                        .trackScrollCollapse(enabled: onCollapseChange != nil,
-                                             base: $scrollBase, collapsed: $headerCollapsed,
-                                             onChange: onCollapseChange)
+                        .trackScrollDelta(enabled: onScrollDelta != nil,
+                                          base: $scrollBase, onDelta: onScrollDelta)
                     }
                     if dragID != nil { trashBar }
                 }
@@ -177,8 +175,13 @@ struct DayGridView: View {
         let glowing = selected && !lifted            // 그냥 하이라이트 = 빛나는 유리 느낌
         let dy = dragging ? dragDY : 0
         let shape = RoundedRectangle(cornerRadius: 11, style: .continuous)
+        // 실시간 표시 시간(5분 스냅): 이동 중엔 시작·끝 둘 다, 리사이즈 중엔 끝만
+        let moveMin = dragging ? dragMinutes(dragDY) : 0
+        let resizeMin = resizing ? dragMinutes(resizeDY) : 0
+        let dispStart = e.start.addingTimeInterval(moveMin * 60)
+        let dispEnd = e.end.addingTimeInterval((moveMin + resizeMin) * 60)
 
-        return blockContent(e, h: h)
+        return blockContent(e, h: h, start: dispStart, end: dispEnd)
             .frame(width: colW, height: h, alignment: .topLeading)
             // 하이라이트: 원래 모습 유지하되 색만 진하게 + 은은한 색 글로우(유리 느낌). 두꺼운 흰 테두리 X
             .background(color.opacity(lifted ? 0.9 : (selected ? 0.72 : 0.5)), in: shape)
@@ -219,7 +222,7 @@ struct DayGridView: View {
         }
     }
 
-    /// 본문: 탭(선택/수정) + 꾹 눌러 이동. 손가락이 조금이라도 움직이면(=스크롤 의도) 이동 인식이 취소돼 스크롤이 통과.
+    /// 본문: 탭(선택/수정) + 꾹 눌러 이동. `.gesture`(낮은 우선순위)라 스크롤이 항상 먼저 — 가벼운 스크롤은 이동으로 안 잡힘.
     @ViewBuilder
     private func bodyZone(_ e: ScheduleEvent, selected: Bool) -> some View {
         Color.clear
@@ -229,16 +232,16 @@ struct DayGridView: View {
                 if selected { onEdit(e) }                          // 하이라이트 상태에서 다시 탭 → 수정
                 else { selectedID = e.id; Haptics.impact(.light) } // 탭 → 하이라이트
             }
-            .simultaneousGesture(moveGesture(e))
+            .gesture(moveGesture(e))
     }
 
     @ViewBuilder
-    private func blockContent(_ e: ScheduleEvent, h: CGFloat) -> some View {
+    private func blockContent(_ e: ScheduleEvent, h: CGFloat, start: Date, end: Date) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(e.title.isEmpty ? lang.tr("제목 없음") : e.title)
                 .font(.caption).bold().foregroundStyle(.white).lineLimit(1)
             if h > 36 {
-                Text(timeText(e.start) + " – " + timeText(e.end))
+                Text(timeText(start) + " – " + timeText(end))   // 이동/리사이즈 중 실시간 갱신
                     .font(.system(size: 10)).foregroundStyle(.white.opacity(0.85)).lineLimit(1)
             }
         }
@@ -359,19 +362,16 @@ struct DayGridView: View {
     private func timeText(_ d: Date) -> String { d.formatted(.dateTime.hour().minute().locale(lang.locale)) }
 }
 
-// MARK: - 위로 스크롤 시 헤더(타임라인) 접기 — iOS 18+에서만, 그 이하는 그대로
+// MARK: - 스크롤 진행량 추적(앵커 대비) — 타임라인 연속 접기. iOS 18+에서만, 그 이하는 그대로
 private extension View {
     @ViewBuilder
-    func trackScrollCollapse(enabled: Bool,
-                             base: Binding<CGFloat?>,
-                             collapsed: Binding<Bool>,
-                             onChange: ((Bool) -> Void)?) -> some View {
+    func trackScrollDelta(enabled: Bool,
+                          base: Binding<CGFloat?>,
+                          onDelta: ((CGFloat) -> Void)?) -> some View {
         if #available(iOS 18, *), enabled {
             self.onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { _, y in
                 if base.wrappedValue == nil { base.wrappedValue = y }
-                let delta = y - (base.wrappedValue ?? y)
-                let next = collapsed.wrappedValue ? (delta > 8) : (delta > 24)   // 히스테리시스
-                if next != collapsed.wrappedValue { collapsed.wrappedValue = next; onChange?(next) }
+                onDelta?(y - (base.wrappedValue ?? y))   // 앵커(처음 보여준 위치) 대비 이동량
             }
         } else {
             self
