@@ -8,10 +8,10 @@ final class SpeechRecognizer {
     var transcript = ""
     var isRecording = false
 
-    private let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "ko_KR"))
+    @ObservationIgnored private lazy var recognizer = SFSpeechRecognizer(locale: Locale(identifier: "ko_KR"))   // 첫 녹음 때 생성(AI 탭 진입 렉↓)
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
-    private let engine = AVAudioEngine()
+    @ObservationIgnored private lazy var engine = AVAudioEngine()
 
     func toggle() { isRecording ? stop() : start() }
 

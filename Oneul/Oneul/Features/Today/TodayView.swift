@@ -314,7 +314,7 @@ struct TodayView: View {
 }
 
 // MARK: - 날짜 페이저 (UIPageViewController) — 좌우 슬라이드로 하루씩, 3페이지만 재사용(애플 캘린더식, 렉/튐 없음)
-private struct DayPager<Content: View>: UIViewControllerRepresentable {
+struct DayPager<Content: View>: UIViewControllerRepresentable {
     @Binding var selectedDay: Date
     @ViewBuilder var content: (Date) -> Content
 

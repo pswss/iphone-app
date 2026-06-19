@@ -347,13 +347,9 @@ struct MealView: View {
                             .font(.title3).bold()
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal, 16)
-                        TabView(selection: offsetBinding) {
-                            ForEach(-60...60, id: \.self) { off in
-                                ScrollView { MealCard(day: dayFor(off)).padding(16) }
-                                    .tag(off)
-                            }
+                        DayPager(selectedDay: $mealDay) { day in    // 페이저 재사용 → 121개 카드 대신 3개만(렉↓)
+                            ScrollView { MealCard(day: day).padding(16) }
                         }
-                        .tabViewStyle(.page(indexDisplayMode: .never))
                     }
                     .padding(.top, 8)
                     .frame(maxWidth: 640).frame(maxWidth: .infinity)
@@ -369,17 +365,4 @@ struct MealView: View {
         }
     }
 
-    private func dayFor(_ o: Int) -> Date {
-        Calendar.current.date(byAdding: .day, value: o, to: Calendar.current.startOfDay(for: Date())) ?? Date()
-    }
-    private var offsetBinding: Binding<Int> {
-        Binding(
-            get: {
-                Calendar.current.dateComponents([.day],
-                    from: Calendar.current.startOfDay(for: Date()),
-                    to: Calendar.current.startOfDay(for: mealDay)).day ?? 0
-            },
-            set: { mealDay = dayFor($0) }
-        )
-    }
 }

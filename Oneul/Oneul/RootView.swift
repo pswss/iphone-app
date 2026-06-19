@@ -31,7 +31,10 @@ struct RootView: View {
         .tint(Color.appAccentText)
         .preferredColorScheme(colorScheme)
         .environment(\.locale, lang.locale)
-        .task { await SchoolAutoRefresh.runIfDue(context: context) }
+        .task {
+            AppleIntelligenceClient.prewarm()                  // 앱 시작 시 온디바이스 모델 워밍업(AI 첫 입력 렉↓)
+            await SchoolAutoRefresh.runIfDue(context: context)
+        }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 Task { await SchoolAutoRefresh.runIfDue(context: context) }
