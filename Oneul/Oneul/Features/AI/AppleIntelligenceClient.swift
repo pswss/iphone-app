@@ -119,6 +119,7 @@ enum AppleAI {
         let response = try await session.respond(to: prompt, generating: GenSchedule.self)
         prewarm()   // 다음 요청을 위해 새 세션을 미리 데움
         guard response.content.isSchedule else { return [] }
+        let timeCue = hasTimeCue(text)   // 새 일정은 입력에 시간 단서가 있어야 생성(무작위 글자 차단)
 
         return response.content.events.compactMap { e -> ParsedEvent? in
             let action = ParsedEvent.Action(rawValue: e.action) ?? .create
@@ -137,7 +138,8 @@ enum AppleAI {
                                    location: e.location.isEmpty ? t.location : e.location,
                                    action: .update, targetID: t.id)
             case .create:
-                guard !e.title.trimmingCharacters(in: .whitespaces).isEmpty,
+                guard timeCue,
+                      !e.title.trimmingCharacters(in: .whitespaces).isEmpty,
                       let s = AICommon.parseDate(e.start) else { return nil }
                 let end = AICommon.parseDate(e.end) ?? s.addingTimeInterval(3600)
                 return ParsedEvent(title: e.title, start: s, end: end, location: e.location, action: .create)
@@ -151,6 +153,16 @@ enum AppleAI {
     private static func shortDate(_ d: Date) -> String {
         let f = DateFormatter(); f.locale = Locale(identifier: "ko_KR"); f.dateFormat = "M/d HH:mm"
         return f.string(from: d)
+    }
+
+    /// 입력에 시간/날짜 단서(숫자, 오전·오후, 내일·요일 등)가 있는지 — 새 일정 생성의 최소 조건.
+    private static func hasTimeCue(_ text: String) -> Bool {
+        if text.range(of: #"\d"#, options: .regularExpression) != nil { return true }
+        let cues = ["오전", "오후", "새벽", "아침", "점심", "저녁", "밤", "정오", "자정",
+                    "내일", "오늘", "모레", "글피", "다음주", "이번주", "다음 주", "이번 주", "주말", "평일",
+                    "월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일",
+                    "am", "pm", "AM", "PM"]
+        return cues.contains { text.contains($0) }
     }
 
     private static func describe(
