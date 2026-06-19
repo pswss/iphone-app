@@ -60,13 +60,15 @@ struct TodayView: View {
         .onChange(of: events) { _, _ in rebuildIndex(); syncLiveActivity() }
     }
 
-    private func grid(_ p: DayPlan, _ d: Date, onScrollDelta: ((CGFloat) -> Void)? = nil) -> some View {
+    private func grid(_ p: DayPlan, _ d: Date,
+                      scrollHour: Binding<Int?>,
+                      onScrollDelta: ((CGFloat) -> Void)? = nil) -> some View {
         DayGridView(plan: p, day: d,
                     onEdit: { editing = $0 },
                     onAdd: { addStart = $0; showingAdd = true },
                     onScrollDelta: onScrollDelta,
                     previewStart: previewFor(d),
-                    scrollHour: $sharedScrollHour)
+                    scrollHour: scrollHour)
     }
 
     /// 새 일정 추가 시트가 떠 있고 그 시작 시각이 이 날짜면 미리보기 블록 표시.
@@ -124,10 +126,12 @@ struct TodayView: View {
     private func gridPage(_ d: Date) -> some View {
         let p = dayPlan(for: d)
         let active = Calendar.current.isDate(d, inSameDayAs: selectedDay)
-        return grid(p, d, onScrollDelta: active ? { delta in
-            guard timelineH > 0 else { return }
-            timelineProgress = min(1, max(0, delta / (timelineH * 0.85)))   // 시작은 바로, 속도는 부드럽게
-        } : nil)
+        return grid(p, d,
+                    scrollHour: active ? $sharedScrollHour : .constant(sharedScrollHour),   // 보이는 페이지만 공유값에 쓰기(옆 페이지가 자정으로 덮는 것 방지)
+                    onScrollDelta: active ? { delta in
+                        guard timelineH > 0 else { return }
+                        timelineProgress = min(1, max(0, delta / (timelineH * 0.85)))   // 시작은 바로, 속도는 부드럽게
+                    } : nil)
         .padding(.horizontal, 16)
     }
 
@@ -145,7 +149,7 @@ struct TodayView: View {
                             timelineCard(plan, live: Calendar.current.isDateInToday(selectedDay))
                         }
                         .frame(maxWidth: .infinity, alignment: .top)
-                        grid(plan, selectedDay)
+                        grid(plan, selectedDay, scrollHour: $sharedScrollHour)
                             .frame(maxWidth: .infinity)
                     }
                     .frame(maxHeight: .infinity)
@@ -164,7 +168,7 @@ struct TodayView: View {
                                 timelineCard(plan, live: Calendar.current.isDateInToday(selectedDay))
                             }
                             .frame(maxWidth: .infinity, alignment: .top)
-                            grid(plan, selectedDay)
+                            grid(plan, selectedDay, scrollHour: $sharedScrollHour)
                                 .frame(maxWidth: .infinity, alignment: .top)
                         }
                         Color.clear.frame(height: 90)
