@@ -37,9 +37,7 @@ struct DayGridView: View {
     private var gridHeight: CGFloat { CGFloat(lastHour - firstHour) * hourHeight }
     /// 처음 보여줄 위치(오늘이면 현재 시각 1시간 전, 아니면 첫 일정 또는 오전 7시).
     private var scrollAnchorHour: Int {
-        if cal.isDateInToday(day) { return max(0, cal.component(.hour, from: Date()) - 1) }
-        let first = plan.singleDayEvents.map { cal.component(.hour, from: $0.start) }.min()
-        return max(0, (first ?? 8) - 1)
+        max(0, cal.component(.hour, from: Date()) - 1)   // 모든 날 동일 기준 → 공유 스크롤·접힘 진행률이 페이지마다 안 튐
     }
     private var anchorY: CGFloat { CGFloat(scrollAnchorHour) * hourHeight }
 
