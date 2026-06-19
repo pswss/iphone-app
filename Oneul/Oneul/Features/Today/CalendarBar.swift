@@ -163,7 +163,7 @@ struct CalendarBar: View {
     }
 
     private func select(_ date: Date) {
-        selectedDay = date
+        withAnimation(.snappy(duration: 0.3)) { selectedDay = date }   // 메인 페이저도 슬라이드되도록
         if expanded {
             withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) { expanded = false }
         }

@@ -97,36 +97,39 @@ struct TodayView: View {
             header.padding(.horizontal, 16)
             dDayBar.padding(.horizontal, 16)
             CalendarBar(selectedDay: $selectedDay).padding(.horizontal, 16)
+            collapsingTimeline.padding(.horizontal, 16)   // 페이저 밖에 고정 — 슬라이드해도 안 생겼다 사라졌다 안 함
             TabView(selection: dayOffsetBinding) {
                 ForEach(-180...180, id: \.self) { off in
-                    dayPage(dayFor(off)).tag(off)
+                    gridPage(dayFor(off)).tag(off)
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
         }
         .padding(.top, 8)
+        .onPreferenceChange(TimelineHeightKey.self) { if $0 > 0 { timelineH = $0 } }
     }
 
-    private func dayPage(_ d: Date) -> some View {
+    // 고정 타임라인(페이저 밖) — 선택일 기준, 보이는 그리드의 스크롤량에 따라 연속 접힘
+    private var collapsingTimeline: some View {
+        timelineCard(plan, live: Calendar.current.isDateInToday(selectedDay))
+            .fixedSize(horizontal: false, vertical: true)
+            .background(GeometryReader { g in
+                Color.clear.preference(key: TimelineHeightKey.self, value: g.size.height)
+            })
+            .frame(height: timelineH > 0 ? max(0, timelineH * (1 - timelineProgress)) : nil, alignment: .top)
+            .clippedIf(timelineProgress > 0.001)
+            .opacity(Double(max(0, 1 - timelineProgress * 1.4)))
+    }
+
+    // 페이지 = 그리드만 (타임라인은 고정)
+    private func gridPage(_ d: Date) -> some View {
         let p = dayPlan(for: d)
         let active = Calendar.current.isDate(d, inSameDayAs: selectedDay)
-        let prog = active ? timelineProgress : 0     // 보이는 페이지에만 접힘 적용(옆 페이지는 펼침)
-        return VStack(spacing: 12) {
-            timelineCard(p, live: Calendar.current.isDateInToday(d))
-                .fixedSize(horizontal: false, vertical: true)                 // 자연 높이 고정(측정용)
-                .background(GeometryReader { g in
-                    Color.clear.preference(key: TimelineHeightKey.self, value: g.size.height)
-                })
-                .frame(height: timelineH > 0 ? max(0, timelineH * (1 - prog)) : nil, alignment: .top)
-                .clippedIf(prog > 0.001)   // 펼쳤을 땐 클립 안 함 → 그림자 온전
-                .opacity(Double(max(0, 1 - prog * 1.4)))   // 잘리는 그림자가 반투명일 때 가려지게 살짝 먼저 페이드
-            grid(p, d, onScrollDelta: active ? { delta in            // 스크롤량 → 0…1 진행률로 연속 반영
-                guard timelineH > 0 else { return }
-                timelineProgress = min(1, max(0, delta / timelineH))
-            } : nil)
-        }
+        return grid(p, d, onScrollDelta: active ? { delta in
+            guard timelineH > 0 else { return }
+            timelineProgress = min(1, max(0, delta / timelineH))
+        } : nil)
         .padding(.horizontal, 16)
-        .onPreferenceChange(TimelineHeightKey.self) { if active, $0 > 0 { timelineH = $0 } }
     }
 
     private func dayFor(_ offset: Int) -> Date {
