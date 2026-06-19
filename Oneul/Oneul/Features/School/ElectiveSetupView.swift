@@ -84,12 +84,8 @@ struct ElectiveSetupView: View {
         Text(lang.tr("배치된 선택과목이에요. 일정이 안 맞는 과목은 고쳐주세요."))
             .font(.caption).foregroundStyle(.secondary).padding(.horizontal, 4)
         ForEach(reviewWeekdays, id: \.self) { reviewDayCard($0) }
-        HStack(spacing: 10) {
-            Button(lang.tr("뒤로")) { reviewing = false }
-                .font(.subheadline).tint(Color.appAccentText)
-            makeButton(title: importing ? lang.tr("만드는 중…") : lang.tr("시간표 만들기")) {
-                Task { await confirm() }
-            }
+        makeButton(title: importing ? lang.tr("만드는 중…") : lang.tr("시간표 만들기")) {
+            Task { await confirm() }
         }
     }
 

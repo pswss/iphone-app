@@ -115,10 +115,9 @@ struct TodayView: View {
             .background(GeometryReader { g in
                 Color.clear.preference(key: TimelineHeightKey.self, value: g.size.height)
             })
-            .offset(y: -timelineH * timelineProgress)                              // 위로 말려 올라가는 모션
             .frame(height: timelineH > 0 ? max(0, timelineH * (1 - timelineProgress)) : nil, alignment: .top)
             .clippedIf(timelineProgress > 0.001)
-            .opacity(Double(max(0, 1 - timelineProgress * 1.3)))
+            .opacity(Double(max(0, 1 - timelineProgress * 1.7)))   // 빨리 페이드 → 잘린 경계가 안 보이게
     }
 
     // 페이지 = 그리드만 (타임라인은 고정)
@@ -127,7 +126,7 @@ struct TodayView: View {
         let active = Calendar.current.isDate(d, inSameDayAs: selectedDay)
         return grid(p, d, onScrollDelta: active ? { delta in
             guard timelineH > 0 else { return }
-            timelineProgress = min(1, max(0, delta / (timelineH * 0.55)))   // 스크롤 시작하면 더 빨리 접히게
+            timelineProgress = min(1, max(0, delta / (timelineH * 0.85)))   // 시작은 바로, 속도는 부드럽게
         } : nil)
         .padding(.horizontal, 16)
     }
