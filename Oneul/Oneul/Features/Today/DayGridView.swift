@@ -28,6 +28,7 @@ struct DayGridView: View {
     @State private var resizeDY: CGFloat = 0
     @State private var selectedID: UUID?
     @State private var scrollBase: CGFloat?
+    @State private var addTouchY: CGFloat?
 
     private let firstHour = 0
     private let lastHour = 24
@@ -62,7 +63,10 @@ struct DayGridView: View {
                                     .frame(width: geo.size.width, height: gridHeight)
                                     .contentShape(Rectangle())
                                     .onTapGesture { if selectedID != nil { selectedID = nil } }   // 빈 곳 탭 → 선택 해제
-                                    .gesture(addGesture)                                            // 빈 곳 꾹 → 새 일정(누른 위치 시간)
+                                    .simultaneousGesture(DragGesture(minimumDistance: 0, coordinateSpace: .local)
+                                        .onChanged { addTouchY = $0.location.y })                  // 누른 위치 추적
+                                    .simultaneousGesture(LongPressGesture(minimumDuration: 0.45, maximumDistance: 10)
+                                        .onEnded { _ in addAtPressed() })                          // 떼지 않아도 0.45초 후 발동(움직이면 스크롤)
                                 if cal.isDateInToday(day) { nowLine(width: geo.size.width) }
                                 ForEach(laidOut, id: \.event.id) { eventBlock($0, gridW: gridW) }
                                 if let ps = previewStart { previewBlock(ps, gridW: gridW) }
@@ -323,17 +327,12 @@ struct DayGridView: View {
     }
 
     // MARK: 동작
-    // 빈 곳을 꾹(0.4초) 눌러 그 위치(시간)에 새 일정. .gesture(낮은 우선)라 스크롤이 먼저 — 정지 상태로 눌러야 발동.
-    private var addGesture: some Gesture {
-        LongPressGesture(minimumDuration: 0.4)
-            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .local))
-            .onEnded { value in
-                if case .second(_, let drag?) = value {
-                    selectedID = nil
-                    addAt(y: drag.startLocation.y)
-                    Haptics.impact(.medium)
-                }
-            }
+    // 빈 곳을 꾹(0.45초) 눌러 그 위치에 새 일정 — 떼지 않아도 시간이 지나면 발동. 움직이면(스크롤) long-press가 실패해 통과.
+    private func addAtPressed() {
+        guard let y = addTouchY else { return }
+        selectedID = nil
+        addAt(y: y)
+        Haptics.impact(.medium)
     }
 
     private func addAt(y: CGFloat) {

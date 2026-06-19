@@ -327,6 +327,7 @@ struct MealCard: View {
 struct MealView: View {
     @AppStorage("neisCode") private var code = ""
     @State private var mealDay = Date()
+    @Environment(\.scenePhase) private var scenePhase
     private let lang = AppLanguage.shared
 
     var body: some View {
@@ -359,6 +360,12 @@ struct MealView: View {
                 }
             }
             .navigationTitle(lang.tr("급식"))
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active,
+                   !Calendar.current.isDate(mealDay, equalTo: Date(), toGranularity: .month) {
+                    mealDay = Date()   // 월이 바뀌면 이번 달(오늘)로 갱신
+                }
+            }
         }
     }
 

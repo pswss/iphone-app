@@ -118,7 +118,7 @@ struct TodayView: View {
                     Color.clear.preference(key: TimelineHeightKey.self, value: g.size.height)
                 })
                 .frame(height: timelineH > 0 ? max(0, timelineH * (1 - prog)) : nil, alignment: .top)
-                .clipped()
+                .clippedIf(prog > 0.001)   // 펼쳤을 땐 클립 안 함 → 그림자 온전
                 .opacity(Double(max(0, 1 - prog * 1.4)))   // 잘리는 그림자가 반투명일 때 가려지게 살짝 먼저 페이드
             grid(p, d, onScrollDelta: active ? { delta in            // 스크롤량 → 0…1 진행률로 연속 반영
                 guard timelineH > 0 else { return }
@@ -327,6 +327,12 @@ struct TodayView: View {
 private struct TimelineHeightKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
+}
+
+private extension View {
+    @ViewBuilder func clippedIf(_ condition: Bool) -> some View {
+        if condition { self.clipped() } else { self }
+    }
 }
 
 #Preview {
