@@ -1,0 +1,21 @@
+# macOS
+.DS_Store
+
+# Xcode / build artifacts
+build/
+DerivedData/
+*.xcuserstate
+**/xcuserdata/
+*.xcuserdatad
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# 디버그 스크린샷 (작업용)
+Oneul/shot-*.png

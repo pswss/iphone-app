@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>스케줄 앱 · 디자인 목업</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body class="theme-dark">
+
+  <!-- ===== Top control bar ===== -->
+  <header class="topbar">
+    <div class="topbar-title">
+      <span class="dot"></span>
+      <h1>스케줄 앱 · 디자인 목업</h1>
+      <span class="tag">Liquid Glass · 시안 v2</span>
+    </div>
+    <div class="controls">
+      <div class="seg" id="themeSeg">
+        <button data-theme="theme-dark" class="active">다크 · 남색</button>
+        <button data-theme="theme-light">라이트 · 화이트</button>
+      </div>
+      <button class="seg-single" id="speedBtn" title="시간 흐름 데모 속도">⏩ 데모: 빠르게</button>
+    </div>
+  </header>
+
+  <p class="note">실제 앱이 아니라 <b>디자인 미리보기(웹)</b>입니다. 무지개 바의 <b>전진하는 선</b>과 <b>현재 칸 강조</b>는 하루를 빠르게 돌려 보여줍니다. 색은 <b>일정 시간 순서대로 자동(빨→보)</b>이고, 포인트 컬러는 <b>라이트=화이트 / 다크=남색</b>으로 고정했습니다.</p>
+
+  <main>
+
+    <!-- ===== 1. 메인 + 추가 시트 ===== -->
+    <section>
+      <h2 class="sec-title">1 · 메인 스케줄 &amp; 일정 추가</h2>
+      <div class="row">
+
+        <!-- 메인 화면 -->
+        <figure class="device-wrap">
+          <div class="phone">
+            <div class="island"></div>
+            <div class="screen wallpaper">
+              <div class="statusbar"><span>9:41</span><span class="sb-right">􀙇 􀛨 􀋗</span></div>
+              <div class="app-content">
+                <div class="app-header">
+                  <div>
+                    <div class="kicker">2026년 6월</div>
+                    <div class="big-date">17일 화요일</div>
+                  </div>
+                  <div class="avatar glass-soft">나</div>
+                </div>
+
+                <div class="weekstrip glass-soft">
+                  <div class="wd"><span>월</span><b>16</b></div>
+                  <div class="wd today"><span>화</span><b>17</b></div>
+                  <div class="wd"><span>수</span><b>18</b></div>
+                  <div class="wd"><span>목</span><b>19</b></div>
+                  <div class="wd"><span>금</span><b>20</b></div>
+                  <div class="wd"><span>토</span><b>21</b></div>
+                  <div class="wd"><span>일</span><b>22</b></div>
+                </div>
+
+                <div class="glass card timeline-card">
+                  <div class="card-head">
+                    <span>오늘 타임라인</span>
+                    <span class="next-chip" data-next-chip>다음 · --</span>
+                  </div>
+                  <div class="timeline" data-timeline data-variant="main"></div>
+                  <div class="cur-line" data-cur-line><span>현재 일정 ·</span> --</div>
+                </div>
+
+                <div class="list-label">일정</div>
+                <div class="event-list" data-eventlist></div>
+              </div>
+
+              <button class="fab glass">＋</button>
+              <div class="tabbar glass-soft">
+                <span class="tab active">􀉉 오늘</span>
+                <span class="tab">􀉑 캘린더</span>
+                <span class="tab">􀍩 설정</span>
+              </div>
+            </div>
+          </div>
+          <figcaption>메인 · 오늘 일정 + 무지개 타임라인</figcaption>
+        </figure>
+
+        <!-- 추가 시트 -->
+        <figure class="device-wrap">
+          <div class="phone">
+            <div class="island"></div>
+            <div class="screen wallpaper dimmed">
+              <div class="statusbar"><span>9:41</span><span class="sb-right">􀙇 􀛨 􀋗</span></div>
+              <div class="sheet glass">
+                <div class="sheet-grabber"></div>
+                <div class="sheet-head">
+                  <button class="ghost">취소</button>
+                  <b>새 일정</b>
+                  <button class="filled">추가</button>
+                </div>
+                <div class="field glass-soft"><span>제목</span><input value="팀 회의" /></div>
+                <div class="field glass-soft"><span>장소</span><input value="3층 회의실" placeholder="위치"/></div>
+                <div class="field glass-soft two">
+                  <div><span>시작</span><b>오후 12:00</b></div>
+                  <div><span>종료</span><b>오후 1:00</b></div>
+                </div>
+                <div class="field glass-soft"><span>알림</span><b>10분 전</b></div>
+                <div class="auto-color glass-soft">
+                  <span>􀊵 색상은 시간 순서대로 자동 지정돼요</span>
+                  <div class="mini-rainbow">
+                    <i style="--c:#FF453A"></i><i style="--c:#FF9F0A"></i><i style="--c:#FFD60A"></i>
+                    <i style="--c:#30D158"></i><i style="--c:#0A84FF"></i><i style="--c:#5E5CE6"></i><i style="--c:#BF5AF2"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <figcaption>일정 추가 시트 · 색상 자동</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- ===== 2. 잠금화면 Live Activity ===== -->
+    <section>
+      <h2 class="sec-title">2 · 잠금화면 Live Activity (당일 일정 바)</h2>
+      <div class="row">
+        <figure class="device-wrap">
+          <div class="phone">
+            <div class="island"></div>
+            <div class="screen wallpaper lockscreen">
+              <div class="statusbar"><span>9:41</span><span class="sb-right">􀙇 􀛨 􀋗</span></div>
+              <div class="lock-clock">
+                <div class="lock-day">6월 17일 화요일</div>
+                <div class="lock-time">9:41</div>
+              </div>
+
+              <div class="la-card glass">
+                <div class="la-head">
+                  <div class="la-app"><span class="la-icon">􀉉</span> 오늘 일정</div>
+                  <div class="la-count" data-countdown>다음까지 --:--</div>
+                </div>
+                <div class="timeline tall" data-timeline data-variant="lock"></div>
+                <div class="cur-line" data-cur-line><span>현재 일정 ·</span> --</div>
+                <div class="la-next" data-next-line>다음 · --</div>
+              </div>
+
+              <div class="lock-hint">􀎟 밀어서 잠금 해제</div>
+            </div>
+          </div>
+          <figcaption>잠금화면 · 무지개 바 + 전진하는 선, 일정은 바 아래</figcaption>
+        </figure>
+
+        <div class="explain glass">
+          <h3>이 바가 어떻게 동작하나</h3>
+          <ul>
+            <li><b>빨주노초파남보 세그먼트</b> — 일정 <b>시간 순서대로 색이 자동</b> 지정 (유저가 고르지 않음)</li>
+            <li><b>전진하는 흰 선</b> — 현재 시각. iOS에선 <code>ProgressView(timerInterval:)</code>로 <b>코드 없이</b> 시스템이 스스로 전진</li>
+            <li><b>현재 칸 강조</b> — 진행 중인 칸만 떠오르고, 일정 이름은 <b>바 아래</b>에 "현재 일정 · …"로 표시</li>
+            <li>위 미리보기는 하루를 빠르게 돌려 선이 지나가며 강조가 옮겨가는 걸 보여줍니다</li>
+          </ul>
+          <p class="small">참고: 앱을 오래 닫아두면 "강조 칸이 다음으로 점프"하는 마지막 연출만 백그라운드 제약이 있어, 앱 진입/알림 탭 시 즉시 보정됩니다. (완벽 자동전환은 추후 푸시로)</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 3. 다이나믹 아일랜드 ===== -->
+    <section>
+      <h2 class="sec-title">3 · 다이나믹 아일랜드 3상태</h2>
+      <div class="row di-row">
+
+        <figure class="di-wrap">
+          <div class="di-stage">
+            <div class="di compact">
+              <span class="di-l">􀉉</span>
+              <span class="di-bar-mini" data-timeline data-variant="di"></span>
+              <span class="di-r" data-di-time>11:00</span>
+            </div>
+          </div>
+          <figcaption>compact · 다음 일정 시각</figcaption>
+        </figure>
+
+        <figure class="di-wrap">
+          <div class="di-stage">
+            <div class="di expanded glass">
+              <div class="di-exp-top">
+                <div class="di-exp-title"><span class="di-icon" data-cur-dot>􀉉</span> <b data-cur-title>프로젝트 작업</b></div>
+                <div class="di-exp-count" data-di-count>23:14</div>
+              </div>
+              <div class="timeline" data-timeline data-variant="diexp"></div>
+              <div class="di-exp-sub"><span data-next-sub>다음 · 1:1 미팅 오후 4:00</span></div>
+            </div>
+          </div>
+          <figcaption>expanded · 현재 일정 + 카운트다운 + 바</figcaption>
+        </figure>
+
+        <figure class="di-wrap">
+          <div class="di-stage">
+            <div class="di minimal">
+              <span class="di-min-dot"></span>
+            </div>
+          </div>
+          <figcaption>minimal · 진행중 표시 점</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- ===== 4. AI (Claude) 자연어 일정 생성 ===== -->
+    <section>
+      <h2 class="sec-title">4 · AI로 일정 만들기 (Claude 연동)</h2>
+      <div class="row">
+        <figure class="device-wrap">
+          <div class="phone">
+            <div class="island"></div>
+            <div class="screen wallpaper">
+              <div class="statusbar"><span>9:41</span><span class="sb-right">􀙇 􀛨 􀋗</span></div>
+              <div class="ai-content">
+                <div class="ai-hero">
+                  <div class="claude-badge">✦ Claude</div>
+                  <h3>AI로 일정 만들기</h3>
+                  <p>말하듯 적으면 Claude가 일정표로 만들어 줘요</p>
+                </div>
+
+                <div class="ai-input glass">
+                  내일 오전 <b>9시 팀 회의</b>, <b>12시 반 점심</b>,
+                  오후 <b>3시에 헬스장 1시간</b>, 저녁 <b>7시 친구 약속</b><span class="ph"> |</span>
+                </div>
+                <button class="ai-btn">✨ Claude로 일정 만들기</button>
+
+                <div class="ai-divider">생성된 일정 · 4개</div>
+                <div class="ai-result">
+                  <div class="ev" style="--c:#FF453A"><div class="ev-bar"></div>
+                    <div class="ev-time">9:00</div><div class="ev-main">
+                    <div class="ev-title">팀 회의</div><div class="ev-loc">오전 9:00 – 오전 10:00</div></div></div>
+                  <div class="ev" style="--c:#FF9F0A"><div class="ev-bar"></div>
+                    <div class="ev-time">12:30</div><div class="ev-main">
+                    <div class="ev-title">점심</div><div class="ev-loc">오후 12:30 – 오후 1:30</div></div></div>
+                  <div class="ev" style="--c:#FFD60A"><div class="ev-bar"></div>
+                    <div class="ev-time">15:00</div><div class="ev-main">
+                    <div class="ev-title">헬스장</div><div class="ev-loc">오후 3:00 – 오후 4:00</div></div></div>
+                  <div class="ev" style="--c:#30D158"><div class="ev-bar"></div>
+                    <div class="ev-time">19:00</div><div class="ev-main">
+                    <div class="ev-title">친구 약속</div><div class="ev-loc">오후 7:00 – 오후 8:00</div></div></div>
+                </div>
+                <button class="ai-apply">􀅼 전체 일정에 추가</button>
+              </div>
+            </div>
+          </div>
+          <figcaption>AI · 자연어 → 일정표 (Claude API)</figcaption>
+        </figure>
+
+        <div class="explain glass">
+          <h3>AI 일정 생성은 이렇게 동작해요</h3>
+          <ul>
+            <li>입력한 자연어를 <b>Claude API</b>(Anthropic)로 보냄</li>
+            <li>Claude가 <b>구조화된 일정 데이터</b>(제목·시작·종료)로 변환해 반환</li>
+            <li>앱이 결과를 미리 보여주고, 확인하면 <b>SwiftData에 저장</b> + iCloud 동기화</li>
+            <li>색상은 평소처럼 <b>시간 순서대로 자동</b> 지정</li>
+          </ul>
+          <p class="small">키 보관: API 키는 코드에 넣지 않고 기기 <b>Keychain</b>에 저장. (정식 배포 시엔 키를 직접 노출하지 않는 중계 방식이 더 안전 — 추후 단계)</p>
+        </div>
+      </div>
+    </section>
+
+    <div class="footer">디자인 시안 v2 — 피드백 주시면 색/톤/레이아웃을 바로 수정합니다.</div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

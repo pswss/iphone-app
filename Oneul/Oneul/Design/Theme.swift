@@ -1,0 +1,65 @@
+import SwiftUI
+import UIKit
+
+extension Color {
+    /// 앱 포인트 컬러 — 라이트=화이트, 다크=남색.
+    static let appAccent = Color(UIColor { trait in
+        trait.userInterfaceStyle == .dark
+            ? UIColor(red: 0.18, green: 0.29, blue: 0.63, alpha: 1)   // 남색
+            : UIColor.white
+    })
+
+    /// 포인트 컬러 위에 올라가는 글자/아이콘 색.
+    static let appOnAccent = Color(UIColor { trait in
+        trait.userInterfaceStyle == .dark
+            ? UIColor.white
+            : UIColor(white: 0.11, alpha: 1)
+    })
+
+    /// 어두운/밝은 배경 위에서 읽히는 강조 텍스트 색(카운트다운 등).
+    static let appAccentText = Color(UIColor { trait in
+        trait.userInterfaceStyle == .dark
+            ? UIColor(red: 0.56, green: 0.64, blue: 1.0, alpha: 1)    // 밝은 남색
+            : UIColor(white: 0.11, alpha: 1)
+    })
+}
+
+/// 글래스 뒤로 비치는 컬러 배경(리퀴드 글래스 느낌을 살리려면 배경이 화려해야 함).
+struct AppBackground: View {
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        ZStack {
+            (scheme == .dark ? Color.black : Color(white: 0.94))
+            // 부드러운 멀티 그라데이션 (mesh 느낌)
+            ForEach(blobs.indices, id: \.self) { i in
+                Circle()
+                    .fill(blobs[i].color)
+                    .frame(width: blobs[i].size, height: blobs[i].size)
+                    .blur(radius: 90)
+                    .offset(x: blobs[i].x, y: blobs[i].y)
+            }
+        }
+        .ignoresSafeArea()
+    }
+
+    private struct Blob { let color: Color; let size: CGFloat; let x: CGFloat; let y: CGFloat }
+
+    private var blobs: [Blob] {
+        if scheme == .dark {
+            return [
+                .init(color: Color(red: 0.11, green: 0.16, blue: 0.40).opacity(0.9), size: 360, x: -120, y: -260),
+                .init(color: Color(red: 0.04, green: 0.17, blue: 0.32).opacity(0.9), size: 320, x: 150, y: -300),
+                .init(color: Color(red: 0.16, green: 0.08, blue: 0.31).opacity(0.9), size: 380, x: 120, y: 320),
+                .init(color: Color(red: 0.05, green: 0.23, blue: 0.27).opacity(0.9), size: 320, x: -150, y: 300)
+            ]
+        } else {
+            return [
+                .init(color: Color(red: 1.0, green: 0.85, blue: 0.91), size: 360, x: -120, y: -260),
+                .init(color: Color(red: 0.80, green: 0.90, blue: 1.0), size: 320, x: 150, y: -300),
+                .init(color: Color(red: 1.0, green: 0.90, blue: 0.76), size: 380, x: 120, y: 320),
+                .init(color: Color(red: 0.84, green: 0.96, blue: 0.89), size: 320, x: -150, y: 300)
+            ]
+        }
+    }
+}
