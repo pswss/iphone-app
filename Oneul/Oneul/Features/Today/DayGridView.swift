@@ -61,7 +61,8 @@ struct DayGridView: View {
                                 Color.clear
                                     .frame(width: geo.size.width, height: gridHeight)
                                     .contentShape(Rectangle())
-                                    .gesture(SpatialTapGesture().onEnded { v in addAt(y: v.location.y) })
+                                    .onTapGesture { if selectedID != nil { selectedID = nil } }   // 빈 곳 탭 → 선택 해제
+                                    .gesture(addGesture)                                            // 빈 곳 꾹 → 새 일정(누른 위치 시간)
                                 if cal.isDateInToday(day) { nowLine(width: geo.size.width) }
                                 ForEach(laidOut, id: \.event.id) { eventBlock($0, gridW: gridW) }
                                 if let ps = previewStart { previewBlock(ps, gridW: gridW) }
@@ -205,16 +206,12 @@ struct DayGridView: View {
     /// 선택 시 좌하단 코너에만 보이는 순수 흰색 곡선.
     /// 블록과 같은 연속곡률 shape를 strokeBorder(안쪽 stroke)로 그려 블록 내부 불투명 영역에만 떨어지게 하고,
     /// 마스크로 좌하단 1/4만 노출해 코너 곡선처럼 보이게 한다. (회색 합성 방지)
-    @ViewBuilder
     private func cornerHighlight(_ shape: RoundedRectangle) -> some View {
-        GeometryReader { geo in
-            shape
-                .strokeBorder(.white, lineWidth: 2.5)
-                .mask(alignment: .bottomLeading) {
-                    Rectangle()
-                        .frame(width: geo.size.width / 2, height: geo.size.height / 2)
-                }
-        }
+        shape
+            .strokeBorder(.white, lineWidth: 2.5)
+            .mask(alignment: .bottomLeading) {
+                Rectangle().frame(width: 18, height: 18)   // 좌하단 코너 곡선 근처만 노출(직선 길이 최소화)
+            }
     }
 
     /// 제스처 레이어 — 두 영역이 겹치지 않게 분리.
@@ -326,8 +323,20 @@ struct DayGridView: View {
     }
 
     // MARK: 동작
+    // 빈 곳을 꾹(0.4초) 눌러 그 위치(시간)에 새 일정. .gesture(낮은 우선)라 스크롤이 먼저 — 정지 상태로 눌러야 발동.
+    private var addGesture: some Gesture {
+        LongPressGesture(minimumDuration: 0.4)
+            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .local))
+            .onEnded { value in
+                if case .second(_, let drag?) = value {
+                    selectedID = nil
+                    addAt(y: drag.startLocation.y)
+                    Haptics.impact(.medium)
+                }
+            }
+    }
+
     private func addAt(y: CGFloat) {
-        if selectedID != nil { selectedID = nil; return }   // 선택된 게 있으면 먼저 해제
         let mins = Double(y) / Double(hourHeight) * 60
         let snapped = (mins / 30).rounded(.down) * 30
         let date = gridTop.addingTimeInterval(snapped * 60)

@@ -46,6 +46,7 @@ struct TodayView: View {
             AppBackground()
             if wide { wideContent } else { narrowContent }
         }
+        .overlay(alignment: .bottomTrailing) { if !wide { addButton } }
         .sheet(isPresented: $showingAdd, onDismiss: syncLiveActivity) {
             EventEditorView(event: nil, day: selectedDay, prefillStart: addStart)
                 .presentationDetents([.medium, .large])   // 절반 높이 → 위 그리드의 미리보기 블록이 보임
@@ -71,6 +72,23 @@ struct TodayView: View {
         guard showingAdd, let s = addStart,
               Calendar.current.isDate(s, inSameDayAs: d) else { return nil }
         return s
+    }
+
+    // 우하단 리퀴드 글래스 + 버튼 (새 일정)
+    private var addButton: some View {
+        Button {
+            addStart = nil
+            showingAdd = true
+            Haptics.impact(.light)
+        } label: {
+            Image(systemName: "plus")
+                .font(.title2.weight(.bold))
+                .foregroundStyle(Color.appAccentText)
+                .frame(width: 58, height: 58)
+                .glassEffect(.regular.interactive(), in: Circle())
+        }
+        .padding(.trailing, 22)
+        .padding(.bottom, 22)
     }
 
     // MARK: 아이폰(세로) — 손가락 좌우 스와이프로 날짜 이동(애플 캘린더식)
