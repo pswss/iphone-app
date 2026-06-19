@@ -59,17 +59,17 @@ struct DayGridView: View {
                                 }
                                 Rectangle().fill(.white.opacity(0.12))   // 시간 ↔ 일정 구분선
                                     .frame(width: 1, height: gridHeight).offset(x: leftInset)
-                                LongPressArea(minimumDuration: 0.4) { y in     // 애플 캘린더식: 스크롤·꾹 누르기 동시(UIKit recognizer)
-                                    selectedID = nil; addAt(y: y); Haptics.impact(.medium)
-                                }
-                                .frame(width: geo.size.width, height: gridHeight)
-                                .onTapGesture { if selectedID != nil { selectedID = nil } }   // 한 번 탭 → 선택 해제
+                                LongPressArea(minimumDuration: 0.4,                           // 빈 곳 꾹 → 그 위치에 새 일정(스크롤과 동시)
+                                              onBegan: { y in selectedID = nil; addAt(y: y); Haptics.impact(.medium) })
+                                    .frame(width: geo.size.width, height: gridHeight)
+                                    .onTapGesture { if selectedID != nil { selectedID = nil } }   // 한 번 탭 → 선택 해제
                                 if cal.isDateInToday(day) { nowLine(width: geo.size.width) }
                                 ForEach(laidOut, id: \.event.id) { eventBlock($0, gridW: gridW) }
                                 if let ps = previewStart { previewBlock(ps, gridW: gridW) }
                             }
                             .frame(height: gridHeight, alignment: .topLeading)
                         }
+                        .scrollDisabled(dragID != nil || resizeID != nil)   // 이동/리사이즈 중에만 스크롤 잠금
                         .onAppear { proxy.scrollTo(scrollAnchorHour, anchor: .top) }
                         .trackScrollDelta(enabled: onScrollDelta != nil,
                                           base: $scrollBase, onDelta: onScrollDelta)
@@ -236,17 +236,17 @@ struct DayGridView: View {
     /// 비선택 일정 위엔 어떤 드래그 제스처도 없어 세로 스크롤이 100% 통과(애플 캘린더 방식).
     @ViewBuilder
     private func bodyZone(_ e: ScheduleEvent, selected: Bool) -> some View {
-        let base = Color.clear
-            .contentShape(Rectangle())
-            .onTapGesture {
-                guard dragID == nil else { return }
-                if selected { onEdit(e) }                          // 하이라이트 상태에서 다시 탭 → 수정
-                else { selectedID = e.id; Haptics.impact(.light) } // 탭 → 하이라이트(선택)
-            }
-        if selected {
-            base.simultaneousGesture(moveGesture(e))               // 선택된 일정만 꾹 눌러 이동
-        } else {
-            base                                                   // 비선택: 제스처 없음 → 스크롤 우선
+        LongPressArea(                                              // 꾹 눌러 이동 — 스크롤과 동시 인식(선택 무관)
+            minimumDuration: 0.3,
+            onBegan: { _ in beginMove(e) },
+            onChanged: { dy, gap in changeMove(e, dy: dy, bottomGap: gap) },
+            onEnded: { dy in endMove(e, dy: dy) }
+        )
+        .contentShape(Rectangle())
+        .onTapGesture {
+            guard dragID == nil else { return }
+            if selected { onEdit(e) }                          // 하이라이트 상태에서 다시 탭 → 수정
+            else { selectedID = e.id; Haptics.impact(.light) } // 탭 → 하이라이트(선택)
         }
     }
 
@@ -301,27 +301,24 @@ struct DayGridView: View {
         if newEnd >= e.start.addingTimeInterval(300) { e.end = newEnd; try? context.save() }  // 최소 5분
     }
 
-    // 손가락이 6pt 이상 움직이면(=스크롤 의도) 꾹 누르기 인식이 취소돼 스크롤이 통과. 정지 상태로 0.32초 눌러야만 이동 시작.
-    private func moveGesture(_ e: ScheduleEvent) -> some Gesture {
-        LongPressGesture(minimumDuration: 0.32, maximumDistance: 6)
-            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .named("grid")))
-            .onChanged { value in
-                guard resizeID == nil else { return }                       // 리사이즈 중엔 이동 안 함
-                guard case .second(true, let drag?) = value else { return }  // 움직임이 실제로 생긴 뒤에만
-                if dragID != e.id { dragID = e.id; selectedID = e.id; lastStep = 0; Haptics.impact(.medium) }
-                dragDY = drag.translation.height
-                let step = Int(dragMinutes(dragDY))
-                if step != lastStep { lastStep = step; Haptics.impact(.light) }
-                let nowInTrash = drag.location.y > viewportH - 64
-                if nowInTrash != inTrash { inTrash = nowInTrash; if nowInTrash { Haptics.impact(.rigid) } }
-            }
-            .onEnded { _ in
-                if dragID == e.id {
-                    if inTrash { EventActions.deleteSingle(e, in: context); Haptics.notify(.warning) }
-                    else if dragMinutes(dragDY) != 0 { commitDrag(e); Haptics.impact(.soft) }
-                }
-                dragID = nil; dragDY = 0; inTrash = false; lastStep = 0
-            }
+    // 일정 꾹 눌러 이동 — UIKit long-press(스크롤과 동시 인식). 이동이 시작되면 scrollDisabled로 그동안만 스크롤을 잠근다.
+    private func beginMove(_ e: ScheduleEvent) {
+        guard resizeID == nil else { return }
+        dragID = e.id; selectedID = e.id; lastStep = 0; Haptics.impact(.medium)
+    }
+    private func changeMove(_ e: ScheduleEvent, dy: CGFloat, bottomGap: CGFloat) {
+        guard dragID == e.id else { return }
+        dragDY = dy
+        let step = Int(dragMinutes(dy))
+        if step != lastStep { lastStep = step; Haptics.impact(.light) }
+        let nowInTrash = bottomGap < 100
+        if nowInTrash != inTrash { inTrash = nowInTrash; if nowInTrash { Haptics.impact(.rigid) } }
+    }
+    private func endMove(_ e: ScheduleEvent, dy: CGFloat) {
+        guard dragID == e.id else { return }
+        if inTrash { EventActions.deleteSingle(e, in: context); Haptics.notify(.warning) }
+        else if dragMinutes(dy) != 0 { commitDrag(e); Haptics.impact(.soft) }
+        dragID = nil; dragDY = 0; inTrash = false; lastStep = 0
     }
 
     // MARK: 동작
@@ -376,10 +373,12 @@ struct DayGridView: View {
     private func timeText(_ d: Date) -> String { d.formatted(.dateTime.hour().minute().locale(lang.locale)) }
 }
 
-// MARK: - 꾹 누르기(UIKit) — UIScrollView 스크롤과 "동시 인식"되어 스크롤을 막지 않음(애플 캘린더식)
+// MARK: - 꾹 누르기(UIKit) — UIScrollView 스크롤과 "동시 인식". began/changed/ended로 이동까지(애플 캘린더식)
 private struct LongPressArea: UIViewRepresentable {
     var minimumDuration: Double = 0.4
-    var onPress: (CGFloat) -> Void
+    var onBegan: (CGFloat) -> Void = { _ in }                                   // began 위치 y(콘텐츠 좌표)
+    var onChanged: (_ translationY: CGFloat, _ windowY: CGFloat) -> Void = { _, _ in }
+    var onEnded: (_ translationY: CGFloat) -> Void = { _ in }
 
     func makeUIView(context: Context) -> UIView {
         let v = UIView()
@@ -391,16 +390,35 @@ private struct LongPressArea: UIViewRepresentable {
         v.addGestureRecognizer(lp)
         return v
     }
-    func updateUIView(_ uiView: UIView, context: Context) { context.coordinator.onPress = onPress }
-    func makeCoordinator() -> Coordinator { Coordinator(onPress: onPress) }
+    func updateUIView(_ uiView: UIView, context: Context) {
+        context.coordinator.onBegan = onBegan
+        context.coordinator.onChanged = onChanged
+        context.coordinator.onEnded = onEnded
+    }
+    func makeCoordinator() -> Coordinator { Coordinator(onBegan: onBegan, onChanged: onChanged, onEnded: onEnded) }
 
     final class Coordinator: NSObject, UIGestureRecognizerDelegate {
-        var onPress: (CGFloat) -> Void
-        init(onPress: @escaping (CGFloat) -> Void) { self.onPress = onPress }
-        @objc func handle(_ g: UILongPressGestureRecognizer) {
-            if g.state == .began { onPress(g.location(in: g.view).y) }   // 손가락 거의 정지로 0.4초 → 발동(움직이면 자동 취소)
+        var onBegan: (CGFloat) -> Void
+        var onChanged: (CGFloat, CGFloat) -> Void
+        var onEnded: (CGFloat) -> Void
+        private var startY: CGFloat = 0
+        init(onBegan: @escaping (CGFloat) -> Void,
+             onChanged: @escaping (CGFloat, CGFloat) -> Void,
+             onEnded: @escaping (CGFloat) -> Void) {
+            self.onBegan = onBegan; self.onChanged = onChanged; self.onEnded = onEnded
         }
-        // 스크롤 팬 제스처와 동시에 인식 → 둘 다 작동
+        @objc func handle(_ g: UILongPressGestureRecognizer) {
+            let loc = g.location(in: g.view)
+            switch g.state {
+            case .began: startY = loc.y; onBegan(loc.y)
+            case .changed:
+                let winH = g.view?.window?.bounds.height ?? 99_999
+                onChanged(loc.y - startY, winH - g.location(in: nil).y)   // 화면 하단까지 거리
+            case .ended, .cancelled, .failed: onEnded(loc.y - startY)
+            default: break
+            }
+        }
+        // 스크롤 팬과 동시 인식 → 움직이면 long-press가 취소돼 스크롤로, 정지 후엔 발동
         func gestureRecognizer(_ g: UIGestureRecognizer,
                                shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
     }
