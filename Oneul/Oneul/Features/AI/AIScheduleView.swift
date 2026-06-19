@@ -16,24 +16,27 @@ struct AIScheduleView: View {
         NavigationStack {
             ZStack {
                 AppBackground()
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 14) {
-                        inputCard
-                        generateButton
-                        if let errorMessage {
-                            Text(errorMessage)
-                                .font(.footnote).foregroundStyle(.red)
-                                .padding(.horizontal, 4)
+                GeometryReader { geo in
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 14) {
+                            inputCard
+                            generateButton
+                            if let errorMessage {
+                                Text(errorMessage)
+                                    .font(.footnote).foregroundStyle(.red)
+                                    .padding(.horizontal, 4)
+                            }
+                            if !results.isEmpty { resultsSection }
                         }
-                        if !results.isEmpty { resultsSection }
+                        .padding(16)
+                        .frame(maxWidth: 640)
+                        .frame(maxWidth: .infinity)
+                        .frame(minHeight: geo.size.height, alignment: .top)   // 콘텐츠를 화면만큼 채워 빈 곳 어디든 탭 → 키보드 내림
+                        .contentShape(Rectangle())
+                        .onTapGesture { UIApplication.shared.endEditing() }
                     }
-                    .padding(16)
-                    .frame(maxWidth: 640)
-                    .frame(maxWidth: .infinity)
-                    .contentShape(Rectangle())
-                    .onTapGesture { UIApplication.shared.endEditing() }
+                    .scrollDismissesKeyboard(.interactively)
                 }
-                .scrollDismissesKeyboard(.interactively)
             }
             .navigationTitle("Apple Intelligence")
             .navigationBarTitleDisplayMode(.inline)

@@ -191,15 +191,30 @@ struct DayGridView: View {
                     radius: glowing ? 13 : (lifted ? 10 : 3),
                     y: glowing ? 0 : (lifted ? 6 : 2))
             .overlay(alignment: .topTrailing) { bubble(e, dy: dy, show: dragging && !inTrash) }
-            .overlay { if selected { CornerArc(radius: 11).stroke(.white, lineWidth: 3).allowsHitTesting(false) } }  // 왼쪽 아래 코너 곡선만 흰색
+            .overlay { if selected { cornerHighlight(shape).allowsHitTesting(false) } }  // 왼쪽 아래 코너 곡선만 흰색
             .overlay { gestureLayer(e, selected: selected) }       // 본문=탭/이동, 아래 손잡이=리사이즈(영역 분리)
             .scaleEffect(dragging ? 1.04 : 1)
             .opacity(dragging && inTrash ? 0.4 : 1)
             .offset(x: leftInset + CGFloat(item.col) * (colW + 4), y: top + dy)
-            .zIndex(dragging || resizing ? 30 : (selected ? 20 : 0))           // 선택 시 맨 앞으로
+            .zIndex(dragging || resizing ? 100000 : (selected ? 10000 : Double(item.order)))           // 선택 시 맨 앞으로
             .animation(.snappy(duration: 0.16), value: dragID)
             .animation(.snappy(duration: 0.16), value: inTrash)
             .animation(.snappy(duration: 0.16), value: selectedID)
+    }
+
+    /// 선택 시 좌하단 코너에만 보이는 순수 흰색 곡선.
+    /// 블록과 같은 연속곡률 shape를 strokeBorder(안쪽 stroke)로 그려 블록 내부 불투명 영역에만 떨어지게 하고,
+    /// 마스크로 좌하단 1/4만 노출해 코너 곡선처럼 보이게 한다. (회색 합성 방지)
+    @ViewBuilder
+    private func cornerHighlight(_ shape: RoundedRectangle) -> some View {
+        GeometryReader { geo in
+            shape
+                .strokeBorder(.white, lineWidth: 2.5)
+                .mask(alignment: .bottomLeading) {
+                    Rectangle()
+                        .frame(width: geo.size.width / 2, height: geo.size.height / 2)
+                }
+        }
     }
 
     /// 제스처 레이어 — 두 영역이 겹치지 않게 분리.
@@ -328,7 +343,7 @@ struct DayGridView: View {
     private func dragMinutes(_ dy: CGFloat) -> Double { (Double(dy) / Double(hourHeight) * 60 / 5).rounded() * 5 }
 
     // MARK: 레이아웃 — 기본 풀폭(겹쳐도 안 줄임). 제목 텍스트끼리 세로로 겹칠 때만 그 그룹을 N등분.
-    private struct Laid { let event: ScheduleEvent; let col: Int; let cols: Int }
+    private struct Laid { let event: ScheduleEvent; let col: Int; let cols: Int; let order: Int }
     private let textBand: CGFloat = 22   // 제목이 겹치는 세로 간격(pt)
     private var laidOut: [Laid] {
         let evs = plan.singleDayEvents.sorted { $0.start < $1.start }
@@ -343,7 +358,7 @@ struct DayGridView: View {
                 let y = yOffset(for: clamp(evs[j].start))
                 if y - lastY < textBand { group.append(evs[j]); lastY = y; j += 1 } else { break }
             }
-            for (ci, e) in group.enumerated() { result.append(Laid(event: e, col: ci, cols: group.count)) }
+            for (ci, e) in group.enumerated() { result.append(Laid(event: e, col: ci, cols: group.count, order: result.count)) }
             i = j
         }
         return result
@@ -361,19 +376,6 @@ struct DayGridView: View {
         return "\(h < 12 || h == 24 ? "오전" : "오후") \(h12)시"
     }
     private func timeText(_ d: Date) -> String { d.formatted(.dateTime.hour().minute().locale(lang.locale)) }
-}
-
-// MARK: - 왼쪽 아래 코너 곡선만 그리는 Shape (리사이즈 손잡이 표시)
-private struct CornerArc: Shape {
-    var radius: CGFloat
-    func path(in rect: CGRect) -> Path {
-        var p = Path()
-        let r = min(radius, min(rect.width, rect.height) / 2)
-        p.move(to: CGPoint(x: 0, y: rect.maxY - r))
-        p.addArc(center: CGPoint(x: r, y: rect.maxY - r),
-                 radius: r, startAngle: .degrees(180), endAngle: .degrees(90), clockwise: true)
-        return p
-    }
 }
 
 // MARK: - 스크롤 진행량 추적(앵커 대비) — 타임라인 연속 접기. iOS 18+에서만, 그 이하는 그대로
