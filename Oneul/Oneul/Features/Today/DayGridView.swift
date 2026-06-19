@@ -408,13 +408,16 @@ private struct LongPressArea: UIViewRepresentable {
             self.onBegan = onBegan; self.onChanged = onChanged; self.onEnded = onEnded
         }
         @objc func handle(_ g: UILongPressGestureRecognizer) {
-            let loc = g.location(in: g.view)
             switch g.state {
-            case .began: startY = loc.y; onBegan(loc.y)
+            case .began:
+                startY = g.location(in: nil).y                  // window 기준 시작점(블록이 따라 움직여도 고정)
+                onBegan(g.location(in: g.view).y)               // 콘텐츠 위치(이동 전이라 정확)
             case .changed:
                 let winH = g.view?.window?.bounds.height ?? 99_999
-                onChanged(loc.y - startY, winH - g.location(in: nil).y)   // 화면 하단까지 거리
-            case .ended, .cancelled, .failed: onEnded(loc.y - startY)
+                let winY = g.location(in: nil).y
+                onChanged(winY - startY, winH - winY)           // 손가락 실제 이동량(window 기준) → 1:1로 따라옴
+            case .ended, .cancelled, .failed:
+                onEnded(g.location(in: nil).y - startY)
             default: break
             }
         }
