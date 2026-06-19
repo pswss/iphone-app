@@ -7,6 +7,7 @@ struct EventEditorView: View {
 
     let event: ScheduleEvent?
     let day: Date
+    var prefillStart: Date? = nil
 
     @State private var title = ""
     @State private var location = ""
@@ -203,8 +204,9 @@ struct EventEditorView: View {
         } else {
             let cal = Calendar.current
             let base = cal.isDateInToday(day) ? Date() : day
-            let hour = cal.date(bySettingHour: min(23, cal.component(.hour, from: base) + (cal.isDateInToday(day) ? 1 : 9)),
-                                minute: 0, second: 0, of: base) ?? base
+            let defaultHour = cal.date(bySettingHour: min(23, cal.component(.hour, from: base) + (cal.isDateInToday(day) ? 1 : 9)),
+                                       minute: 0, second: 0, of: base) ?? base
+            let hour = prefillStart ?? defaultHour
             start = hour
             end = hour.addingTimeInterval(60 * 60)
             weekdays = [cal.component(.weekday, from: hour)]

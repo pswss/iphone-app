@@ -1,12 +1,24 @@
 import Foundation
 
-/// AI가 만들어낸 일정 한 건(저장 전).
+/// AI가 만들어낸 일정 한 건(저장 전). 새로 만들거나(create) 기존 일정 수정/삭제(update/delete).
 struct ParsedEvent: Identifiable, Hashable {
+    enum Action: String, Hashable { case create, update, delete }
     let id = UUID()
     var title: String
     var start: Date
     var end: Date
     var location: String
+    var action: Action = .create
+    var targetID: UUID? = nil   // update/delete 대상 기존 일정 id
+}
+
+/// AI에 컨텍스트로 넘기는 기존(다가오는) 일정 스냅샷.
+struct ExistingEvent: Hashable {
+    let id: UUID
+    let title: String
+    let start: Date
+    let end: Date
+    let location: String
 }
 
 enum AIError: LocalizedError {
@@ -29,15 +41,15 @@ enum AIValidation: Equatable {
     case failed(String)
 }
 
-/// 자연어 → 일정 변환 + 키 검증 인터페이스. (Claude/OpenAI/Gemini 공통)
+/// 자연어 → 일정 변환(+ 기존 일정 수정/삭제) + 키 검증 인터페이스.
 protocol ScheduleAI {
-    func generateSchedule(from text: String, now: Date) async throws -> [ParsedEvent]
+    func generateSchedule(from text: String, now: Date, existing: [ExistingEvent]) async throws -> [ParsedEvent]
     func validate() async -> AIValidation
 }
 
 extension ScheduleAI {
     func generateSchedule(from text: String) async throws -> [ParsedEvent] {
-        try await generateSchedule(from: text, now: .now)
+        try await generateSchedule(from: text, now: .now, existing: [])
     }
 }
 

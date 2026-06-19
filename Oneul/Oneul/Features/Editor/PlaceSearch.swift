@@ -55,11 +55,14 @@ final class LocationOneShot: NSObject, ObservableObject, CLLocationManagerDelega
 
     func locationManager(_ m: CLLocationManager, didUpdateLocations locs: [CLLocation]) {
         guard let loc = locs.last else { return finish(nil) }
-        CLGeocoder().reverseGeocodeLocation(loc) { places, _ in
-            let p = places?.first
-            let name = p?.name ?? p?.thoroughfare ?? "현재 위치"
-            self.finish(name)
-        }
+        Task { self.finish(await Self.placeName(for: loc)) }
+    }
+
+    /// iOS 26: CLGeocoder(deprecated) 대신 MapKit 역지오코딩.
+    private static func placeName(for loc: CLLocation) async -> String {
+        guard let request = MKReverseGeocodingRequest(location: loc) else { return "현재 위치" }
+        let items = try? await request.mapItems
+        return items?.first?.name ?? "현재 위치"
     }
     func locationManager(_ m: CLLocationManager, didFailWithError error: Error) { finish(nil) }
 

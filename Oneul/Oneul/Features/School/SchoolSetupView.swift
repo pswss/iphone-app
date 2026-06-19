@@ -18,7 +18,12 @@ struct SchoolSetupView: View {
     @State private var message = ""
     @State private var showPeriods = false
     @State private var periodsTick = 0
+    @State private var availableClasses: [String] = []
     @FocusState private var focused: Bool
+    private let lang = AppLanguage.shared
+
+    private var gradeRange: ClosedRange<Int> { kind.contains("초") ? 1...6 : 1...3 }
+    private var classOptions: [String] { availableClasses.isEmpty ? (1...15).map(String.init) : availableClasses }
 
     private var selected: School? {
         code.isEmpty ? nil : School(office: office, code: code, name: schoolName, kind: kind, address: "")
@@ -42,11 +47,11 @@ struct SchoolSetupView: View {
             }
             .scrollDismissesKeyboard(.interactively)
         }
-        .navigationTitle("학교 설정")
+        .navigationTitle(lang.tr("학교 설정"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
-                Spacer(); Button("완료") { focused = false }
+                Spacer(); Button(lang.tr("완료")) { focused = false }
             }
         }
     }
@@ -54,15 +59,15 @@ struct SchoolSetupView: View {
     // MARK: 검색
     private var searchCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("학교 검색").font(.caption).bold().foregroundStyle(.secondary)
+            Text(lang.tr("학교 검색")).font(.caption).bold().foregroundStyle(.secondary)
             HStack(spacing: 10) {
-                TextField("학교 이름 (예: 서울고등학교)", text: $query)
+                TextField(lang.tr("학교 이름 (예: 서울고등학교)"), text: $query)
                     .focused($focused)
                     .submitLabel(.search)
                     .onSubmit { Task { await search() } }
                     .padding(.horizontal, 12).padding(.vertical, 10)
                     .glassCard(cornerRadius: 14)
-                Button("검색") { Task { await search() } }
+                Button(lang.tr("검색")) { Task { await search() } }
                     .buttonStyle(AccentButtonStyle())
                     .frame(maxWidth: 80)
                     .disabled(query.trimmingCharacters(in: .whitespaces).isEmpty || searching)
@@ -75,7 +80,7 @@ struct SchoolSetupView: View {
 
     private var resultsCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("검색 결과").font(.caption).bold().foregroundStyle(.secondary)
+            Text(lang.tr("검색 결과")).font(.caption).bold().foregroundStyle(.secondary)
             ForEach(results) { s in
                 Button { pick(s) } label: {
                     VStack(alignment: .leading, spacing: 2) {
@@ -104,30 +109,31 @@ struct SchoolSetupView: View {
                 Text(s.name).font(.subheadline).bold()
                 Text(s.kind).font(.caption2).foregroundStyle(.secondary)
                 Spacer()
-                Button("변경") { code = ""; office = ""; schoolName = ""; kind = "" }
+                Button(lang.tr("변경")) { code = ""; office = ""; schoolName = ""; kind = "" }
                     .font(.caption).tint(Color.appAccentText)
             }
             Divider()
             HStack {
-                Text("학년").foregroundStyle(.secondary)
+                Text(lang.tr("학년")).foregroundStyle(.secondary)
                 Spacer()
                 Picker("", selection: $grade) {
-                    ForEach(1...6, id: \.self) { Text("\($0)학년").tag($0) }
+                    ForEach(gradeRange, id: \.self) { Text(lang.isEnglish ? "Grade \($0)" : "\($0)학년").tag($0) }
                 }
                 .labelsHidden().pickerStyle(.menu).tint(Color.appAccentText)
             }
             HStack {
-                Text("반").foregroundStyle(.secondary)
+                Text(lang.tr("반")).foregroundStyle(.secondary)
                 Spacer()
                 Picker("", selection: $classNm) {
-                    ForEach(1...15, id: \.self) { Text("\($0)반").tag("\($0)") }
+                    ForEach(classOptions, id: \.self) { Text(lang.isEnglish ? "Class \($0)" : "\($0)반").tag($0) }
                 }
                 .labelsHidden().pickerStyle(.menu).tint(Color.appAccentText)
             }
+            .task(id: "\(code)-\(grade)") { await loadClasses() }
 
             Button { withAnimation(.snappy(duration: 0.2)) { showPeriods.toggle() } } label: {
                 HStack {
-                    Text("교시 시간 조정").foregroundStyle(.secondary)
+                    Text(lang.tr("교시 시간 조정")).foregroundStyle(.secondary)
                     Spacer()
                     Image(systemName: showPeriods ? "chevron.up" : "chevron.down")
                         .font(.caption).foregroundStyle(.secondary)
@@ -138,7 +144,7 @@ struct SchoolSetupView: View {
                 VStack(spacing: 7) {
                     ForEach(1...PeriodSchedule.count, id: \.self) { p in
                         HStack(spacing: 6) {
-                            Text("\(p)교시").font(.caption).foregroundStyle(.secondary)
+                            Text(lang.isEnglish ? "P\(p)" : "\(p)교시").font(.caption).foregroundStyle(.secondary)
                                 .frame(width: 42, alignment: .leading)
                             Spacer()
                             DatePicker("", selection: timeBinding(p, true), displayedComponents: .hourAndMinute)
@@ -153,16 +159,14 @@ struct SchoolSetupView: View {
                 .padding(.top, 2)
             }
 
-            Button {
-                Task { await importTimetable(s) }
+            NavigationLink {
+                ElectiveSetupView(school: s, grade: grade, classNm: classNm)
             } label: {
-                HStack {
-                    if importing { ProgressView().tint(Color.appOnAccent) }
-                    Text(importing ? "가져오는 중..." : "시간표 가져오기")
-                }
+                Text(lang.tr("시간표 가져오기"))
+                    .font(.headline).foregroundStyle(Color.appOnAccent)
+                    .frame(maxWidth: .infinity).padding(.vertical, 13)
+                    .background(Color.appAccent, in: RoundedRectangle(cornerRadius: 16))
             }
-            .buttonStyle(AccentButtonStyle())
-            .disabled(importing)
         }
         .padding(14)
         .glassCard(cornerRadius: 22)
@@ -200,8 +204,17 @@ struct SchoolSetupView: View {
 
     private func pick(_ s: School) {
         office = s.office; code = s.code; schoolName = s.name; kind = s.kind
+        if grade > (s.kind.contains("초") ? 6 : 3) { grade = 1 }   // 학교에 맞게 학년 보정
         results = []
         message = ""
+    }
+
+    private func loadClasses() async {
+        guard !code.isEmpty else { availableClasses = []; return }
+        let s = School(office: office, code: code, name: schoolName, kind: kind, address: "")
+        let list = (try? await NEISClient.shared.fetchClasses(school: s, grade: grade)) ?? []
+        availableClasses = list
+        if !list.isEmpty, !list.contains(classNm) { classNm = list.first ?? classNm }
     }
 
     private func importTimetable(_ s: School) async {
@@ -220,7 +233,7 @@ struct SchoolSetupView: View {
     }
 }
 
-// MARK: - 급식 카드 (별도 칸)
+// MARK: - 급식 카드
 
 struct MealCard: View {
     let day: Date
@@ -241,27 +254,64 @@ struct MealCard: View {
     }
 
     var body: some View {
-        if school != nil {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("급식").font(.subheadline).bold()
-                if loading {
-                    ProgressView()
-                } else if meals.isEmpty {
-                    Text("급식 정보 없음").font(.caption).foregroundStyle(.secondary)
-                } else {
-                    ForEach(meals) { m in
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(m.type).font(.caption).bold().foregroundStyle(Color.appAccentText)
-                            Text(m.menu).font(.caption).foregroundStyle(.secondary)
-                        }
+        Group {
+            if loading {
+                ProgressView().frame(maxWidth: .infinity).padding(.top, 50)
+            } else if meals.isEmpty {
+                VStack(spacing: 10) {
+                    Image(systemName: "tray").font(.largeTitle).foregroundStyle(.secondary)
+                    Text(AppLanguage.shared.tr("급식 정보가 없어요")).font(.subheadline).foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity).padding(.top, 50)
+            } else {
+                VStack(spacing: 14) {
+                    ForEach(meals) { mealBlock($0) }
+                }
+            }
+        }
+        .task(id: dayKey) { await load() }
+    }
+
+    private func mealBlock(_ m: Meal) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Label(m.type, systemImage: icon(m.type))
+                    .font(.headline).foregroundStyle(Color.appAccentText)
+                Spacer()
+                if !m.calorie.isEmpty {
+                    Text(m.calorie).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            VStack(alignment: .leading, spacing: 9) {
+                ForEach(Array(menuItems(m.menu).enumerated()), id: \.offset) { _, item in
+                    HStack(alignment: .firstTextBaseline, spacing: 9) {
+                        Circle().fill(Color.appAccent).frame(width: 5, height: 5)
+                        Text(item).font(.subheadline)
+                        Spacer(minLength: 0)
                     }
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(14)
-            .glassCard(cornerRadius: 22)
-            .task(id: dayKey) { await load() }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .glassCard(cornerRadius: 22)
+    }
+
+    /// "*" 접두사·알레르기 번호 "(5.6)" 제거해서 메뉴만.
+    private func menuItems(_ menu: String) -> [String] {
+        menu.split(separator: "\n").map { line -> String in
+            var s = line.trimmingCharacters(in: .whitespaces)
+            while s.hasPrefix("*") { s.removeFirst() }
+            if let r = s.range(of: #"\s*\([0-9.\s]+\)\s*$"#, options: .regularExpression) {
+                s.removeSubrange(r)
+            }
+            return s.trimmingCharacters(in: .whitespaces)
+        }.filter { !$0.isEmpty }
+    }
+    private func icon(_ type: String) -> String {
+        if type.contains("조") { return "sunrise.fill" }
+        if type.contains("중") { return "sun.max.fill" }
+        return "moon.stars.fill"
     }
 
     private func load() async {
@@ -269,5 +319,60 @@ struct MealCard: View {
         loading = true
         defer { loading = false }
         meals = (try? await NEISClient.shared.fetchMeal(school: s, date: day)) ?? []
+    }
+}
+
+// MARK: - 급식 탭 (날짜 슬라이드)
+
+struct MealView: View {
+    @AppStorage("neisCode") private var code = ""
+    @State private var mealDay = Date()
+    private let lang = AppLanguage.shared
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                AppBackground()
+                if code.isEmpty {
+                    VStack(spacing: 10) {
+                        Image(systemName: "fork.knife").font(.largeTitle).foregroundStyle(.secondary)
+                        Text(lang.tr("설정 → 학생 → 학교 설정에서\n학교를 먼저 등록하세요"))
+                            .multilineTextAlignment(.center).font(.subheadline).foregroundStyle(.secondary)
+                    }
+                    .padding(40)
+                } else {
+                    VStack(spacing: 10) {
+                        Text(mealDay, format: .dateTime.month().day().weekday(.wide).locale(lang.locale))
+                            .font(.title3).bold()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 16)
+                        TabView(selection: offsetBinding) {
+                            ForEach(-60...60, id: \.self) { off in
+                                ScrollView { MealCard(day: dayFor(off)).padding(16) }
+                                    .tag(off)
+                            }
+                        }
+                        .tabViewStyle(.page(indexDisplayMode: .never))
+                    }
+                    .padding(.top, 8)
+                    .frame(maxWidth: 640).frame(maxWidth: .infinity)
+                }
+            }
+            .navigationTitle(lang.tr("급식"))
+        }
+    }
+
+    private func dayFor(_ o: Int) -> Date {
+        Calendar.current.date(byAdding: .day, value: o, to: Calendar.current.startOfDay(for: Date())) ?? Date()
+    }
+    private var offsetBinding: Binding<Int> {
+        Binding(
+            get: {
+                Calendar.current.dateComponents([.day],
+                    from: Calendar.current.startOfDay(for: Date()),
+                    to: Calendar.current.startOfDay(for: mealDay)).day ?? 0
+            },
+            set: { mealDay = dayFor($0) }
+        )
     }
 }

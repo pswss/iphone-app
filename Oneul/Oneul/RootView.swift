@@ -1,7 +1,11 @@
 import SwiftUI
+import SwiftData
 
 struct RootView: View {
     @AppStorage("appearance") private var appearanceRaw = Appearance.system.rawValue
+    @AppStorage("userType") private var userType = "general"
+    @Environment(\.modelContext) private var context
+    @Environment(\.scenePhase) private var scenePhase
     private let lang = AppLanguage.shared
 
     private var colorScheme: ColorScheme? {
@@ -13,6 +17,11 @@ struct RootView: View {
             TodayView()
                 .tabItem { Label(lang.tr("오늘"), systemImage: "calendar.day.timeline.left") }
 
+            if userType == "student" {
+                MealView()
+                    .tabItem { Label(lang.tr("급식"), systemImage: "fork.knife") }
+            }
+
             AIScheduleView()
                 .tabItem { Label(lang.tr("AI"), systemImage: "sparkles") }
 
@@ -22,6 +31,12 @@ struct RootView: View {
         .tint(Color.appAccentText)
         .preferredColorScheme(colorScheme)
         .environment(\.locale, lang.locale)
+        .task { await SchoolAutoRefresh.runIfDue(context: context) }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                Task { await SchoolAutoRefresh.runIfDue(context: context) }
+            }
+        }
     }
 }
 

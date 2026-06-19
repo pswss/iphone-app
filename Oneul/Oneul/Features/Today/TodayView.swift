@@ -8,62 +8,112 @@ struct TodayView: View {
     @State private var selectedDay: Date = .now
     @State private var editing: ScheduleEvent?
     @State private var showingAdd = false
+    @State private var addStart: Date?
+    @State private var eventsByDay: [Date: [ScheduleEvent]] = [:]
+    @State private var timelineHidden = false
     private let lang = AppLanguage.shared
     @AppStorage("userType") private var userType = "general"
     @Environment(\.horizontalSizeClass) private var hSize
 
-    @State private var slideForward = true
-
-    private var plan: DayPlan { DayPlan(events: events, day: selectedDay) }
+    private var plan: DayPlan { dayPlan(for: selectedDay) }
     private var wide: Bool { hSize == .regular }
     private var isStudent: Bool { userType == "student" }
-    private var dayKey: Date { Calendar.current.startOfDay(for: selectedDay) }
+
+    /// 날짜별로 미리 묶어둔 인덱스에서 그 날짜 일정만 꺼내 DayPlan 생성 (전체 수천 개 필터 회피).
+    private func dayPlan(for day: Date) -> DayPlan {
+        DayPlan(events: eventsByDay[Calendar.current.startOfDay(for: day)] ?? [], day: day)
+    }
+    /// events 변경 시 한 번만 날짜별 인덱스 재구성. (멀티데이는 걸친 모든 날에 등록)
+    private func rebuildIndex() {
+        var dict: [Date: [ScheduleEvent]] = [:]
+        let cal = Calendar.current
+        for e in events {
+            var d = cal.startOfDay(for: e.start)
+            let last = cal.startOfDay(for: e.end)
+            var guardN = 0
+            while d <= last && guardN < 370 {
+                dict[d, default: []].append(e)
+                guard let n = cal.date(byAdding: .day, value: 1, to: d) else { break }
+                d = n; guardN += 1
+            }
+        }
+        eventsByDay = dict
+    }
 
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
+        ZStack {
             AppBackground()
-
             if wide { wideContent } else { narrowContent }
-
-            addButton
         }
         .sheet(isPresented: $showingAdd, onDismiss: syncLiveActivity) {
-            EventEditorView(event: nil, day: selectedDay)
+            EventEditorView(event: nil, day: selectedDay, prefillStart: addStart)
+                .presentationDetents([.medium, .large])   // 절반 높이 → 위 그리드의 미리보기 블록이 보임
         }
         .sheet(item: $editing, onDismiss: syncLiveActivity) { event in
             EventEditorView(event: event, day: selectedDay)
         }
-        .onAppear { seedIfRequested(); syncLiveActivity() }
-        .onChange(of: events) { _, _ in syncLiveActivity() }
-        .onChange(of: dayKey) { old, new in slideForward = new > old }
+        .onAppear { seedIfRequested(); rebuildIndex(); syncLiveActivity() }
+        .onChange(of: events) { _, _ in rebuildIndex(); syncLiveActivity() }
+        .onChange(of: selectedDay) { _, _ in if timelineHidden { withAnimation(.snappy(duration: 0.28)) { timelineHidden = false } } }
     }
 
-    /// 날짜별 본문(타임라인+급식+그리드) — 날짜 바뀌면 애플 캘린더식 좌/우 슬라이드.
-    private var dayBody: some View {
-        VStack(spacing: 16) {
-            timelineCard
-            if isStudent { MealCard(day: selectedDay) }
-            DayGridView(plan: plan, day: selectedDay, editing: $editing)
-        }
-        .id(dayKey)
-        .transition(.asymmetric(
-            insertion: .move(edge: slideForward ? .trailing : .leading).combined(with: .opacity),
-            removal: .move(edge: slideForward ? .leading : .trailing).combined(with: .opacity)))
+    private func grid(_ p: DayPlan, _ d: Date, onCollapseChange: ((Bool) -> Void)? = nil) -> some View {
+        DayGridView(plan: p, day: d,
+                    onEdit: { editing = $0 },
+                    onAdd: { addStart = $0; showingAdd = true },
+                    onCollapseChange: onCollapseChange,
+                    previewStart: previewFor(d))
     }
 
-    // MARK: 아이폰(세로 1단)
+    /// 새 일정 추가 시트가 떠 있고 그 시작 시각이 이 날짜면 미리보기 블록 표시.
+    private func previewFor(_ d: Date) -> Date? {
+        guard showingAdd, let s = addStart,
+              Calendar.current.isDate(s, inSameDayAs: d) else { return nil }
+        return s
+    }
+
+    // MARK: 아이폰(세로) — 손가락 좌우 스와이프로 날짜 이동(애플 캘린더식)
     private var narrowContent: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                header
-                CalendarBar(selectedDay: $selectedDay)
-                dayBody
-                Color.clear.frame(height: 90)
+        VStack(spacing: 12) {
+            header.padding(.horizontal, 16)
+            dDayBar.padding(.horizontal, 16)
+            CalendarBar(selectedDay: $selectedDay).padding(.horizontal, 16)
+            TabView(selection: dayOffsetBinding) {
+                ForEach(-180...180, id: \.self) { off in
+                    dayPage(dayFor(off)).tag(off)
+                }
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
-            .animation(.easeInOut(duration: 0.28), value: dayKey)
+            .tabViewStyle(.page(indexDisplayMode: .never))
         }
+        .padding(.top, 8)
+    }
+
+    private func dayPage(_ d: Date) -> some View {
+        let p = dayPlan(for: d)
+        return VStack(spacing: 12) {
+            if !timelineHidden {
+                timelineCard(p, live: Calendar.current.isDateInToday(d))
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+            grid(p, d, onCollapseChange: { hidden in
+                withAnimation(.snappy(duration: 0.28)) { timelineHidden = hidden }
+            })
+        }
+        .padding(.horizontal, 16)
+    }
+
+    private func dayFor(_ offset: Int) -> Date {
+        Calendar.current.date(byAdding: .day, value: offset, to: Calendar.current.startOfDay(for: Date())) ?? Date()
+    }
+    private var dayOffsetBinding: Binding<Int> {
+        Binding(
+            get: {
+                Calendar.current.dateComponents([.day],
+                    from: Calendar.current.startOfDay(for: Date()),
+                    to: Calendar.current.startOfDay(for: selectedDay)).day ?? 0
+            },
+            set: { selectedDay = dayFor($0) }
+        )
     }
 
     // MARK: 아이패드/넓은 화면(2단). 가로=화면 꽉 채움, 세로=위 정렬 컴팩트.
@@ -73,14 +123,14 @@ struct TodayView: View {
                 // 가로: 전체 높이를 채워 넓고 길쭉하게
                 VStack(spacing: 14) {
                     header
+                    dDayBar
                     HStack(alignment: .top, spacing: 22) {
                         VStack(spacing: 16) {
                             CalendarBar(selectedDay: $selectedDay)
-                            timelineCard
-                            if isStudent { MealCard(day: selectedDay) }
+                            timelineCard(plan, live: Calendar.current.isDateInToday(selectedDay))
                         }
                         .frame(maxWidth: .infinity, alignment: .top)
-                        DayGridView(plan: plan, day: selectedDay, editing: $editing)
+                        grid(plan, selectedDay)
                             .frame(maxWidth: .infinity)
                     }
                     .frame(maxHeight: .infinity)
@@ -92,14 +142,14 @@ struct TodayView: View {
                 ScrollView {
                     VStack(spacing: 16) {
                         header
+                        dDayBar
                         HStack(alignment: .top, spacing: 22) {
                             VStack(spacing: 16) {
                                 CalendarBar(selectedDay: $selectedDay)
-                                timelineCard
-                                if isStudent { MealCard(day: selectedDay) }
+                                timelineCard(plan, live: Calendar.current.isDateInToday(selectedDay))
                             }
                             .frame(maxWidth: .infinity, alignment: .top)
-                            DayGridView(plan: plan, day: selectedDay, editing: $editing)
+                            grid(plan, selectedDay)
                                 .frame(maxWidth: .infinity, alignment: .top)
                         }
                         Color.clear.frame(height: 90)
@@ -118,17 +168,6 @@ struct TodayView: View {
                 Text(selectedDay, format: .dateTime.day().weekday(.wide))
                     .font(.largeTitle).bold()
                 Spacer()
-                if !Calendar.current.isDateInToday(selectedDay) {
-                    Button { withAnimation(.snappy(duration: 0.25)) { selectedDay = .now } } label: {
-                        Text(lang.tr("오늘"))
-                            .font(.subheadline).bold()
-                            .foregroundStyle(Color.appAccentText)
-                            .padding(.horizontal, 13).padding(.vertical, 6)
-                            .background(.ultraThinMaterial, in: Capsule())
-                            .overlay(Capsule().strokeBorder(Color.appAccentText.opacity(0.35)))
-                    }
-                    .buttonStyle(.plain)
-                }
             }
             if let holiday = Holidays.name(for: selectedDay) {
                 Text(holiday)
@@ -139,13 +178,53 @@ struct TodayView: View {
         .padding(.top, 4)
     }
 
+    // MARK: D-Day (다가오는 시험/수능)
+    private var dDays: [(title: String, days: Int)] {
+        let today = Calendar.current.startOfDay(for: Date())
+        var nearest: [String: Date] = [:]
+        for e in events {
+            let isExam = e.examKind != .none
+                || ["수능", "고사", "평가", "시험", "학력"].contains { e.title.contains($0) }
+            guard isExam else { continue }
+            let d = Calendar.current.startOfDay(for: e.start)
+            guard d >= today else { continue }
+            if let cur = nearest[e.title] { if d < cur { nearest[e.title] = d } } else { nearest[e.title] = d }
+        }
+        return nearest.map { (title: $0.key, days: Calendar.current.dateComponents([.day], from: today, to: $0.value).day ?? 0) }
+            .sorted { $0.days < $1.days }
+            .prefix(3).map { $0 }
+    }
+
+    @ViewBuilder
+    private var dDayBar: some View {
+        let items = dDays
+        if !items.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(items, id: \.title) { item in
+                        HStack(spacing: 6) {
+                            Text(item.title).font(.caption2).bold().lineLimit(1)
+                            Text(item.days == 0 ? "D-DAY" : "D-\(item.days)")
+                                .font(.caption2).bold().foregroundStyle(Color.appOnAccent)
+                                .padding(.horizontal, 7).padding(.vertical, 2)
+                                .background(item.days <= 7 ? Color.red : Color.appAccent, in: Capsule())
+                        }
+                        .padding(.horizontal, 11).padding(.vertical, 7)
+                        .background(.ultraThinMaterial, in: Capsule())
+                        .overlay(Capsule().strokeBorder(.white.opacity(0.12)))
+                    }
+                }
+            }
+        }
+    }
+
     // MARK: 타임라인 카드
-    private var timelineCard: some View {
+    private func timelineCard(_ p: DayPlan, live: Bool) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text(lang.tr("오늘 타임라인")).font(.subheadline).bold()
                 Spacer()
-                if let next = plan.next() {
+                if let next = p.next() {
                     Text("\(lang.tr("다음 ·")) \(next.title) \(next.start.formatted(.dateTime.hour().minute().locale(lang.locale)))")
                         .font(.caption2).bold()
                         .foregroundStyle(Color.appOnAccent)
@@ -154,14 +233,14 @@ struct TodayView: View {
                 }
             }
 
-            if plan.isEmpty {
+            if p.isEmpty {
                 Text(lang.tr("일정 없음"))
                     .font(.subheadline).bold()
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                TimelineBar(plan: plan, height: wide ? 26 : 16)
-                Text(currentLine)
+                TimelineBar(plan: p, height: wide ? 26 : 16, live: live)
+                Text(currentLine(p))
                     .font(.subheadline).bold()
             }
         }
@@ -169,26 +248,10 @@ struct TodayView: View {
         .glassCard(cornerRadius: 24)
     }
 
-    private var currentLine: String {
-        if let cur = plan.current() { return "\(lang.tr("현재 일정 ·")) \(cur.title)" }
-        if plan.next() != nil { return lang.tr("대기 중 · 다음 일정까지") }
+    private func currentLine(_ p: DayPlan) -> String {
+        if let cur = p.current() { return "\(lang.tr("현재 일정 ·")) \(cur.title)" }
+        if p.next() != nil { return lang.tr("대기 중 · 다음 일정까지") }
         return lang.tr("오늘 일정 종료")
-    }
-
-    // MARK: FAB
-    private var addButton: some View {
-        Button {
-            showingAdd = true
-        } label: {
-            Image(systemName: "plus")
-                .font(.title2.weight(.semibold))
-                .foregroundStyle(Color.appOnAccent)
-                .frame(width: 56, height: 56)
-                .background(Color.appAccent, in: Circle())
-                .overlay(Circle().strokeBorder(.white.opacity(0.25), lineWidth: 1))
-                .shadow(color: .black.opacity(0.3), radius: 10, y: 6)
-        }
-        .padding(20)
     }
 
     // MARK: 동작

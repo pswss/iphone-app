@@ -8,6 +8,7 @@ struct AIScheduleView: View {
     @State private var results: [ParsedEvent] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var speech = SpeechRecognizer()
     @FocusState private var editorFocused: Bool
     private let lang = AppLanguage.shared
 
@@ -17,7 +18,6 @@ struct AIScheduleView: View {
                 AppBackground()
                 ScrollView {
                     VStack(alignment: .leading, spacing: 14) {
-                        infoLabel
                         inputCard
                         generateButton
                         if let errorMessage {
@@ -35,8 +35,11 @@ struct AIScheduleView: View {
                 }
                 .scrollDismissesKeyboard(.interactively)
             }
-            .navigationTitle(lang.tr("일정 생성"))
+            .navigationTitle(lang.tr("AI 비서"))
             .navigationBarTitleDisplayMode(.inline)
+            .task { AppleIntelligenceClient.prewarm() }
+            .onChange(of: speech.transcript) { _, t in if !t.isEmpty { inputText = t } }
+            .onDisappear { speech.stop() }
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
@@ -46,17 +49,10 @@ struct AIScheduleView: View {
         }
     }
 
-    private var infoLabel: some View {
-        Label("Apple Intelligence · 온디바이스 (키 불필요)", systemImage: "apple.logo")
-            .font(.caption2)
-            .foregroundStyle(.secondary)
-            .padding(.leading, 4)
-    }
-
     private var inputCard: some View {
         ZStack(alignment: .topLeading) {
             if inputText.isEmpty {
-                Text(lang.tr("예: 내일 오전 9시 팀 회의, 12시 반 점심, 3시에 헬스장 1시간, 저녁 7시 친구 약속"))
+                Text(lang.tr("예: 내일 9시 팀 회의 추가, 금요일 약속 취소, 점심 1시로 옮겨줘"))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 16).padding(.vertical, 16)
                     .allowsHitTesting(false)
@@ -68,6 +64,21 @@ struct AIScheduleView: View {
                 .padding(8)
         }
         .glassCard(cornerRadius: 20)
+        .overlay(alignment: .bottomTrailing) {
+            Button {
+                editorFocused = false
+                speech.toggle()
+            } label: {
+                Image(systemName: speech.isRecording ? "mic.fill" : "mic")
+                    .font(.headline)
+                    .foregroundStyle(speech.isRecording ? .red : Color.appAccentText)
+                    .frame(width: 40, height: 40)
+                    .background(.ultraThinMaterial, in: Circle())
+                    .overlay(Circle().strokeBorder(.white.opacity(0.15)))
+            }
+            .buttonStyle(.plain)
+            .padding(10)
+        }
     }
 
     private var canGenerate: Bool {
@@ -75,27 +86,27 @@ struct AIScheduleView: View {
     }
 
     private var generateButton: some View {
-        Button {
+        let active = canGenerate || isLoading
+        return Button {
             editorFocused = false
             Task { await generate() }
         } label: {
-            HStack(spacing: 8) {
+            Group {
                 if isLoading { ProgressView().tint(.white) }
-                Text(isLoading ? lang.tr("생성 중...") : lang.tr("일정 생성"))
-                    .font(.headline)
+                else { Image(systemName: "sparkles").font(.title2.weight(.semibold)) }
             }
             .foregroundStyle(canGenerate ? .white : .secondary)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
             .background(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(canGenerate ? Color.blue : Color.gray.opacity(0.22))
+                    .fill(active ? Color.blue : Color.gray.opacity(0.22))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .strokeBorder(.white.opacity(canGenerate ? 0.25 : 0), lineWidth: 1)
+                    .strokeBorder(.white.opacity(active ? 0.25 : 0), lineWidth: 1)
             )
-            .shadow(color: canGenerate ? Color.blue.opacity(0.55) : .clear, radius: 14, y: 5)
+            .shadow(color: active ? Color.blue.opacity(0.55) : .clear, radius: 14, y: 5)
         }
         .buttonStyle(.plain)
         .disabled(!canGenerate)
@@ -104,7 +115,7 @@ struct AIScheduleView: View {
 
     private var resultsSection: some View {
         VStack(alignment: .leading, spacing: 9) {
-            Text(lang.isEnglish ? "\(results.count) events" : "생성된 일정 · \(results.count)개")
+            Text(lang.isEnglish ? "\(results.count) items" : "AI 결과 · \(results.count)개")
                 .font(.caption).bold().foregroundStyle(.secondary).padding(.leading, 4)
 
             ForEach(Array(results.enumerated()), id: \.element.id) { idx, e in
@@ -113,7 +124,15 @@ struct AIScheduleView: View {
                     Text(timeText(e.start))
                         .font(.caption).bold().foregroundStyle(.secondary).frame(width: 58)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(e.title).font(.subheadline).bold()
+                        HStack(spacing: 6) {
+                            Text(e.title).font(.subheadline).bold()
+                            if e.action != .create {
+                                Text(e.action == .delete ? lang.tr("삭제") : lang.tr("수정"))
+                                    .font(.caption2).bold().foregroundStyle(.white)
+                                    .padding(.horizontal, 6).padding(.vertical, 1)
+                                    .background(e.action == .delete ? Color.red : Color.orange, in: Capsule())
+                            }
+                        }
                         Text("\(timeText(e.start)) – \(timeText(e.end))" +
                              (e.location.isEmpty ? "" : " · \(e.location)"))
                             .font(.caption2).foregroundStyle(.secondary)
@@ -124,7 +143,7 @@ struct AIScheduleView: View {
                 .glassCard(cornerRadius: 18)
             }
 
-            Button(lang.tr("＋ 전체 일정에 추가"), action: addAll)
+            Button(lang.tr("적용하기"), action: addAll)
                 .buttonStyle(AccentButtonStyle())
                 .padding(.top, 4)
         }
@@ -139,7 +158,8 @@ struct AIScheduleView: View {
         isLoading = true
         defer { isLoading = false }
         do {
-            let events = try await AppleIntelligenceClient().generateSchedule(from: inputText)
+            let events = try await AppleIntelligenceClient()
+                .generateSchedule(from: inputText, now: .now, existing: fetchUpcoming())
             results = events.sorted { $0.start < $1.start }
             if results.isEmpty { errorMessage = lang.tr("일정을 만들 수 없어요 — 유효한 내용을 입력해 주세요.") }
         } catch {
@@ -147,12 +167,38 @@ struct AIScheduleView: View {
         }
     }
 
+    /// 수정/삭제 대상이 될 다가오는 일정(최대 25개).
+    private func fetchUpcoming() -> [ExistingEvent] {
+        let now = Date()
+        var d = FetchDescriptor<ScheduleEvent>(
+            predicate: #Predicate { $0.start >= now }, sortBy: [SortDescriptor(\.start)])
+        d.fetchLimit = 25
+        let items = (try? context.fetch(d)) ?? []
+        return items.map { ExistingEvent(id: $0.id, title: $0.title, start: $0.start, end: $0.end, location: $0.location) }
+    }
+
     private func addAll() {
         for e in results {
-            context.insert(ScheduleEvent(title: e.title, start: e.start, end: e.end, location: e.location))
+            switch e.action {
+            case .create:
+                context.insert(ScheduleEvent(title: e.title, start: e.start, end: e.end, location: e.location))
+            case .update:
+                if let t = find(e.targetID) {
+                    t.title = e.title; t.start = e.start; t.end = e.end; t.location = e.location
+                }
+            case .delete:
+                if let t = find(e.targetID) { context.delete(t) }
+            }
         }
         try? context.save()
         results = []
         inputText = ""
+    }
+
+    private func find(_ id: UUID?) -> ScheduleEvent? {
+        guard let id else { return nil }
+        var d = FetchDescriptor<ScheduleEvent>(predicate: #Predicate { $0.id == id })
+        d.fetchLimit = 1
+        return (try? context.fetch(d))?.first
     }
 }

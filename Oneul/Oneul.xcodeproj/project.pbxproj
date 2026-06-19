@@ -40,6 +40,8 @@
 		CBC2A029F08197D2257C32A3 /* LiveActivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14B607682CCEA115B95212B8 /* LiveActivityController.swift */; };
 		CCB5BAF3023A1F25BC6696D7 /* PlaceSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9779CF0E668CEF123968ACE /* PlaceSearch.swift */; };
 		D0A38FC10823361801D6E040 /* ScheduleEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9845203CDC1D337EDEB41376 /* ScheduleEvent.swift */; };
+		DA1B100733D4D79C56226FF7 /* ElectiveSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DDD92EAE062AD8537F2B53E /* ElectiveSetupView.swift */; };
+		E4592FB74E0748311A618CBF /* SpeechRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93B892D311D56026159282E3 /* SpeechRecognizer.swift */; };
 		E737EB9D49F5A808C1E599A3 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90270A5784A434E2BD4F8EB7 /* KeychainStore.swift */; };
 		E823D7F623DA11AA93889FB4 /* AIProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 535CFBC05030B47581C0E6A6 /* AIProvider.swift */; };
 		F1F5D51D84584898B44A586D /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 777161A31B7E4F39C0973C6E /* TodayView.swift */; };
@@ -95,8 +97,10 @@
 		777161A31B7E4F39C0973C6E /* TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayView.swift; sourceTree = "<group>"; };
 		8C8478ADD1C15960DDC8879E /* Persistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Persistence.swift; sourceTree = "<group>"; };
 		90270A5784A434E2BD4F8EB7 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
+		93B892D311D56026159282E3 /* SpeechRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechRecognizer.swift; sourceTree = "<group>"; };
 		94270AF8C3F1645E053EDB34 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		9845203CDC1D337EDEB41376 /* ScheduleEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleEvent.swift; sourceTree = "<group>"; };
+		9DDD92EAE062AD8537F2B53E /* ElectiveSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ElectiveSetupView.swift; sourceTree = "<group>"; };
 		A6CDAF136B89C9CD70A564B1 /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
 		B875E87DC1AAC7F636AB7E65 /* WidgetTimelineBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetTimelineBar.swift; sourceTree = "<group>"; };
 		BA30100A3889640819877BDE /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -139,6 +143,7 @@
 		2E6691EDE7E2A91C1271F9ED /* School */ = {
 			isa = PBXGroup;
 			children = (
+				9DDD92EAE062AD8537F2B53E /* ElectiveSetupView.swift */,
 				741F7445372DEF5858438E89 /* NEIS.swift */,
 				1FE512E0EFCA4922CDD6E120 /* SchoolSetupView.swift */,
 			);
@@ -236,6 +241,7 @@
 				6A7DA356E9BE16433ED03A34 /* AIScheduleView.swift */,
 				1AEF004D088ABDDA2FD61577 /* AppleIntelligenceClient.swift */,
 				90270A5784A434E2BD4F8EB7 /* KeychainStore.swift */,
+				93B892D311D56026159282E3 /* SpeechRecognizer.swift */,
 			);
 			path = AI;
 			sourceTree = "<group>";
@@ -391,6 +397,7 @@
 				B53B622954D5D8FBD25C5F54 /* CalendarBar.swift in Sources */,
 				C3C8A27FED06E8DF5FDE3D86 /* DayGridView.swift in Sources */,
 				4ADF4B85379FD3B22D3D3DA8 /* DayPlan.swift in Sources */,
+				DA1B100733D4D79C56226FF7 /* ElectiveSetupView.swift in Sources */,
 				52D18DA1E0BFF37AFCA77DB0 /* EventEditorView.swift in Sources */,
 				53D7519E7811C519E51F224D /* EventPalette.swift in Sources */,
 				351F425C79906C834932EEA0 /* EventRow.swift in Sources */,
@@ -407,6 +414,7 @@
 				D0A38FC10823361801D6E040 /* ScheduleEvent.swift in Sources */,
 				97BAA858C7D312E7C5E090F1 /* SchoolSetupView.swift in Sources */,
 				AD1FDE6AC6C6BD1FAD733E65 /* SettingsView.swift in Sources */,
+				E4592FB74E0748311A618CBF /* SpeechRecognizer.swift in Sources */,
 				510A835B944A7DC75A0BDA9F /* Theme.swift in Sources */,
 				87A755AE1D706C14FC969AB7 /* TimelineBar.swift in Sources */,
 				F1F5D51D84584898B44A586D /* TodayView.swift in Sources */,
@@ -511,7 +519,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -574,7 +582,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;

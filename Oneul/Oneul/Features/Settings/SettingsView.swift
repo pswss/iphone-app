@@ -14,7 +14,7 @@ struct SettingsView: View {
                         sectionTitle(lang.tr("언어"))
                         languageCard
 
-                        sectionTitle("사용자 유형")
+                        sectionTitle(lang.tr("사용자 유형"))
                         userTypeCard
 
                         sectionTitle(lang.tr("외형"))
@@ -37,8 +37,8 @@ struct SettingsView: View {
     private var userTypeCard: some View {
         VStack(spacing: 10) {
             Picker("", selection: $userType) {
-                Text("일반").tag("general")
-                Text("학생").tag("student")
+                Text(lang.tr("일반")).tag("general")
+                Text(lang.tr("학생")).tag("student")
             }
             .pickerStyle(.segmented)
             if userType == "student" {
@@ -46,7 +46,7 @@ struct SettingsView: View {
                     SchoolSetupView()
                 } label: {
                     HStack {
-                        Label("학교 설정 · 시간표 가져오기", systemImage: "graduationcap")
+                        Label(lang.tr("학교 설정 · 시간표 가져오기"), systemImage: "graduationcap")
                             .font(.subheadline)
                         Spacer()
                         Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary)

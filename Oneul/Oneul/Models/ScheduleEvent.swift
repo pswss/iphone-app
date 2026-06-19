@@ -134,7 +134,7 @@ enum EventActions {
         title: String, start: Date, end: Date, location: String,
         reminderMinutes: Int, reminderMinutes2: Int = -1, recurrence: Recurrence,
         weekdays: Set<Int> = [], endDate: Date? = nil, source: String = "",
-        into context: ModelContext
+        excludeDays: Set<Date> = [], into context: ModelContext
     ) {
         let duration = max(0, end.timeIntervalSince(start))
 
@@ -159,7 +159,7 @@ enum EventActions {
             var day = cal.startOfDay(for: start)
             let endDay = cal.startOfDay(for: horizon)
             while day <= endDay && count < cap {
-                if weekdays.contains(cal.component(.weekday, from: day)),
+                if weekdays.contains(cal.component(.weekday, from: day)), !excludeDays.contains(day),
                    let s = cal.date(bySettingHour: h, minute: m, second: 0, of: day), s >= start {
                     context.insert(ScheduleEvent(
                         title: title, start: s, end: s.addingTimeInterval(duration),
