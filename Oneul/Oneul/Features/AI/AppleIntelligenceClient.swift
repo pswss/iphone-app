@@ -123,17 +123,21 @@ enum AppleAI {
         guard response.content.isSchedule else { return [] }
         let timeCue = hasTimeCue(text)   // 새 일정은 입력에 시간 단서가 있어야 생성(무작위 글자 차단)
         let forcedTime = response.content.events.count == 1 ? extractTime(text) : nil   // 단일 일정만 시각 코드 보정
+        // 단일 삭제/수정: 입력에 제목이 들어간 기존 일정을 우선 타겟(모델의 번호 오류 보정)
+        let byText: ExistingEvent? = response.content.events.count == 1
+            ? existing.filter { !$0.title.isEmpty && text.contains($0.title) }.max(by: { $0.title.count < $1.title.count })
+            : nil
 
         return response.content.events.compactMap { e -> ParsedEvent? in
             let action = ParsedEvent.Action(rawValue: e.action) ?? .create
             let target = ref(e.targetIndex, in: existing)
             switch action {
             case .delete:
-                guard let t = target else { return nil }
+                guard let t = byText ?? target else { return nil }
                 return ParsedEvent(title: t.title, start: t.start, end: t.end,
                                    location: t.location, action: .delete, targetID: t.id)
             case .update:
-                guard let t = target else { return nil }
+                guard let t = byText ?? target else { return nil }
                 let newStart = AICommon.parseDate(e.start)
                 let s = newStart ?? t.start
                 let end = AICommon.parseDate(e.end) ?? (newStart != nil ? s.addingTimeInterval(3600) : t.end)
