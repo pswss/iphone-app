@@ -218,17 +218,22 @@ struct DayGridView: View {
         }
     }
 
-    /// 본문: 탭(선택/수정) + 꾹 눌러 이동. `.gesture`(낮은 우선순위)라 스크롤이 항상 먼저 — 가벼운 스크롤은 이동으로 안 잡힘.
+    /// 본문: 탭(선택/수정). 이동(꾹 누르기)은 "선택된 일정"에만 붙는다 →
+    /// 비선택 일정 위엔 어떤 드래그 제스처도 없어 세로 스크롤이 100% 통과(애플 캘린더 방식).
     @ViewBuilder
     private func bodyZone(_ e: ScheduleEvent, selected: Bool) -> some View {
-        Color.clear
+        let base = Color.clear
             .contentShape(Rectangle())
             .onTapGesture {
                 guard dragID == nil else { return }
                 if selected { onEdit(e) }                          // 하이라이트 상태에서 다시 탭 → 수정
-                else { selectedID = e.id; Haptics.impact(.light) } // 탭 → 하이라이트
+                else { selectedID = e.id; Haptics.impact(.light) } // 탭 → 하이라이트(선택)
             }
-            .gesture(moveGesture(e))
+        if selected {
+            base.simultaneousGesture(moveGesture(e))               // 선택된 일정만 꾹 눌러 이동
+        } else {
+            base                                                   // 비선택: 제스처 없음 → 스크롤 우선
+        }
     }
 
     @ViewBuilder
