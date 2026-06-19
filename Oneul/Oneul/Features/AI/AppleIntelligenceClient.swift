@@ -128,31 +128,45 @@ enum AppleAI {
             ? existing.filter { !$0.title.isEmpty && text.contains($0.title) }.max(by: { $0.title.count < $1.title.count })
             : nil
 
-        return response.content.events.compactMap { e -> ParsedEvent? in
+        let bulk = ["싹다", "모두", "전부", "전체", "모든"].contains { text.contains($0) }   // 여러 개 한 번에
+        let words = text.components(separatedBy: CharacterSet(charactersIn: " ,.\n")).filter { $0.count >= 2 }
+        var seen = Set<UUID>()
+        return response.content.events.flatMap { e -> [ParsedEvent] in
             let action = ParsedEvent.Action(rawValue: e.action) ?? .create
-            let target = ref(e.targetIndex, in: existing)
+            let target = byText ?? ref(e.targetIndex, in: existing)
             switch action {
             case .delete:
-                guard let t = byText ?? target else { return nil }
-                return ParsedEvent(title: t.title, start: t.start, end: t.end,
-                                   location: t.location, action: .delete, targetID: t.id)
+                if bulk {   // "생명과학 싹다 없애줘" → 입력 단어가 제목에 들어간 일정 전부(생명과학Ⅰ·Ⅱ 등)
+                    let matched = existing.filter { ev in !ev.title.isEmpty && words.contains { ev.title.contains($0) } }
+                    if !matched.isEmpty {
+                        return matched.map { ParsedEvent(title: $0.title, start: $0.start, end: $0.end,
+                                                         location: $0.location, action: .delete, targetID: $0.id) }
+                    }
+                }
+                guard let t = target else { return [] }
+                return [ParsedEvent(title: t.title, start: t.start, end: t.end,
+                                    location: t.location, action: .delete, targetID: t.id)]
             case .update:
-                guard let t = byText ?? target else { return nil }
+                guard let t = target else { return [] }
                 let newStart = AICommon.parseDate(e.start)
                 let s = newStart ?? t.start
                 let end = AICommon.parseDate(e.end) ?? (newStart != nil ? s.addingTimeInterval(3600) : t.end)
-                return ParsedEvent(title: e.title.isEmpty ? t.title : e.title, start: s, end: end,
-                                   location: e.location.isEmpty ? t.location : e.location,
-                                   action: .update, targetID: t.id)
+                return [ParsedEvent(title: e.title.isEmpty ? t.title : e.title, start: s, end: end,
+                                    location: e.location.isEmpty ? t.location : e.location,
+                                    action: .update, targetID: t.id)]
             case .create:
                 guard timeCue,
                       !e.title.trimmingCharacters(in: .whitespaces).isEmpty,
-                      let parsed = AICommon.parseDate(e.start) else { return nil }
+                      let parsed = AICommon.parseDate(e.start) else { return [] }
                 let s = forcedTime != nil ? setTime(parsed, forcedTime!) : parsed   // 단일 일정이면 입력 시각으로 강제
                 let dur = AICommon.parseDate(e.end).map { $0 > parsed ? $0.timeIntervalSince(parsed) : 3600 } ?? 3600
-                return ParsedEvent(title: cleanTitle(e.title), start: s, end: s.addingTimeInterval(dur),
-                                   location: e.location, action: .create)
+                return [ParsedEvent(title: cleanTitle(e.title), start: s, end: s.addingTimeInterval(dur),
+                                    location: e.location, action: .create)]
             }
+        }
+        .filter { p in
+            guard let id = p.targetID else { return true }   // create는 대상 없음 → 통과
+            return seen.insert(id).inserted                  // delete/update 중복 제거
         }
     }
 
