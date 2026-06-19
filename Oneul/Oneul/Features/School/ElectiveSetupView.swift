@@ -73,25 +73,8 @@ struct ElectiveSetupView: View {
     private var checklist: some View {
         VStack(spacing: 8) {
             ForEach(g.electives, id: \.self) { sub in
-                let on = checked.contains(sub)
-                Button { toggle(sub) } label: {
-                    HStack(spacing: 11) {
-                        Text(sub).foregroundStyle(on ? Color(uiColor: .systemBackground) : .primary)
-                        Spacer()
-                        if on {
-                            Image(systemName: "checkmark").font(.subheadline.bold())
-                                .foregroundStyle(Color(uiColor: .systemBackground))
-                        }
-                    }
-                    .padding(.vertical, 14).padding(.horizontal, 16)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(on ? Color.primary : Color.primary.opacity(0.04),   // 선택 시 박스 전체 채움
-                                in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .strokeBorder(.primary.opacity(on ? 0 : 0.15)))
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
+                ElectiveRow(sub: sub, on: checked.contains(sub)) { toggle(sub) }
+                    .equatable()   // on이 바뀐 항목만 다시 그림(토글 렉↓)
             }
         }
     }
@@ -204,5 +187,35 @@ struct ElectiveSetupView: View {
         } catch {
             message = error.localizedDescription
         }
+    }
+}
+
+// 체크리스트 한 줄 — Equatable이라 on이 바뀐 항목만 다시 그려짐(토글 렉↓)
+private struct ElectiveRow: View, Equatable {
+    let sub: String
+    let on: Bool
+    var toggle: () -> Void
+
+    static func == (l: ElectiveRow, r: ElectiveRow) -> Bool { l.sub == r.sub && l.on == r.on }
+
+    var body: some View {
+        Button(action: toggle) {
+            HStack(spacing: 11) {
+                Text(sub).foregroundStyle(on ? Color(uiColor: .systemBackground) : .primary)
+                Spacer()
+                if on {
+                    Image(systemName: "checkmark").font(.subheadline.bold())
+                        .foregroundStyle(Color(uiColor: .systemBackground))
+                }
+            }
+            .padding(.vertical, 14).padding(.horizontal, 16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(on ? Color.primary : Color.primary.opacity(0.04),   // 선택 시 박스 전체 채움
+                        in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(.primary.opacity(on ? 0 : 0.15)))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }

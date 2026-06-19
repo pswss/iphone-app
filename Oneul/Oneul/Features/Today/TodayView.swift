@@ -127,7 +127,7 @@ struct TodayView: View {
         let active = Calendar.current.isDate(d, inSameDayAs: selectedDay)
         return grid(p, d, onScrollDelta: active ? { delta in
             guard timelineH > 0 else { return }
-            timelineProgress = min(1, max(0, delta / timelineH))
+            timelineProgress = min(1, max(0, delta / (timelineH * 0.55)))   // 스크롤 시작하면 더 빨리 접히게
         } : nil)
         .padding(.horizontal, 16)
     }
