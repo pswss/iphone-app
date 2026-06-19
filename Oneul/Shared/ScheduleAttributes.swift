@@ -10,6 +10,8 @@ struct EventSnapshot: Codable, Hashable, Identifiable {
     var end: Date
     /// 무지개 팔레트 인덱스(시간 순서대로 0,1,2…). 색은 인덱스로만 전달합니다.
     var colorIndex: Int
+    /// 이틀 이상 걸치는 일정(바 위 흰 밴드로 표시).
+    var isMultiDay: Bool = false
 }
 
 /// 잠금화면 + 다이나믹 아일랜드 Live Activity의 데이터 정의.

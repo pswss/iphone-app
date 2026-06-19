@@ -13,15 +13,17 @@ struct EventEditorView: View {
     @State private var start = Date()
     @State private var end = Date()
     @State private var reminderMinutes = 10
+    @State private var reminderMinutes2 = -1
     @State private var recurrence: Recurrence = .none
     @State private var weekdays: Set<Int> = []
     @State private var hasEndDate = false
     @State private var endDate = Date()
     @State private var showDeleteOptions = false
+    @State private var showPlaceSheet = false
     @FocusState private var focusedField: Field?
     private let lang = AppLanguage.shared
 
-    private enum Field { case title, location }
+    private enum Field { case title }
     private var isEditing: Bool { event != nil }
 
     private let reminderOptions: [(label: String, value: Int)] = [
@@ -40,9 +42,12 @@ struct EventEditorView: View {
                                 .multilineTextAlignment(.trailing)
                         }
                         field(lang.tr("장소")) {
-                            TextField(lang.tr("위치"), text: $location)
-                                .focused($focusedField, equals: .location)
-                                .multilineTextAlignment(.trailing)
+                            Button { showPlaceSheet = true } label: {
+                                Text(location.isEmpty ? lang.tr("위치") : location)
+                                    .foregroundStyle(location.isEmpty ? .secondary : .primary)
+                                    .lineLimit(1)
+                            }
+                            .buttonStyle(.plain)
                         }
                         field(lang.tr("시작")) {
                             DatePicker("", selection: $start).labelsHidden()
@@ -51,23 +56,21 @@ struct EventEditorView: View {
                             DatePicker("", selection: $end, in: start...).labelsHidden()
                         }
                         field(lang.tr("알림")) {
-                            Picker("", selection: $reminderMinutes) {
-                                ForEach(reminderOptions, id: \.value) { Text(lang.tr($0.label)).tag($0.value) }
+                            reminderPicker($reminderMinutes)
+                        }
+                        if reminderMinutes != -1 {
+                            field(lang.tr("2차 알림")) {
+                                reminderPicker($reminderMinutes2)
                             }
-                            .labelsHidden()
-                            .tint(Color.appAccentText)
                         }
                         if !isEditing {
                             field(lang.tr("반복")) {
                                 Picker("", selection: $recurrence) {
                                     ForEach(Recurrence.allCases) { Text(lang.tr($0.label)).tag($0) }
                                 }
-                                .labelsHidden()
-                                .tint(Color.appAccentText)
+                                .labelsHidden().tint(Color.appAccentText)
                             }
-                            if recurrence == .weekly {
-                                weekdaySelector
-                            }
+                            if recurrence == .weekly { weekdaySelector }
                             if recurrence != .none {
                                 field(lang.tr("반복 종료일")) {
                                     Toggle("", isOn: $hasEndDate).labelsHidden().tint(Color.appAccent)
@@ -81,19 +84,7 @@ struct EventEditorView: View {
                             }
                         }
 
-                        if isEditing {
-                            Button(role: .destructive) {
-                                showDeleteOptions = true
-                            } label: {
-                                Label(lang.tr("일정 삭제"), systemImage: "trash")
-                                    .font(.headline)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 13)
-                            }
-                            .tint(.red)
-                            .glassCard(cornerRadius: 18)
-                            .padding(.top, 8)
-                        }
+                        if isEditing { deleteSection }
                     }
                     .padding(16)
                     .contentShape(Rectangle())
@@ -116,25 +107,53 @@ struct EventEditorView: View {
                     Spacer(); Button(lang.tr("완료")) { focusedField = nil }
                 }
             }
-            .confirmationDialog(lang.tr("일정 삭제"), isPresented: $showDeleteOptions, titleVisibility: .visible) {
-                if let event {
-                    if event.isRecurring {
-                        Button(lang.tr("이 일정만 삭제"), role: .destructive) {
-                            EventActions.deleteSingle(event, in: context); dismiss()
-                        }
-                        Button(lang.tr("이후 일정 모두 삭제"), role: .destructive) {
-                            EventActions.deleteFutureSeries(from: event, in: context); dismiss()
-                        }
-                    } else {
-                        Button(lang.tr("삭제"), role: .destructive) {
-                            EventActions.deleteSingle(event, in: context); dismiss()
-                        }
-                    }
-                }
-                Button(lang.tr("취소"), role: .cancel) {}
-            }
+            .sheet(isPresented: $showPlaceSheet) { PlaceSearchSheet(location: $location) }
             .onAppear(perform: load)
         }
+    }
+
+    private func reminderPicker(_ binding: Binding<Int>) -> some View {
+        Picker("", selection: binding) {
+            ForEach(reminderOptions, id: \.value) { Text(lang.tr($0.label)).tag($0.value) }
+        }
+        .labelsHidden().tint(Color.appAccentText)
+    }
+
+    // MARK: 삭제 (옵션이 삭제 버튼 바로 위에 인라인으로)
+    private var deleteSection: some View {
+        VStack(spacing: 8) {
+            if showDeleteOptions {
+                ForEach(deleteChoices, id: \.label) { choice in
+                    Button(role: .destructive) { choice.action() } label: {
+                        Text(choice.label).font(.headline)
+                            .frame(maxWidth: .infinity).padding(.vertical, 12)
+                    }
+                    .tint(.red).glassCard(cornerRadius: 16)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+                }
+            }
+            Button(role: .destructive) {
+                withAnimation(.snappy(duration: 0.22)) { showDeleteOptions.toggle() }
+            } label: {
+                Label(showDeleteOptions ? lang.tr("취소") : lang.tr("일정 삭제"),
+                      systemImage: showDeleteOptions ? "xmark" : "trash")
+                    .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 13)
+            }
+            .tint(showDeleteOptions ? .secondary : .red)
+            .glassCard(cornerRadius: 18)
+        }
+        .padding(.top, 8)
+    }
+
+    private var deleteChoices: [(label: String, action: () -> Void)] {
+        guard let event else { return [] }
+        if event.isRecurring {
+            return [
+                (lang.tr("이 일정만 삭제"), { EventActions.deleteSingle(event, in: context); dismiss() }),
+                (lang.tr("이후 일정 모두 삭제"), { EventActions.deleteFutureSeries(from: event, in: context); dismiss() })
+            ]
+        }
+        return [(lang.tr("삭제"), { EventActions.deleteSingle(event, in: context); dismiss() })]
     }
 
     private func field<Content: View>(_ label: String, @ViewBuilder _ content: () -> Content) -> some View {
@@ -147,7 +166,6 @@ struct EventEditorView: View {
         .glassCard(cornerRadius: 18)
     }
 
-    // 요일 선택 (1=일 … 7=토)
     private var weekdaySelector: some View {
         HStack(spacing: 6) {
             ForEach(1...7, id: \.self) { wd in
@@ -181,6 +199,7 @@ struct EventEditorView: View {
             start = event.start
             end = event.end
             reminderMinutes = event.reminderMinutes
+            reminderMinutes2 = event.reminderMinutes2
         } else {
             let cal = Calendar.current
             let base = cal.isDateInToday(day) ? Date() : day
@@ -198,10 +217,13 @@ struct EventEditorView: View {
             event.title = title; event.location = location
             event.start = start; event.end = end
             event.reminderMinutes = reminderMinutes
+            event.reminderMinutes2 = reminderMinutes != -1 ? reminderMinutes2 : -1
             try? context.save()
         } else {
             EventActions.create(title: title, start: start, end: end, location: location,
-                                reminderMinutes: reminderMinutes, recurrence: recurrence,
+                                reminderMinutes: reminderMinutes,
+                                reminderMinutes2: reminderMinutes != -1 ? reminderMinutes2 : -1,
+                                recurrence: recurrence,
                                 weekdays: recurrence == .weekly ? weekdays : [],
                                 endDate: hasEndDate ? endDate : nil, into: context)
         }

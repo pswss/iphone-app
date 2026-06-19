@@ -141,7 +141,7 @@ struct AIScheduleView: View {
         do {
             let events = try await AppleIntelligenceClient().generateSchedule(from: inputText)
             results = events.sorted { $0.start < $1.start }
-            if results.isEmpty { errorMessage = lang.tr("일정을 찾지 못했어요. 더 구체적으로 적어 보세요.") }
+            if results.isEmpty { errorMessage = lang.tr("일정을 만들 수 없어요 — 유효한 내용을 입력해 주세요.") }
         } catch {
             errorMessage = error.localizedDescription
         }

@@ -36,7 +36,9 @@
 		A13AE6AE7D3A89DE8C23A3C2 /* NEIS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 741F7445372DEF5858438E89 /* NEIS.swift */; };
 		AD1FDE6AC6C6BD1FAD733E65 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F3E3AE2F482E8821D392598 /* SettingsView.swift */; };
 		B53B622954D5D8FBD25C5F54 /* CalendarBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C645C9FB29A1DD74C886502 /* CalendarBar.swift */; };
+		C3C8A27FED06E8DF5FDE3D86 /* DayGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6455A65474E956EDA02D3D48 /* DayGridView.swift */; };
 		CBC2A029F08197D2257C32A3 /* LiveActivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14B607682CCEA115B95212B8 /* LiveActivityController.swift */; };
+		CCB5BAF3023A1F25BC6696D7 /* PlaceSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9779CF0E668CEF123968ACE /* PlaceSearch.swift */; };
 		D0A38FC10823361801D6E040 /* ScheduleEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9845203CDC1D337EDEB41376 /* ScheduleEvent.swift */; };
 		E737EB9D49F5A808C1E599A3 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90270A5784A434E2BD4F8EB7 /* KeychainStore.swift */; };
 		E823D7F623DA11AA93889FB4 /* AIProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 535CFBC05030B47581C0E6A6 /* AIProvider.swift */; };
@@ -86,6 +88,7 @@
 		535CFBC05030B47581C0E6A6 /* AIProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIProvider.swift; sourceTree = "<group>"; };
 		5A201BB565E9308A6DAAEAB4 /* Glass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Glass.swift; sourceTree = "<group>"; };
 		5ACE8189A99207C779416B4D /* OneulApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OneulApp.swift; sourceTree = "<group>"; };
+		6455A65474E956EDA02D3D48 /* DayGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayGridView.swift; sourceTree = "<group>"; };
 		6A7DA356E9BE16433ED03A34 /* AIScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIScheduleView.swift; sourceTree = "<group>"; };
 		741F7445372DEF5858438E89 /* NEIS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NEIS.swift; sourceTree = "<group>"; };
 		74A7ECD14CA79E4D059D2386 /* DayPlan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayPlan.swift; sourceTree = "<group>"; };
@@ -101,6 +104,7 @@
 		C9F7A51A479EF765DCADE7CC /* AppChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppChrome.swift; sourceTree = "<group>"; };
 		D5057FFD3739CA0A9C50D19B /* EventEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventEditorView.swift; sourceTree = "<group>"; };
 		E6AED8BA9142551D4DADE991 /* ScheduleLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleLiveActivity.swift; sourceTree = "<group>"; };
+		E9779CF0E668CEF123968ACE /* PlaceSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceSearch.swift; sourceTree = "<group>"; };
 		E9B0BDB1D75C0BC7A988A590 /* AICommon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AICommon.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -191,6 +195,7 @@
 			isa = PBXGroup;
 			children = (
 				0C645C9FB29A1DD74C886502 /* CalendarBar.swift */,
+				6455A65474E956EDA02D3D48 /* DayGridView.swift */,
 				C7570E900508DF43B3D91D84 /* EventRow.swift */,
 				28D1C0B69DAE7EC2BFA4E7A8 /* TimelineBar.swift */,
 				777161A31B7E4F39C0973C6E /* TodayView.swift */,
@@ -218,6 +223,7 @@
 			isa = PBXGroup;
 			children = (
 				D5057FFD3739CA0A9C50D19B /* EventEditorView.swift */,
+				E9779CF0E668CEF123968ACE /* PlaceSearch.swift */,
 			);
 			path = Editor;
 			sourceTree = "<group>";
@@ -383,6 +389,7 @@
 				94288FF630F4E04FD1FB58B6 /* AppConfig.swift in Sources */,
 				01B03CBFC066FA4AE84FB90F /* AppleIntelligenceClient.swift in Sources */,
 				B53B622954D5D8FBD25C5F54 /* CalendarBar.swift in Sources */,
+				C3C8A27FED06E8DF5FDE3D86 /* DayGridView.swift in Sources */,
 				4ADF4B85379FD3B22D3D3DA8 /* DayPlan.swift in Sources */,
 				52D18DA1E0BFF37AFCA77DB0 /* EventEditorView.swift in Sources */,
 				53D7519E7811C519E51F224D /* EventPalette.swift in Sources */,
@@ -394,6 +401,7 @@
 				770DBDF8A2340C77EBA48398 /* NotificationManager.swift in Sources */,
 				8697B4FE3A5541D083495D75 /* OneulApp.swift in Sources */,
 				2C9D3F62B28E3A1A227366B1 /* Persistence.swift in Sources */,
+				CCB5BAF3023A1F25BC6696D7 /* PlaceSearch.swift in Sources */,
 				8D8728FC5A77B9D0A65A3EE2 /* RootView.swift in Sources */,
 				33F2D826536E8CB3514BCF4E /* ScheduleAttributes.swift in Sources */,
 				D0A38FC10823361801D6E040 /* ScheduleEvent.swift in Sources */,

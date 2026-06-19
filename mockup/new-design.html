@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>오늘 — 이번 배치 디자인 미리보기</title>
+<style>
+  :root{
+    --r0:#FF453A; --r1:#FF9F0A; --r2:#FFD60A; --r3:#30D158;
+    --r4:#0A84FF; --r5:#5E5CE6; --r6:#BF5AF2;
+    --glass:rgba(255,255,255,.08); --glass2:rgba(255,255,255,.13);
+    --line:rgba(255,255,255,.14); --t1:#fff; --t2:rgba(255,255,255,.62); --t3:rgba(255,255,255,.40);
+    --navy:#27407a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased}
+  body{
+    font-family:-apple-system,"SF Pro Display","Pretendard",system-ui,sans-serif;
+    background:#0b1020; color:var(--t1); padding:40px 20px 80px; line-height:1.4;
+  }
+  h1{font-size:26px;font-weight:800;text-align:center;letter-spacing:-.5px}
+  .sub{text-align:center;color:var(--t2);margin:8px 0 36px;font-size:14px}
+  .grid{display:flex;flex-wrap:wrap;gap:34px;justify-content:center;align-items:flex-start;max-width:1240px;margin:0 auto}
+  .cell{width:330px}
+  .cap{font-weight:700;font-size:15px;margin:14px 4px 4px}
+  .cap .new{color:#0A84FF;font-size:11px;font-weight:800;background:rgba(10,132,255,.16);
+    padding:2px 7px;border-radius:8px;margin-left:6px;vertical-align:middle}
+  .desc{color:var(--t2);font-size:12.5px;margin:0 4px 12px}
+
+  /* iPhone frame */
+  .phone{width:330px;height:650px;border-radius:46px;padding:13px;
+    background:linear-gradient(160deg,#3a3a3c,#1c1c1e);
+    box-shadow:0 18px 50px rgba(0,0,0,.5), inset 0 0 0 2px rgba(255,255,255,.06)}
+  .screen{width:100%;height:100%;border-radius:34px;overflow:hidden;position:relative;
+    background:
+      radial-gradient(120% 80% at 80% 0%, rgba(94,92,230,.30), transparent 60%),
+      radial-gradient(120% 90% at 0% 30%, rgba(255,107,140,.16), transparent 55%),
+      linear-gradient(165deg,#2a3566 0%,#141a36 55%,#0c1024 100%);
+    display:flex;flex-direction:column}
+  .island{position:absolute;top:11px;left:50%;transform:translateX(-50%);
+    width:108px;height:30px;background:#000;border-radius:18px;z-index:9}
+  .statusbar{display:flex;justify-content:space-between;padding:14px 24px 0;font-size:12px;font-weight:600}
+  .body{flex:1;overflow:hidden;padding:6px 16px 0}
+
+  .glass{background:var(--glass);border:1px solid var(--line);border-radius:22px;
+    backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+  .pad{padding:14px}
+
+  /* header */
+  .h-row{display:flex;align-items:flex-start;justify-content:space-between;margin:6px 2px 12px}
+  .h-date{font-size:30px;font-weight:800;letter-spacing:-.5px}
+  .h-sub{font-size:12px;color:var(--t3)}
+  /* NEW pill today button */
+  .today-pill{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.16);
+    border:1px solid rgba(255,255,255,.30);color:#fff;font-weight:700;font-size:13px;
+    padding:7px 13px;border-radius:999px;box-shadow:0 2px 10px rgba(0,0,0,.18)}
+  .today-pill svg{width:13px;height:13px}
+
+  /* week calendar */
+  .week{display:flex;justify-content:space-between;margin-bottom:6px}
+  .wd{flex:1;text-align:center;font-size:11px;color:var(--t3)}
+  .wd.sun{color:#ff6961}.wd.sat{color:#7ab8ff}
+  .days{display:flex;justify-content:space-between}
+  .day{flex:1;text-align:center;font-size:15px;font-weight:700;padding:6px 0}
+  .day.sun{color:#ff6961}.day.sat{color:#7ab8ff}
+  .day.sel span{background:#fff;color:#1a2348;border-radius:50%;
+    width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center}
+
+  /* timeline bar + multiday glow band */
+  .tl-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px}
+  .tl-title{font-size:14px;font-weight:700}
+  .next-chip{font-size:10px;font-weight:700;background:rgba(255,255,255,.85);color:#1a2348;
+    padding:3px 8px;border-radius:999px}
+  .bar-wrap{position:relative;height:40px;margin:6px 0 4px}
+  /* multiday band on TOP */
+  .mday{position:absolute;top:0;left:0;right:0;height:7px;border-radius:3px;display:flex;overflow:hidden}
+  .mday .passed{flex:0 0 46%;background:rgba(255,255,255,.18)}      /* 지나간 부분: 안 빛남 */
+  .mday .live{flex:1;background:#fff;border-radius:0 3px 3px 0;
+    box-shadow:0 0 10px rgba(255,255,255,.9),0 0 18px rgba(255,255,255,.55)} /* 남은 부분: 흰 글로우 */
+  .bar{position:absolute;top:15px;left:0;right:0;height:17px;border-radius:3px;display:flex;gap:2px;overflow:hidden}
+  .seg{height:100%;border-radius:3px}
+  .seg.cur{box-shadow:0 0 8px rgba(255,255,255,.8);transform:scaleY(1.25)}
+  .play{position:absolute;top:8px;height:30px;width:2px;left:46%;background:#fff;border-radius:2px;
+    box-shadow:0 0 6px rgba(255,255,255,.9)}
+  .tl-now{font-size:13px;font-weight:700;margin-top:8px}
+
+  /* event rows */
+  .ev{display:flex;align-items:center;gap:10px;padding:11px 12px;margin-top:8px}
+  .ev .stripe{width:4px;height:34px;border-radius:3px}
+  .ev .tm{font-size:11px;font-weight:700;color:var(--t2);width:52px}
+  .ev .ti{font-size:14px;font-weight:700}
+  .ev .se{font-size:11px;color:var(--t3)}
+  .ev .live{margin-left:auto;font-size:9px;font-weight:800;background:#FF453A;color:#fff;padding:2px 6px;border-radius:6px}
+  .sec-t{font-size:13px;font-weight:700;margin:14px 2px 2px}
+
+  /* day grid (apple-style) */
+  .grid-view{position:relative;height:520px;overflow:hidden;margin-top:4px}
+  .hour{position:absolute;left:0;right:0;height:64px;border-top:1px solid rgba(255,255,255,.10)}
+  .hour span{position:absolute;left:0;top:-8px;font-size:10px;color:var(--t3);width:40px}
+  .gcol{position:absolute;left:46px;right:6px;top:0;bottom:0}
+  .gev{position:absolute;left:0;right:0;border-radius:12px;padding:7px 9px;
+    background:var(--glass2);border:1px solid var(--line);backdrop-filter:blur(8px);overflow:hidden}
+  .gev .b{position:absolute;left:0;top:0;bottom:0;width:4px;border-radius:3px}
+  .gev .t{font-size:12px;font-weight:700;margin-left:6px}
+  .gev .s{font-size:10px;color:var(--t2);margin-left:6px}
+  .nowline{position:absolute;left:40px;right:0;height:2px;background:#fff;box-shadow:0 0 6px #fff;z-index:5}
+  .nowline::before{content:"";position:absolute;left:-4px;top:-3px;width:8px;height:8px;border-radius:50%;background:#fff}
+
+  /* drag illustration */
+  .gev.drag{box-shadow:0 16px 30px rgba(0,0,0,.45);transform:scale(1.03);
+    border-color:rgba(255,255,255,.5);z-index:8}
+  .ghost{position:absolute;left:0;right:0;border-radius:12px;border:2px dashed rgba(255,255,255,.45);
+    background:rgba(255,255,255,.05)}
+  .timebubble{position:absolute;background:#fff;color:#1a2348;font-size:11px;font-weight:800;
+    padding:4px 9px;border-radius:999px;box-shadow:0 4px 12px rgba(0,0,0,.3)}
+  .handpt{position:absolute;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.25);
+    border:2px solid rgba(255,255,255,.6)}
+
+  /* editor fields */
+  .field{display:flex;justify-content:space-between;align-items:center;padding:13px 14px;margin-top:9px}
+  .field .lab{color:var(--t2);font-size:14px}
+  .field .val{font-size:14px;font-weight:600}
+  .field .val.ph{color:var(--t3);font-weight:400}
+  .search{margin-top:9px;overflow:hidden}
+  .search .inp{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}
+  .search .inp svg{width:15px;height:15px;opacity:.7}
+  .res{padding:11px 14px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;gap:10px;align-items:center}
+  .res:last-child{border-bottom:0}
+  .res svg{width:16px;height:16px;opacity:.65;flex:none}
+  .res .nm{font-size:13.5px;font-weight:600}
+  .res .ad{font-size:11px;color:var(--t3)}
+  .res.cur .nm{color:#7ab8ff}
+  .pill2{display:inline-block;background:rgba(10,132,255,.18);color:#7ab8ff;font-size:11px;font-weight:700;
+    padding:3px 9px;border-radius:999px;margin-left:6px}
+
+  /* lock screen notif */
+  .lock{align-items:center;justify-content:flex-start;padding-top:60px}
+  .lock .clock{font-size:64px;font-weight:700;text-align:center;letter-spacing:-2px}
+  .lock .ldate{text-align:center;color:var(--t2);font-size:14px;margin-bottom:30px}
+  .notif{margin:0 14px;padding:14px;border-radius:20px;background:rgba(255,255,255,.16);
+    border:1px solid var(--line);backdrop-filter:blur(20px)}
+  .notif .nt{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px;margin-bottom:6px}
+  .notif .ndot{width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,#FF9F0A,#FF453A);
+    display:flex;align-items:center;justify-content:center;font-size:12px}
+  .notif .nb{font-size:13px;color:#eaeefc;line-height:1.5}
+  .chk{display:inline-block;margin:6px 8px 0 0;font-size:12px;background:rgba(255,255,255,.14);
+    padding:4px 10px;border-radius:999px}
+  .cheer{margin-top:10px;font-size:12.5px;font-weight:700;color:#ffd86b}
+
+  /* AI fail */
+  .ai-input{height:120px;margin-top:6px;padding:14px;color:var(--t3);font-size:14px}
+  .ai-btn{margin-top:12px;text-align:center;font-weight:800;font-size:15px;color:#fff;
+    padding:14px;border-radius:16px;background:#0A84FF;box-shadow:0 8px 20px rgba(10,132,255,.5)}
+  .ai-fail{margin-top:14px;color:#ff6961;font-weight:600;font-size:13.5px;text-align:left;
+    display:flex;gap:7px;align-items:flex-start}
+  .ai-fail svg{width:16px;height:16px;flex:none;margin-top:1px}
+
+  .tabbar{display:flex;justify-content:space-around;padding:10px 0 6px;margin:auto 10px 8px;
+    border-radius:22px;background:rgba(255,255,255,.08);border:1px solid var(--line)}
+  .tab{font-size:10px;color:var(--t3);text-align:center}
+  .tab.on{color:#fff}
+  .tab svg{width:18px;height:18px;display:block;margin:0 auto 3px}
+  .note{max-width:760px;margin:40px auto 0;color:var(--t2);font-size:13px;text-align:center;line-height:1.7}
+  .note b{color:#fff}
+</style>
+</head>
+<body>
+  <h1>오늘 — 이번 배치 디자인 미리보기</h1>
+  <p class="sub">앱 스타일(글래스 · 무지개 바 · 네이비) 유지 · 실제 구현 전 시안입니다</p>
+
+  <div class="grid">
+
+    <!-- 1. Today: multiday glow band + pill today button -->
+    <div class="cell">
+      <div class="cap">① 멀티데이 글로우 밴드 + 오늘 버튼</div>
+      <p class="desc">며칠짜리 일정은 바 <b>위쪽 흰 띠</b>로. 플레이헤드가 지난 부분은 안 빛나고, 남은 부분만 빛남. "오늘" 버튼은 알약형으로 명확하게.</p>
+      <div class="phone"><div class="screen"><div class="island"></div>
+        <div class="statusbar"><span>9:41</span><span>📶 100%</span></div>
+        <div class="body">
+          <div class="h-row">
+            <div><div class="h-sub">6월</div><div class="h-date">18일 목요일</div></div>
+            <div class="today-pill">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 14l-4-4 4-4M5 10h9a5 5 0 0 1 0 10h-1"/></svg>오늘
+            </div>
+          </div>
+          <div class="glass pad" style="padding:10px">
+            <div class="week">
+              <div class="wd sun">일</div><div class="wd">월</div><div class="wd">화</div><div class="wd">수</div><div class="wd">목</div><div class="wd">금</div><div class="wd sat">토</div>
+            </div>
+            <div class="days">
+              <div class="day sun">14</div><div class="day">15</div><div class="day">16</div><div class="day">17</div>
+              <div class="day sel"><span>18</span></div><div class="day">19</div><div class="day sat">20</div>
+            </div>
+          </div>
+          <div class="glass pad" style="margin-top:12px">
+            <div class="tl-head"><div class="tl-title">오늘 타임라인</div><div class="next-chip">다음 · 저녁 약속 6:30</div></div>
+            <div class="bar-wrap">
+              <div class="mday"><div class="passed"></div><div class="live"></div></div>
+              <div class="bar">
+                <div class="seg" style="flex:2;background:var(--r0)"></div>
+                <div class="seg cur" style="flex:3;background:var(--r1)"></div>
+                <div class="seg" style="flex:2;background:var(--r3);opacity:.5"></div>
+                <div class="seg" style="flex:2;background:var(--r4);opacity:.5"></div>
+              </div>
+              <div class="play"></div>
+            </div>
+            <div class="tl-now">현재 일정 · 프로젝트 작업</div>
+            <div style="font-size:11px;color:var(--t3);margin-top:6px">⬜ 워크숍 (어제~내일) · 흰 띠로 표시</div>
+          </div>
+          <div class="sec-t">일정</div>
+          <div class="glass ev"><div class="stripe" style="background:var(--r1)"></div><div class="tm">오전 9:00</div><div><div class="ti">프로젝트 작업</div><div class="se">오전 9:00 – 11:00</div></div><div class="live">LIVE</div></div>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- 2. Day grid view -->
+    <div class="cell">
+      <div class="cap">② 시간 그리드 일간뷰 <span class="new">신규 · 결정요망</span></div>
+      <p class="desc">애플 캘린더처럼 <b>시간이 쭉</b> 내려오는 일간 뷰. 우리 앱 글래스 스타일 유지, 일정은 무지개 컬러 블록.</p>
+      <div class="phone"><div class="screen"><div class="island"></div>
+        <div class="statusbar"><span>9:41</span><span>📶 100%</span></div>
+        <div class="body">
+          <div class="h-row"><div><div class="h-sub">6월</div><div class="h-date">18일 목요일</div></div><div class="today-pill">오늘</div></div>
+          <div class="grid-view">
+            <div class="hour" style="top:0"><span>오전 9</span></div>
+            <div class="hour" style="top:64px"><span>10</span></div>
+            <div class="hour" style="top:128px"><span>11</span></div>
+            <div class="hour" style="top:192px"><span>정오</span></div>
+            <div class="hour" style="top:256px"><span>오후 1</span></div>
+            <div class="hour" style="top:320px"><span>2</span></div>
+            <div class="hour" style="top:384px"><span>3</span></div>
+            <div class="hour" style="top:448px"><span>4</span></div>
+            <div class="gcol">
+              <div class="gev" style="top:6px;height:120px"><div class="b" style="background:var(--r1)"></div><div class="t">프로젝트 작업</div><div class="s">9:00 – 11:00 · 집중모드</div></div>
+              <div class="gev" style="top:150px;height:54px"><div class="b" style="background:var(--r3)"></div><div class="t">점심</div><div class="s">12:30 – 1:20 · 성수동</div></div>
+              <div class="gev" style="top:300px;height:80px"><div class="b" style="background:var(--r4)"></div><div class="t">헬스장</div><div class="s">2:00 – 3:00</div></div>
+            </div>
+            <div class="nowline" style="top:96px"></div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- 3. Drag to move -->
+    <div class="cell">
+      <div class="cap">③ 드래그로 일정 이동 <span class="new">신규 · 결정요망</span></div>
+      <p class="desc">일정을 <b>꾹 눌러 끌어서</b> 다른 시간으로 이동. 들린 카드 + 목표 위치 점선 + 시간 말풍선.</p>
+      <div class="phone"><div class="screen"><div class="island"></div>
+        <div class="statusbar"><span>9:41</span><span>📶 100%</span></div>
+        <div class="body">
+          <div class="h-row"><div><div class="h-sub">6월</div><div class="h-date">18일 목요일</div></div></div>
+          <div class="grid-view">
+            <div class="hour" style="top:0"><span>오전 9</span></div>
+            <div class="hour" style="top:64px"><span>10</span></div>
+            <div class="hour" style="top:128px"><span>11</span></div>
+            <div class="hour" style="top:192px"><span>정오</span></div>
+            <div class="hour" style="top:256px"><span>오후 1</span></div>
+            <div class="hour" style="top:320px"><span>2</span></div>
+            <div class="hour" style="top:384px"><span>3</span></div>
+            <div class="gcol">
+              <div class="ghost" style="top:206px;height:80px"></div>
+              <div class="gev drag" style="top:220px;height:80px"><div class="b" style="background:var(--r4)"></div><div class="t">헬스장</div><div class="s">12:30 – 1:30</div>
+                <div class="timebubble" style="right:8px;top:-14px">오후 12:30</div>
+              </div>
+              <div class="handpt" style="left:120px;top:250px"></div>
+              <div class="gev" style="top:6px;height:120px"><div class="b" style="background:var(--r1)"></div><div class="t">프로젝트 작업</div><div class="s">9:00 – 11:00</div></div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- 4. Editor: place search + current loc + 2nd reminder -->
+    <div class="cell">
+      <div class="cap">④ 장소 검색 · 현재 위치 · 2차 알림</div>
+      <p class="desc">장소는 <b>실제 장소 검색</b>(지도) + <b>현재 위치</b> 옵션. 알림을 켜면 <b>2차 알림</b>이 추가로 나타남.</p>
+      <div class="phone"><div class="screen"><div class="island"></div>
+        <div class="statusbar"><span>9:41</span><span>📶 100%</span></div>
+        <div class="body">
+          <div style="text-align:center;font-weight:700;font-size:16px;margin:8px 0 4px">새 일정</div>
+          <div class="glass field"><span class="lab">제목</span><span class="val">스터디 모임</span></div>
+          <div class="glass search">
+            <div class="inp">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+              <span style="font-size:14px">스타벅스</span>
+            </div>
+            <div class="res cur">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#7ab8ff" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+              <div><div class="nm">현재 위치 사용</div><div class="ad">GPS로 지금 위치 지정</div></div>
+            </div>
+            <div class="res"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M12 21s-7-5.2-7-11a7 7 0 0 1 14 0c0 5.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><div><div class="nm">스타벅스 성수역점</div><div class="ad">서울 성동구 아차산로 102</div></div></div>
+            <div class="res"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M12 21s-7-5.2-7-11a7 7 0 0 1 14 0c0 5.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><div><div class="nm">스타벅스 서울숲점</div><div class="ad">서울 성동구 왕십리로 83</div></div></div>
+          </div>
+          <div class="glass field"><span class="lab">시작</span><span class="val">오후 3:00</span></div>
+          <div class="glass field"><span class="lab">알림</span><span class="val">10분 전</span></div>
+          <div class="glass field"><span class="lab">2차 알림 <span class="pill2">새로 나타남</span></span><span class="val ph">1시간 전</span></div>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- 5. Exam reminder lock screen -->
+    <div class="cell">
+      <div class="cap">⑤ 시험 하루 전 알림 (준비물 + 응원)</div>
+      <p class="desc">기말/모의고사 자동 감지 → <b>하루 전 저녁 알림</b>. 유형별 준비물(지필=신분증 없음) + 응원 한마디.</p>
+      <div class="phone"><div class="screen"><div class="island"></div>
+        <div class="lock body" style="padding-top:0">
+          <div style="height:46px"></div>
+          <div class="clock">9:00</div>
+          <div class="ldate">6월 29일 일요일</div>
+          <div class="notif">
+            <div class="nt"><div class="ndot">📅</div>내일 기말고사 — 준비물 챙기세요</div>
+            <div class="nb">
+              <span class="chk">⏰ 시계</span><span class="chk">✏️ 필기구</span>
+              <div class="cheer">그동안 한 만큼 나와요. 화이팅! 💪</div>
+            </div>
+          </div>
+          <div class="notif" style="margin-top:12px;opacity:.8">
+            <div class="nt"><div class="ndot" style="background:linear-gradient(135deg,#0A84FF,#5E5CE6)">📝</div>내일 6월 모의고사</div>
+            <div class="nb"><span class="chk">⏰ 시계</span><span class="chk">✏️ 필기구</span><span class="chk">🪪 신분증</span><span class="chk">🎫 수험표</span></div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- 6. AI fail -->
+    <div class="cell">
+      <div class="cap">⑥ AI 일정 생성 실패 메시지</div>
+      <p class="desc">말이 안 되는 입력이면 <b>빨간색으로 "생성 실패"</b>를 명확히 안내.</p>
+      <div class="phone"><div class="screen"><div class="island"></div>
+        <div class="statusbar"><span>9:41</span><span>📶 100%</span></div>
+        <div class="body">
+          <div style="text-align:center;font-weight:700;font-size:16px;margin:8px 0 8px">일정 생성</div>
+          <div style="font-size:11px;color:var(--t3);margin:0 2px 4px"> Apple Intelligence · 온디바이스 (키 불필요)</div>
+          <div class="glass ai-input">ㅁㄴㅇㄹ asdf 12345 ㅋㅋㅋ</div>
+          <div class="ai-btn">일정 생성</div>
+          <div class="ai-fail">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#ff6961" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/></svg>
+            일정을 만들 수 없어요 — 일정 같은 내용을 입력해 주세요.
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+  </div>
+
+  <p class="note">
+    <b>①·④·⑤·⑥</b> 은 이번에 구현 진행 중인 디자인이고, <b>②·③ (시간 그리드 일간뷰 · 드래그 이동)</b> 은 새로 제안하는 큰 변화예요.<br>
+    ②·③ 을 구현할지, 한다면 기존 리스트형과 <b>전환 토글</b>로 둘 다 둘지 알려주세요.
+  </p>
+</body>
+</html>

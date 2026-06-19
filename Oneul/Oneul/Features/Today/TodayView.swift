@@ -12,9 +12,12 @@ struct TodayView: View {
     @AppStorage("userType") private var userType = "general"
     @Environment(\.horizontalSizeClass) private var hSize
 
+    @State private var slideForward = true
+
     private var plan: DayPlan { DayPlan(events: events, day: selectedDay) }
     private var wide: Bool { hSize == .regular }
     private var isStudent: Bool { userType == "student" }
+    private var dayKey: Date { Calendar.current.startOfDay(for: selectedDay) }
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -32,6 +35,20 @@ struct TodayView: View {
         }
         .onAppear { seedIfRequested(); syncLiveActivity() }
         .onChange(of: events) { _, _ in syncLiveActivity() }
+        .onChange(of: dayKey) { old, new in slideForward = new > old }
+    }
+
+    /// 날짜별 본문(타임라인+급식+그리드) — 날짜 바뀌면 애플 캘린더식 좌/우 슬라이드.
+    private var dayBody: some View {
+        VStack(spacing: 16) {
+            timelineCard
+            if isStudent { MealCard(day: selectedDay) }
+            DayGridView(plan: plan, day: selectedDay, editing: $editing)
+        }
+        .id(dayKey)
+        .transition(.asymmetric(
+            insertion: .move(edge: slideForward ? .trailing : .leading).combined(with: .opacity),
+            removal: .move(edge: slideForward ? .leading : .trailing).combined(with: .opacity)))
     }
 
     // MARK: 아이폰(세로 1단)
@@ -40,13 +57,12 @@ struct TodayView: View {
             VStack(alignment: .leading, spacing: 16) {
                 header
                 CalendarBar(selectedDay: $selectedDay)
-                timelineCard
-                if isStudent { MealCard(day: selectedDay) }
-                listSection
+                dayBody
                 Color.clear.frame(height: 90)
             }
             .padding(.horizontal, 16)
             .padding(.top, 8)
+            .animation(.easeInOut(duration: 0.28), value: dayKey)
         }
     }
 
@@ -64,10 +80,8 @@ struct TodayView: View {
                             if isStudent { MealCard(day: selectedDay) }
                         }
                         .frame(maxWidth: .infinity, alignment: .top)
-                        ScrollView {
-                            listSection.padding(.bottom, 80)
-                        }
-                        .frame(maxWidth: .infinity)
+                        DayGridView(plan: plan, day: selectedDay, editing: $editing)
+                            .frame(maxWidth: .infinity)
                     }
                     .frame(maxHeight: .infinity)
                 }
@@ -85,7 +99,7 @@ struct TodayView: View {
                                 if isStudent { MealCard(day: selectedDay) }
                             }
                             .frame(maxWidth: .infinity, alignment: .top)
-                            VStack { listSection }
+                            DayGridView(plan: plan, day: selectedDay, editing: $editing)
                                 .frame(maxWidth: .infinity, alignment: .top)
                         }
                         Color.clear.frame(height: 90)
@@ -105,9 +119,15 @@ struct TodayView: View {
                     .font(.largeTitle).bold()
                 Spacer()
                 if !Calendar.current.isDateInToday(selectedDay) {
-                    Button(lang.tr("오늘")) { withAnimation { selectedDay = .now } }
-                        .font(.subheadline).bold()
-                        .tint(Color.appAccentText)
+                    Button { withAnimation(.snappy(duration: 0.25)) { selectedDay = .now } } label: {
+                        Text(lang.tr("오늘"))
+                            .font(.subheadline).bold()
+                            .foregroundStyle(Color.appAccentText)
+                            .padding(.horizontal, 13).padding(.vertical, 6)
+                            .background(.ultraThinMaterial, in: Capsule())
+                            .overlay(Capsule().strokeBorder(Color.appAccentText.opacity(0.35)))
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             if let holiday = Holidays.name(for: selectedDay) {
@@ -153,45 +173,6 @@ struct TodayView: View {
         if let cur = plan.current() { return "\(lang.tr("현재 일정 ·")) \(cur.title)" }
         if plan.next() != nil { return lang.tr("대기 중 · 다음 일정까지") }
         return lang.tr("오늘 일정 종료")
-    }
-
-    // MARK: 리스트
-    private var listSection: some View {
-        VStack(alignment: .leading, spacing: 9) {
-            Text(lang.tr("일정")).font(.subheadline).bold().padding(.leading, 4)
-            if plan.isEmpty {
-                Text(lang.tr("일정 없음"))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .padding(.leading, 4).padding(.top, 2)
-            } else {
-                ForEach(plan.events) { event in
-                    Button { editing = event } label: {
-                        EventRow(
-                            event: event,
-                            colorIndex: plan.colorIndex(of: event),
-                            isCurrent: plan.current()?.id == event.id
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .contextMenu {
-                        if event.isRecurring {
-                            Button(role: .destructive) {
-                                EventActions.deleteSingle(event, in: context)
-                            } label: { Label(lang.tr("이 일정만 삭제"), systemImage: "trash") }
-                            Button(role: .destructive) {
-                                EventActions.deleteFutureSeries(from: event, in: context)
-                            } label: { Label(lang.tr("이후 일정 모두 삭제"), systemImage: "trash") }
-                        } else {
-                            Button(role: .destructive) {
-                                EventActions.deleteSingle(event, in: context)
-                            } label: { Label(lang.tr("삭제"), systemImage: "trash") }
-                        }
-                    }
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: FAB
@@ -242,7 +223,7 @@ struct TodayView: View {
     private func syncLiveActivity() {
         let todayPlan = DayPlan(events: events, day: .now)
         LiveActivityController.shared.refresh(plan: todayPlan, dayLabel: todayLabel())
-        NotificationManager.shared.reschedule(for: todayPlan.events)
+        NotificationManager.shared.reschedule(for: events)   // 전체 일정(가까운 알림 + 시험 전날)
     }
 
     private func todayLabel() -> String {

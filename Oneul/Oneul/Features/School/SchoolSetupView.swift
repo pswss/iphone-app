@@ -16,6 +16,8 @@ struct SchoolSetupView: View {
     @State private var searching = false
     @State private var importing = false
     @State private var message = ""
+    @State private var showPeriods = false
+    @State private var periodsTick = 0
     @FocusState private var focused: Bool
 
     private var selected: School? {
@@ -123,6 +125,34 @@ struct SchoolSetupView: View {
                 .labelsHidden().pickerStyle(.menu).tint(Color.appAccentText)
             }
 
+            Button { withAnimation(.snappy(duration: 0.2)) { showPeriods.toggle() } } label: {
+                HStack {
+                    Text("교시 시간 조정").foregroundStyle(.secondary)
+                    Spacer()
+                    Image(systemName: showPeriods ? "chevron.up" : "chevron.down")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            .buttonStyle(.plain)
+            if showPeriods {
+                VStack(spacing: 7) {
+                    ForEach(1...PeriodSchedule.count, id: \.self) { p in
+                        HStack(spacing: 6) {
+                            Text("\(p)교시").font(.caption).foregroundStyle(.secondary)
+                                .frame(width: 42, alignment: .leading)
+                            Spacer()
+                            DatePicker("", selection: timeBinding(p, true), displayedComponents: .hourAndMinute)
+                                .labelsHidden()
+                            Text("~").font(.caption).foregroundStyle(.secondary)
+                            DatePicker("", selection: timeBinding(p, false), displayedComponents: .hourAndMinute)
+                                .labelsHidden()
+                        }
+                    }
+                }
+                .id(periodsTick)
+                .padding(.top, 2)
+            }
+
             Button {
                 Task { await importTimetable(s) }
             } label: {
@@ -136,6 +166,21 @@ struct SchoolSetupView: View {
         }
         .padding(14)
         .glassCard(cornerRadius: 22)
+    }
+
+    private func timeBinding(_ p: Int, _ isStart: Bool) -> Binding<Date> {
+        Binding(
+            get: {
+                let mins = isStart ? PeriodSchedule.startMinutes(p) : PeriodSchedule.endMinutes(p)
+                return Calendar.current.date(bySettingHour: mins / 60, minute: mins % 60, second: 0, of: Date()) ?? Date()
+            },
+            set: { newDate in
+                let c = Calendar.current.dateComponents([.hour, .minute], from: newDate)
+                let mins = (c.hour ?? 0) * 60 + (c.minute ?? 0)
+                if isStart { PeriodSchedule.setStart(p, mins) } else { PeriodSchedule.setEnd(p, mins) }
+                periodsTick += 1
+            }
+        )
     }
 
     // MARK: 동작
@@ -164,9 +209,11 @@ struct SchoolSetupView: View {
         importing = true
         defer { importing = false }
         do {
-            let n = try await TimetableImporter.importThisWeek(
+            let r = try await TimetableImporter.importAll(
                 school: s, grade: grade, classNm: classNm, into: context)
-            message = n > 0 ? "\(n)개 수업을 졸업할 때까지 추가했어요." : "이번 주 시간표를 찾지 못했어요."
+            message = (r.timetable + r.academic) > 0
+                ? "수업 \(r.timetable)개 · 학사일정 \(r.academic)개를 추가했어요."
+                : "시간표/학사일정을 찾지 못했어요."
         } catch {
             message = error.localizedDescription
         }

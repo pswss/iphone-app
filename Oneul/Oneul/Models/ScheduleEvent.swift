@@ -13,10 +13,14 @@ final class ScheduleEvent {
     var notes: String = ""
     /// 시작 몇 분 전 알림. -1이면 없음.
     var reminderMinutes: Int = 10
+    /// 2차 알림(분 전). -1이면 없음. 1차가 설정됐을 때만 노출.
+    var reminderMinutes2: Int = -1
     /// Recurrence.rawValue ("none"/"daily"/…).
     var recurrenceRaw: String = "none"
     /// 반복 시리즈 식별자. 빈 값이면 단일 일정.
     var seriesID: String = ""
+    /// 출처 태그. ""=사용자, "timetable"=학교 시간표, "academic"=학사일정. 재가져오기 시 삭제 기준.
+    var source: String = ""
 
     init(
         id: UUID = UUID(),
@@ -26,8 +30,10 @@ final class ScheduleEvent {
         location: String = "",
         notes: String = "",
         reminderMinutes: Int = 10,
+        reminderMinutes2: Int = -1,
         recurrenceRaw: String = "none",
-        seriesID: String = ""
+        seriesID: String = "",
+        source: String = ""
     ) {
         self.id = id
         self.title = title
@@ -36,9 +42,28 @@ final class ScheduleEvent {
         self.location = location
         self.notes = notes
         self.reminderMinutes = reminderMinutes
+        self.reminderMinutes2 = reminderMinutes2
         self.recurrenceRaw = recurrenceRaw
         self.seriesID = seriesID
+        self.source = source
     }
+}
+
+/// 시험 유형 (제목 키워드로 판별). 시험 1일 전 알림·준비물에 사용.
+enum ExamKind {
+    case none    // 시험 아님
+    case school  // 내신 지필 + 모의고사 + 학력평가 — 시계·필기구만
+    case csat    // 수능 — 수험표·신분증까지
+
+    /// 준비물 체크리스트.
+    var checklist: [String] {
+        switch self {
+        case .none: return []
+        case .school: return ["시계", "필기구"]
+        case .csat: return ["시계", "필기구", "수험표", "신분증"]
+        }
+    }
+    var isExam: Bool { self != .none }
 }
 
 extension ScheduleEvent {
@@ -51,6 +76,21 @@ extension ScheduleEvent {
         return start < dayEnd && end > dayStart
     }
     var isRecurring: Bool { !seriesID.isEmpty }
+
+    /// 멀티데이(이틀 이상 걸침) 여부.
+    func isMultiDay(calendar: Calendar = .current) -> Bool {
+        !calendar.isDate(start, inSameDayAs: end)
+    }
+
+    /// 제목 키워드로 시험 유형 판별. (수능만 csat, 나머지 시험·모의·평가는 school)
+    var examKind: ExamKind {
+        let t = title
+        let isMock = t.contains("모의") || t.contains("학력평가") || t.contains("연합")
+        if !isMock && (t.contains("수학능력시험") || t.contains("수능")) { return .csat }
+        let school = ["모의", "학력평가", "연합", "지필", "중간고사", "기말고사", "고사", "시험", "평가"]
+        if school.contains(where: t.contains) { return .school }
+        return .none
+    }
 }
 
 // MARK: - 반복 규칙
@@ -92,14 +132,16 @@ enum EventActions {
     /// - `endDate`가 있으면 그날까지, 없으면 1년(최대 800개)까지.
     static func create(
         title: String, start: Date, end: Date, location: String,
-        reminderMinutes: Int, recurrence: Recurrence,
-        weekdays: Set<Int> = [], endDate: Date? = nil, into context: ModelContext
+        reminderMinutes: Int, reminderMinutes2: Int = -1, recurrence: Recurrence,
+        weekdays: Set<Int> = [], endDate: Date? = nil, source: String = "",
+        into context: ModelContext
     ) {
         let duration = max(0, end.timeIntervalSince(start))
 
         guard recurrence != .none else {
             context.insert(ScheduleEvent(title: title, start: start, end: end,
-                                         location: location, reminderMinutes: reminderMinutes))
+                                         location: location, reminderMinutes: reminderMinutes,
+                                         reminderMinutes2: reminderMinutes2, source: source))
             try? context.save()
             return
         }
@@ -122,7 +164,8 @@ enum EventActions {
                     context.insert(ScheduleEvent(
                         title: title, start: s, end: s.addingTimeInterval(duration),
                         location: location, reminderMinutes: reminderMinutes,
-                        recurrenceRaw: recurrence.rawValue, seriesID: seriesID))
+                        reminderMinutes2: reminderMinutes2,
+                        recurrenceRaw: recurrence.rawValue, seriesID: seriesID, source: source))
                     count += 1
                 }
                 guard let next = cal.date(byAdding: .day, value: 1, to: day) else { break }
@@ -134,7 +177,8 @@ enum EventActions {
                 context.insert(ScheduleEvent(
                     title: title, start: date, end: date.addingTimeInterval(duration),
                     location: location, reminderMinutes: reminderMinutes,
-                    recurrenceRaw: recurrence.rawValue, seriesID: seriesID))
+                    reminderMinutes2: reminderMinutes2,
+                    recurrenceRaw: recurrence.rawValue, seriesID: seriesID, source: source))
                 count += 1
                 guard let next = cal.date(byAdding: step.component, value: step.value, to: date) else { break }
                 date = next
@@ -145,6 +189,17 @@ enum EventActions {
 
     static func deleteSingle(_ event: ScheduleEvent, in context: ModelContext) {
         context.delete(event)
+        try? context.save()
+    }
+
+    /// 특정 출처(timetable/academic)의 일정 전부 삭제. 재가져오기 전 호출.
+    static func deleteBySource(_ source: String, in context: ModelContext) {
+        let descriptor = FetchDescriptor<ScheduleEvent>(
+            predicate: #Predicate<ScheduleEvent> { $0.source == source }
+        )
+        if let items = try? context.fetch(descriptor) {
+            for e in items { context.delete(e) }
+        }
         try? context.save()
     }
 

@@ -1,59 +1,86 @@
 import SwiftUI
 
 /// 인앱 무지개 타임라인 바 (packed).
-/// 일정을 빈틈없이 붙여 바를 채우고, 진행 중이면 그 칸 안에서 선이 이동,
-/// 쉬는 시간엔 다음 칸 경계에 선이 멈춥니다.
+/// 단일일 일정은 빈틈없이 붙인 무지개 칸으로, 멀티데이 일정은 바 위쪽 흰 글로우 밴드로 표시.
+/// 진행 중이면 그 칸 안에서 선이 이동, 쉬는 시간엔 다음 칸 경계에 선이 멈춥니다.
+/// 멀티데이 밴드는 플레이헤드가 지난 부분은 빛나지 않고, 남은 부분만 빛납니다.
 struct TimelineBar: View {
     let plan: DayPlan
     var height: CGFloat = 16
 
+    private var single: [ScheduleEvent] { plan.singleDayEvents }
     private var layout: PackedLayout {
-        PackedLayout(intervals: plan.events.map { (start: $0.start, end: $0.end) })
+        PackedLayout(intervals: single.map { (start: $0.start, end: $0.end) })
     }
+    private var bandCount: Int { plan.multiDayEvents.count }
 
     var body: some View {
         TimelineView(.animation) { context in
             let now = context.date
             let current = plan.current(at: now)
             let waiting = layout.isWaiting(at: now)
+            let frac = layout.fraction(at: now)
 
             GeometryReader { geo in
                 let w = geo.size.width
-                ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill(.white.opacity(0.08))
-                        .frame(height: height)
-                        .frame(maxHeight: .infinity, alignment: .center)
-
-                    ForEach(Array(plan.events.enumerated()), id: \.element.id) { idx, event in
-                        let slot = layout.slots[idx]
-                        let isCurrent = current?.id == event.id
-                        let isPast = now >= event.end
-
-                        RoundedRectangle(cornerRadius: 3, style: .continuous)
-                            .fill(EventPalette.color(idx))
-                            .frame(width: max(2, slot.width * w - 1.5),
-                                   height: height * (isCurrent ? 1.45 : 1))
-                            .opacity(isPast ? 0.25 : (isCurrent ? 1 : 0.5))
-                            .shadow(color: isCurrent ? EventPalette.color(idx).opacity(0.6) : .clear,
-                                    radius: 6, y: 3)
-                            .offset(x: slot.left * w + 0.75)
-                            .frame(maxHeight: .infinity, alignment: .center)
+                VStack(spacing: 5) {
+                    ForEach(plan.multiDayEvents) { _ in
+                        multiDayBand(width: w, fraction: frac)
                     }
 
-                    // 현재-시각 선 (쉬는 시간엔 경계에 정지 + 흐려짐)
-                    let px = layout.fraction(at: now) * w
-                    Capsule()
-                        .fill(.white)
-                        .frame(width: 2, height: height + 12)
-                        .opacity(waiting ? 0.55 : 1)
-                        .shadow(color: .white.opacity(0.85), radius: 4)
-                        .offset(x: px - 1)
-                        .frame(maxHeight: .infinity, alignment: .center)
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(.white.opacity(0.08))
+                            .frame(height: height)
+                            .frame(maxHeight: .infinity, alignment: .center)
+
+                        ForEach(Array(single.enumerated()), id: \.element.id) { idx, event in
+                            let slot = layout.slots[idx]
+                            let isCurrent = current?.id == event.id
+                            let isPast = now >= event.end
+                            let color = EventPalette.color(plan.colorIndex(of: event))
+
+                            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                .fill(color)
+                                .frame(width: max(2, slot.width * w - 1.5),
+                                       height: height * (isCurrent ? 1.45 : 1))
+                                .opacity(isPast ? 0.25 : (isCurrent ? 1 : 0.5))
+                                .shadow(color: isCurrent ? color.opacity(0.6) : .clear, radius: 6, y: 3)
+                                .offset(x: slot.left * w + 0.75)
+                                .frame(maxHeight: .infinity, alignment: .center)
+                        }
+
+                        if !single.isEmpty {
+                            let px = frac * w
+                            Capsule()
+                                .fill(.white)
+                                .frame(width: 2, height: height + 12)
+                                .opacity(waiting ? 0.55 : 1)
+                                .shadow(color: .white.opacity(0.85), radius: 4)
+                                .offset(x: px - 1)
+                                .frame(maxHeight: .infinity, alignment: .center)
+                        }
+                    }
+                    .frame(height: height + 14)
                 }
             }
-            .frame(height: height + 14)
+            .frame(height: CGFloat(bandCount) * 12 + height + 14)
             .animation(.easeInOut(duration: 0.35), value: current?.id)
         }
+    }
+
+    /// 멀티데이 흰 밴드: 지난 부분(흐림) + 남은 부분(흰 글로우).
+    private func multiDayBand(width w: CGFloat, fraction f: Double) -> some View {
+        let px = max(0, min(w, f * w))
+        return ZStack(alignment: .leading) {
+            Capsule().fill(.white.opacity(0.16))
+                .frame(width: px, height: 6)
+            Capsule().fill(.white)
+                .frame(width: max(0, w - px), height: 6)
+                .shadow(color: .white.opacity(0.9), radius: 7)
+                .shadow(color: .white.opacity(0.45), radius: 14)
+                .offset(x: px)
+        }
+        .frame(width: w, height: 7, alignment: .leading)
     }
 }

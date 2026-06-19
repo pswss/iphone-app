@@ -102,6 +102,7 @@ final class AppLanguage {
         "매년": "Yearly",
         "반복 종료일": "End repeat",
         "종료일": "End date",
+        "2차 알림": "Second alert",
         "일정 생성": "Create Events",
         "생성 중...": "Generating...",
         "＋ 전체 일정에 추가": "＋ Add all",
@@ -109,6 +110,8 @@ final class AppLanguage {
             "e.g. Team meeting 9am tomorrow, lunch at 12:30, gym at 3pm for 1h, dinner with a friend at 7pm",
         "일정을 찾지 못했어요. 더 구체적으로 적어 보세요.":
             "Couldn't find any events. Try being more specific.",
+        "일정을 만들 수 없어요 — 유효한 내용을 입력해 주세요.":
+            "Couldn't create a schedule — please enter valid content.",
         "키 받기": "Get key",
         "외형": "Appearance",
         "시스템": "System",

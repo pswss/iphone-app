@@ -32,6 +32,12 @@ struct Meal: Identifiable {
     var id: String { type }
 }
 
+struct AcademicEvent {
+    let date: String     // yyyyMMdd (AA_YMD)
+    let name: String     // EVENT_NM
+    let kind: String     // SBTR_DD_SC_NM (수업일/휴업일 등)
+}
+
 enum NEISError: LocalizedError {
     case noKey, noData, message(String)
     var errorDescription: String? {
@@ -45,12 +51,35 @@ enum NEISError: LocalizedError {
 
 // MARK: - 표준 교시 시간 (고등학교 기준, 50분 수업)
 
-enum PeriodTimes {
-    /// 교시 → (시작시, 시작분, 종료시, 종료분)
-    static let high: [Int: (Int, Int, Int, Int)] = [
-        1: (8, 40, 9, 30), 2: (9, 40, 10, 30), 3: (10, 40, 11, 30), 4: (11, 40, 12, 30),
-        5: (13, 30, 14, 20), 6: (14, 30, 15, 20), 7: (15, 30, 16, 20), 8: (16, 30, 17, 20)
+enum PeriodSchedule {
+    static let count = 7
+
+    /// 보평고 기본값 (시작분, 종료분 — 자정 기준 분).
+    static let defaults: [(Int, Int)] = [
+        (9 * 60 + 10, 10 * 60 + 0),   // 1교시 09:10~10:00
+        (10 * 60 + 10, 11 * 60 + 0),  // 2교시 10:10~11:00
+        (11 * 60 + 10, 12 * 60 + 0),  // 3교시 11:10~12:00
+        (13 * 60 + 0, 13 * 60 + 50),  // 4교시 13:00~13:50 (점심 12:00~13:00)
+        (14 * 60 + 0, 14 * 60 + 50),  // 5교시 14:00~14:50
+        (15 * 60 + 0, 15 * 60 + 50),  // 6교시 15:00~15:50
+        (16 * 60 + 0, 16 * 60 + 50)   // 7교시 16:00~16:50
     ]
+
+    static func startMinutes(_ p: Int) -> Int {
+        UserDefaults.standard.object(forKey: "bell.\(p).start") as? Int ?? defaults[p - 1].0
+    }
+    static func endMinutes(_ p: Int) -> Int {
+        UserDefaults.standard.object(forKey: "bell.\(p).end") as? Int ?? defaults[p - 1].1
+    }
+    static func setStart(_ p: Int, _ minutes: Int) { UserDefaults.standard.set(minutes, forKey: "bell.\(p).start") }
+    static func setEnd(_ p: Int, _ minutes: Int) { UserDefaults.standard.set(minutes, forKey: "bell.\(p).end") }
+
+    /// 교시 → (시작시, 시작분, 종료시, 종료분).
+    static func time(period p: Int) -> (Int, Int, Int, Int)? {
+        guard p >= 1, p <= count else { return nil }
+        let s = startMinutes(p), e = endMinutes(p)
+        return (s / 60, s % 60, e / 60, e % 60)
+    }
 }
 
 // MARK: - 클라이언트
@@ -92,6 +121,19 @@ struct NEISClient {
         return rows.map {
             Meal(type: str($0["MMEAL_SC_NM"]),
                  menu: str($0["DDISH_NM"]).replacingOccurrences(of: "<br/>", with: "\n"))
+        }
+    }
+
+    /// 학사일정(시험·행사 등).
+    func fetchSchedule(school: School, from: Date, to: Date) async throws -> [AcademicEvent] {
+        let rows = try await fetch("SchoolSchedule", [
+            "ATPT_OFCDC_SC_CODE": school.office, "SD_SCHUL_CODE": school.code,
+            "AA_FROM_YMD": ymd(from), "AA_TO_YMD": ymd(to), "pSize": "500"
+        ], service: "SchoolSchedule")
+        return rows.compactMap {
+            let name = str($0["EVENT_NM"])
+            guard !name.isEmpty else { return nil }
+            return AcademicEvent(date: str($0["AA_YMD"]), name: name, kind: str($0["SBTR_DD_SC_NM"]))
         }
     }
 
@@ -141,9 +183,20 @@ struct NEISClient {
 enum TimetableImporter {
     /// 이번 주 시간표를 읽어 요일별 수업을 **졸업(학년도 말)까지** 매주 반복으로 생성. 생성한 일정 수 반환.
     /// @MainActor: SwiftData 메인 컨텍스트 insert가 메인 스레드에서 일어나도록 (백그라운드 insert 크래시 방지).
+    /// 시간표 + 학사일정 전부 가져오기. 재가져오기 시 이전 학교 일정(timetable/academic)을 먼저 삭제.
     @MainActor
-    static func importThisWeek(school: School, grade: Int, classNm: String,
-                               into context: ModelContext) async throws -> Int {
+    static func importAll(school: School, grade: Int, classNm: String,
+                          into context: ModelContext) async throws -> (timetable: Int, academic: Int) {
+        EventActions.deleteBySource("timetable", in: context)
+        EventActions.deleteBySource("academic", in: context)
+        let tt = try await importTimetable(school: school, grade: grade, classNm: classNm, into: context)
+        let ac = try await importAcademic(school: school, grade: grade, into: context)
+        return (tt, ac)
+    }
+
+    @MainActor
+    private static func importTimetable(school: School, grade: Int, classNm: String,
+                                        into context: ModelContext) async throws -> Int {
         let cal = Calendar.current
         let todayMid = cal.startOfDay(for: Date())
         let weekday = cal.component(.weekday, from: todayMid)          // 1=일 … 7=토
@@ -160,16 +213,48 @@ enum TimetableImporter {
         for e in entries {
             guard !e.subject.isEmpty,
                   let date = f.date(from: e.date),
-                  let t = PeriodTimes.high[e.period],
+                  let t = PeriodSchedule.time(period: e.period),
                   let start = cal.date(bySettingHour: t.0, minute: t.1, second: 0, of: date),
                   let end = cal.date(bySettingHour: t.2, minute: t.3, second: 0, of: date) else { continue }
             let wd = cal.component(.weekday, from: date)
             EventActions.create(title: e.subject, start: start, end: end, location: "",
                                 reminderMinutes: -1, recurrence: .weekly,
-                                weekdays: [wd], endDate: until, into: context)
+                                weekdays: [wd], endDate: until, source: "timetable", into: context)
             count += 1
         }
         return count
+    }
+
+    /// 학사일정에서 시험 + 주요 행사만 가져옴 (토요휴업일 등 잡다 제외).
+    @MainActor
+    private static func importAcademic(school: School, grade: Int,
+                                       into context: ModelContext) async throws -> Int {
+        let cal = Calendar.current
+        let from = cal.startOfDay(for: Date())
+        let until = graduationDate(kind: school.kind, grade: grade)
+        let events = try await NEISClient.shared.fetchSchedule(school: school, from: from, to: until)
+        let f = DateFormatter(); f.dateFormat = "yyyyMMdd"; f.locale = Locale(identifier: "ko_KR")
+        var count = 0
+        for e in events where isWanted(e) {
+            guard let day = f.date(from: e.date),
+                  let start = cal.date(bySettingHour: 9, minute: 0, second: 0, of: day) else { continue }
+            let exam = examWords.contains(where: e.name.contains)
+            let end = cal.date(bySettingHour: exam ? 12 : 10, minute: 0, second: 0, of: day)
+                ?? start.addingTimeInterval(3600)
+            EventActions.create(title: e.name, start: start, end: end, location: "",
+                                reminderMinutes: -1, recurrence: .none, source: "academic", into: context)
+            count += 1
+        }
+        return count
+    }
+
+    private static let examWords = ["고사", "시험", "평가", "모의", "수능", "학력"]
+    private static let majorWords = ["방학", "개학", "입학식", "졸업식", "시업식", "축제",
+                                     "체육대회", "수련회", "수학여행", "현장체험", "재량휴업",
+                                     "대체공휴일", "개교기념일", "소풍", "발표회"]
+    private static func isWanted(_ e: AcademicEvent) -> Bool {
+        if e.name.contains("토요휴업일") { return false }
+        return examWords.contains(where: e.name.contains) || majorWords.contains(where: e.name.contains)
     }
 
     /// 졸업일(학년도 말 = 2월 말일). 초=6년, 중/고/특=3년.

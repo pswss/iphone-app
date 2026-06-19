@@ -33,6 +33,11 @@ struct DayPlan {
 
     var isEmpty: Bool { events.isEmpty }
 
+    /// 그날 하루 안에서 시작·종료하는 일정 (무지개 바 패킹 대상).
+    var singleDayEvents: [ScheduleEvent] { events.filter { !$0.isMultiDay() } }
+    /// 이틀 이상 걸치는 일정 (바 상단 흰 글로우 밴드 대상).
+    var multiDayEvents: [ScheduleEvent] { events.filter { $0.isMultiDay() } }
+
     /// 0...1 사이의 가로 위치(바 안에서의 비율).
     func fraction(for date: Date) -> Double {
         let total = dayEnd.timeIntervalSince(dayStart)
@@ -59,7 +64,8 @@ struct DayPlan {
     /// Live Activity로 넘길 스냅샷 묶음.
     func contentState(at now: Date = .now) -> ScheduleActivityAttributes.ContentState {
         let snaps = events.enumerated().map { index, e in
-            EventSnapshot(id: e.id, title: e.title, start: e.start, end: e.end, colorIndex: index)
+            EventSnapshot(id: e.id, title: e.title, start: e.start, end: e.end,
+                          colorIndex: index, isMultiDay: e.isMultiDay())
         }
         let cur = current(at: now)
         let nxt = next(at: now)
