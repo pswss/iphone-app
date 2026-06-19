@@ -191,6 +191,7 @@ struct DayGridView: View {
                     radius: glowing ? 13 : (lifted ? 10 : 3),
                     y: glowing ? 0 : (lifted ? 6 : 2))
             .overlay(alignment: .topTrailing) { bubble(e, dy: dy, show: dragging && !inTrash) }
+            .overlay { if selected { CornerArc(radius: 11).stroke(.white, lineWidth: 3).allowsHitTesting(false) } }  // 왼쪽 아래 코너 곡선만 흰색
             .overlay { gestureLayer(e, selected: selected) }       // 본문=탭/이동, 아래 손잡이=리사이즈(영역 분리)
             .scaleEffect(dragging ? 1.04 : 1)
             .opacity(dragging && inTrash ? 0.4 : 1)
@@ -209,14 +210,9 @@ struct DayGridView: View {
         VStack(spacing: 0) {
             bodyZone(e, selected: selected)
             if selected {
-                Color.clear
+                Color.clear                                       // 잡는 영역(아래 strip) — 시각 표시는 코너 곡선이 담당
                     .frame(height: 20)
                     .contentShape(Rectangle())
-                    .overlay(alignment: .bottomLeading) {        // 왼쪽 아래 코너만 하얗게 = 잡아서 늘리는 곳
-                        UnevenRoundedRectangle(bottomLeadingRadius: 11, style: .continuous)
-                            .fill(.white)
-                            .frame(width: 22, height: 18)
-                    }
                     .highPriorityGesture(resizeGesture(e))
             }
         }
@@ -360,6 +356,19 @@ struct DayGridView: View {
         return "\(h < 12 || h == 24 ? "오전" : "오후") \(h12)시"
     }
     private func timeText(_ d: Date) -> String { d.formatted(.dateTime.hour().minute().locale(lang.locale)) }
+}
+
+// MARK: - 왼쪽 아래 코너 곡선만 그리는 Shape (리사이즈 손잡이 표시)
+private struct CornerArc: Shape {
+    var radius: CGFloat
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        let r = min(radius, min(rect.width, rect.height) / 2)
+        p.move(to: CGPoint(x: 0, y: rect.maxY - r))
+        p.addArc(center: CGPoint(x: r, y: rect.maxY - r),
+                 radius: r, startAngle: .degrees(180), endAngle: .degrees(90), clockwise: true)
+        return p
+    }
 }
 
 // MARK: - 스크롤 진행량 추적(앵커 대비) — 타임라인 연속 접기. iOS 18+에서만, 그 이하는 그대로

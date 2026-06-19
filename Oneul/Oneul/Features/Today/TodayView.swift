@@ -101,7 +101,7 @@ struct TodayView: View {
                 })
                 .frame(height: timelineH > 0 ? max(0, timelineH * (1 - prog)) : nil, alignment: .top)
                 .clipped()
-                .opacity(Double(1 - prog))
+                .opacity(Double(max(0, 1 - prog * 1.4)))   // 잘리는 그림자가 반투명일 때 가려지게 살짝 먼저 페이드
             grid(p, d, onScrollDelta: active ? { delta in            // 스크롤량 → 0…1 진행률로 연속 반영
                 guard timelineH > 0 else { return }
                 timelineProgress = min(1, max(0, delta / timelineH))
