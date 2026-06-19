@@ -28,7 +28,6 @@ struct DayGridView: View {
     @State private var resizeDY: CGFloat = 0
     @State private var selectedID: UUID?
     @State private var scrollBase: CGFloat?
-    @State private var addFired = false
 
     private let firstHour = 0
     private let lastHour = 24
@@ -62,8 +61,9 @@ struct DayGridView: View {
                                 Color.clear
                                     .frame(width: geo.size.width, height: gridHeight)
                                     .contentShape(Rectangle())
-                                    .onTapGesture { if selectedID != nil { selectedID = nil } }   // 빈 곳 탭 → 선택 해제
-                                    .gesture(addGesture)                                            // 빈 곳 꾹 → 새 일정(떼지 않아도 발동, 움직이면 스크롤)
+                                    .onTapGesture { if selectedID != nil { selectedID = nil } }   // 빈 곳 한 번 탭 → 선택 해제
+                                    .gesture(SpatialTapGesture(count: 2, coordinateSpace: .local)   // 빈 곳 더블탭 → 그 위치에 새 일정(탭이라 스크롤 막지 않음)
+                                        .onEnded { v in selectedID = nil; addAt(y: v.location.y); Haptics.impact(.light) })
                                 if cal.isDateInToday(day) { nowLine(width: geo.size.width) }
                                 ForEach(laidOut, id: \.event.id) { eventBlock($0, gridW: gridW) }
                                 if let ps = previewStart { previewBlock(ps, gridW: gridW) }
@@ -109,6 +109,7 @@ struct DayGridView: View {
     private func hourRow(_ h: Int, width: CGFloat) -> some View {
         ZStack(alignment: .topLeading) {
             Rectangle().fill(.primary.opacity(0.14)).frame(height: 1)   // 적응형 — 라이트/다크 모두 보이게
+                .padding(.leading, leftInset)                            // 시간 라벨 영역은 비우고 일정 영역만
             Text(hourLabel(h))
                 .font(.caption2).foregroundStyle(.secondary)
                 .frame(width: leftInset - 8, alignment: .leading)
@@ -324,21 +325,6 @@ struct DayGridView: View {
     }
 
     // MARK: 동작
-    // 빈 곳을 꾹(0.45초) 눌러 새 일정 — long-press 완료 즉시(떼지 않아도) 발동. 움직이면 long-press 실패 → 스크롤 통과.
-    private var addGesture: some Gesture {
-        LongPressGesture(minimumDuration: 0.45)
-            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .local))
-            .onChanged { value in
-                if case .second(true, let drag?) = value, !addFired {
-                    addFired = true
-                    selectedID = nil
-                    addAt(y: drag.startLocation.y)
-                    Haptics.impact(.medium)
-                }
-            }
-            .onEnded { _ in addFired = false }
-    }
-
     private func addAt(y: CGFloat) {
         let mins = Double(y) / Double(hourHeight) * 60
         let snapped = (mins / 30).rounded(.down) * 30
