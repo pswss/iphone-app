@@ -64,23 +64,21 @@ struct EventEditorView: View {
                                 reminderPicker($reminderMinutes2)
                             }
                         }
-                        if !isEditing {
-                            field(lang.tr("반복")) {
-                                Picker("", selection: $recurrence) {
-                                    ForEach(Recurrence.allCases) { Text(lang.tr($0.label)).tag($0) }
-                                }
-                                .labelsHidden().tint(Color.appAccentText)
+                        field(lang.tr("반복")) {
+                            Picker("", selection: $recurrence) {
+                                ForEach(Recurrence.allCases) { Text(lang.tr($0.label)).tag($0) }
                             }
-                            if recurrence == .weekly { weekdaySelector }
-                            if recurrence != .none {
-                                field(lang.tr("반복 종료일")) {
-                                    Toggle("", isOn: $hasEndDate).labelsHidden().tint(Color.appAccent)
-                                }
-                                if hasEndDate {
-                                    field(lang.tr("종료일")) {
-                                        DatePicker("", selection: $endDate, in: start...,
-                                                   displayedComponents: .date).labelsHidden()
-                                    }
+                            .labelsHidden().tint(Color.appAccentText)
+                        }
+                        if recurrence == .weekly { weekdaySelector }
+                        if recurrence != .none {
+                            field(lang.tr("반복 종료일")) {
+                                Toggle("", isOn: $hasEndDate).labelsHidden().tint(Color.appAccent)
+                            }
+                            if hasEndDate {
+                                field(lang.tr("종료일")) {
+                                    DatePicker("", selection: $endDate, in: start...,
+                                               displayedComponents: .date).labelsHidden()
                                 }
                             }
                         }
@@ -123,25 +121,34 @@ struct EventEditorView: View {
     // MARK: 삭제 (옵션이 삭제 버튼 바로 위에 인라인으로)
     private var deleteSection: some View {
         VStack(spacing: 8) {
-            if showDeleteOptions {
-                ForEach(deleteChoices, id: \.label) { choice in
-                    Button(role: .destructive) { choice.action() } label: {
-                        Text(choice.label).font(.headline)
-                            .frame(maxWidth: .infinity).padding(.vertical, 12)
-                    }
-                    .tint(.red).glassCard(cornerRadius: 16)
-                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+            let choices = deleteChoices
+            if choices.count <= 1 {
+                // 단일 일정: 한 번에 바로 삭제
+                Button(role: .destructive) { choices.first?.action() } label: {
+                    Label(lang.tr("일정 삭제"), systemImage: "trash")
+                        .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 13)
                 }
+                .tint(.red).glassCard(cornerRadius: 18)
+            } else {
+                // 반복 일정: 옵션(이 일정만 / 이후 모두). 취소 없이 다시 눌러 접기.
+                if showDeleteOptions {
+                    ForEach(choices, id: \.label) { choice in
+                        Button(role: .destructive) { choice.action() } label: {
+                            Text(choice.label).font(.headline)
+                                .frame(maxWidth: .infinity).padding(.vertical, 12)
+                        }
+                        .tint(.red).glassCard(cornerRadius: 16)
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    }
+                }
+                Button(role: .destructive) {
+                    withAnimation(.snappy(duration: 0.22)) { showDeleteOptions.toggle() }
+                } label: {
+                    Label(lang.tr("일정 삭제"), systemImage: "trash")
+                        .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 13)
+                }
+                .tint(.red).glassCard(cornerRadius: 18)
             }
-            Button(role: .destructive) {
-                withAnimation(.snappy(duration: 0.22)) { showDeleteOptions.toggle() }
-            } label: {
-                Label(showDeleteOptions ? lang.tr("취소") : lang.tr("일정 삭제"),
-                      systemImage: showDeleteOptions ? "xmark" : "trash")
-                    .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 13)
-            }
-            .tint(showDeleteOptions ? .secondary : .red)
-            .glassCard(cornerRadius: 18)
         }
         .padding(.top, 8)
     }
@@ -201,6 +208,9 @@ struct EventEditorView: View {
             end = event.end
             reminderMinutes = event.reminderMinutes
             reminderMinutes2 = event.reminderMinutes2
+            recurrence = Recurrence(rawValue: event.recurrenceRaw) ?? .none   // 반복 복원(수정에서 편집 가능)
+            weekdays = [Calendar.current.component(.weekday, from: event.start)]
+            endDate = Calendar.current.date(byAdding: .month, value: 3, to: event.start) ?? event.start
         } else {
             let cal = Calendar.current
             let base = cal.isDateInToday(day) ? Date() : day
@@ -216,11 +226,22 @@ struct EventEditorView: View {
 
     private func save() {
         if let event {
-            event.title = title; event.location = location
-            event.start = start; event.end = end
-            event.reminderMinutes = reminderMinutes
-            event.reminderMinutes2 = reminderMinutes != -1 ? reminderMinutes2 : -1
-            try? context.save()
+            if recurrence != .none || event.isRecurring {
+                // 반복 설정/변경/해제 → 이 일정(+이후 시리즈)을 지우고 새 규칙으로 재생성
+                EventActions.deleteFutureSeries(from: event, in: context)
+                EventActions.create(title: title, start: start, end: end, location: location,
+                                    reminderMinutes: reminderMinutes,
+                                    reminderMinutes2: reminderMinutes != -1 ? reminderMinutes2 : -1,
+                                    recurrence: recurrence,
+                                    weekdays: recurrence == .weekly ? weekdays : [],
+                                    endDate: hasEndDate ? endDate : nil, source: event.source, into: context)
+            } else {
+                event.title = title; event.location = location
+                event.start = start; event.end = end
+                event.reminderMinutes = reminderMinutes
+                event.reminderMinutes2 = reminderMinutes != -1 ? reminderMinutes2 : -1
+                try? context.save()
+            }
         } else {
             EventActions.create(title: title, start: start, end: end, location: location,
                                 reminderMinutes: reminderMinutes,
