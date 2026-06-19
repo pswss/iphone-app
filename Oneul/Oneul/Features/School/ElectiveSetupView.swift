@@ -71,23 +71,29 @@ struct ElectiveSetupView: View {
     }
 
     private var checklist: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 8) {
             ForEach(g.electives, id: \.self) { sub in
+                let on = checked.contains(sub)
                 Button { toggle(sub) } label: {
                     HStack(spacing: 11) {
-                        Image(systemName: checked.contains(sub) ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(checked.contains(sub) ? Color.appAccentText : Color.secondary)
-                        Text(sub).foregroundStyle(.primary)
+                        Text(sub).foregroundStyle(on ? Color(uiColor: .systemBackground) : .primary)
                         Spacer()
+                        if on {
+                            Image(systemName: "checkmark").font(.subheadline.bold())
+                                .foregroundStyle(Color(uiColor: .systemBackground))
+                        }
                     }
-                    .padding(.vertical, 11).padding(.horizontal, 14)
+                    .padding(.vertical, 14).padding(.horizontal, 16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(on ? Color.primary : Color.primary.opacity(0.04),   // 선택 시 박스 전체 채움
+                                in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .strokeBorder(.primary.opacity(on ? 0 : 0.15)))
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                if sub != g.electives.last { Divider().padding(.leading, 40) }
             }
         }
-        .glassCard(cornerRadius: 22)
     }
 
     // MARK: 2단계 — 배치 미리보기/수정

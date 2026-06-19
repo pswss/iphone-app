@@ -28,7 +28,7 @@ struct DayGridView: View {
     @State private var resizeDY: CGFloat = 0
     @State private var selectedID: UUID?
     @State private var scrollBase: CGFloat?
-    @State private var addTouchY: CGFloat?
+    @State private var addFired = false
 
     private let firstHour = 0
     private let lastHour = 24
@@ -63,10 +63,7 @@ struct DayGridView: View {
                                     .frame(width: geo.size.width, height: gridHeight)
                                     .contentShape(Rectangle())
                                     .onTapGesture { if selectedID != nil { selectedID = nil } }   // 빈 곳 탭 → 선택 해제
-                                    .simultaneousGesture(DragGesture(minimumDistance: 0, coordinateSpace: .local)
-                                        .onChanged { addTouchY = $0.location.y })                  // 누른 위치 추적
-                                    .simultaneousGesture(LongPressGesture(minimumDuration: 0.45, maximumDistance: 10)
-                                        .onEnded { _ in addAtPressed() })                          // 떼지 않아도 0.45초 후 발동(움직이면 스크롤)
+                                    .gesture(addGesture)                                            // 빈 곳 꾹 → 새 일정(떼지 않아도 발동, 움직이면 스크롤)
                                 if cal.isDateInToday(day) { nowLine(width: geo.size.width) }
                                 ForEach(laidOut, id: \.event.id) { eventBlock($0, gridW: gridW) }
                                 if let ps = previewStart { previewBlock(ps, gridW: gridW) }
@@ -111,7 +108,7 @@ struct DayGridView: View {
     // MARK: 시간선
     private func hourRow(_ h: Int, width: CGFloat) -> some View {
         ZStack(alignment: .topLeading) {
-            Rectangle().fill(.white.opacity(0.10)).frame(height: 1)
+            Rectangle().fill(.primary.opacity(0.14)).frame(height: 1)   // 적응형 — 라이트/다크 모두 보이게
             Text(hourLabel(h))
                 .font(.caption2).foregroundStyle(.secondary)
                 .frame(width: leftInset - 8, alignment: .leading)
@@ -327,12 +324,19 @@ struct DayGridView: View {
     }
 
     // MARK: 동작
-    // 빈 곳을 꾹(0.45초) 눌러 그 위치에 새 일정 — 떼지 않아도 시간이 지나면 발동. 움직이면(스크롤) long-press가 실패해 통과.
-    private func addAtPressed() {
-        guard let y = addTouchY else { return }
-        selectedID = nil
-        addAt(y: y)
-        Haptics.impact(.medium)
+    // 빈 곳을 꾹(0.45초) 눌러 새 일정 — long-press 완료 즉시(떼지 않아도) 발동. 움직이면 long-press 실패 → 스크롤 통과.
+    private var addGesture: some Gesture {
+        LongPressGesture(minimumDuration: 0.45)
+            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .local))
+            .onChanged { value in
+                if case .second(true, let drag?) = value, !addFired {
+                    addFired = true
+                    selectedID = nil
+                    addAt(y: drag.startLocation.y)
+                    Haptics.impact(.medium)
+                }
+            }
+            .onEnded { _ in addFired = false }
     }
 
     private func addAt(y: CGFloat) {
