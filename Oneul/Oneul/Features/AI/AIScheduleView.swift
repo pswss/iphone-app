@@ -35,7 +35,7 @@ struct AIScheduleView: View {
                 }
                 .scrollDismissesKeyboard(.interactively)
             }
-            .navigationTitle(lang.tr("AI 비서"))
+            .navigationTitle("Apple Intelligence")
             .navigationBarTitleDisplayMode(.inline)
             .task { AppleIntelligenceClient.prewarm() }
             .onChange(of: speech.transcript) { _, t in if !t.isEmpty { inputText = t } }
@@ -93,7 +93,7 @@ struct AIScheduleView: View {
         } label: {
             Group {
                 if isLoading { ProgressView().tint(.white) }
-                else { Image(systemName: "sparkles").font(.title2.weight(.semibold)) }
+                else { Image(systemName: "arrow.up").font(.title2.weight(.bold)) }
             }
             .foregroundStyle(canGenerate ? .white : .secondary)
             .frame(maxWidth: .infinity)
