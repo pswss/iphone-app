@@ -55,9 +55,9 @@ enum AppleAI {
         var action: String
         @Guide(description: "update/delete일 때만 대상 기존 일정 번호([1],[2]…). create면 0")
         var targetIndex: Int
-        @Guide(description: "일정 제목")
+        @Guide(description: "일정 제목. 시간·날짜 표현은 빼고 핵심 내용만(예: '9시 회의'→'회의', '내일 점심 약속'→'점심 약속')")
         var title: String
-        @Guide(description: "시작 시각, ISO8601 형식 (예: 2026-06-20T09:00:00+09:00)")
+        @Guide(description: "시작 시각 ISO8601. 입력의 시각을 그대로 정확히(9시=09:00, 오후 3시=15:00, 저녁 7시=19:00). 임의/랜덤 시각 금지. 예: 2026-06-20T09:00:00+09:00")
         var start: String
         @Guide(description: "종료 시각, ISO8601 형식. 없으면 시작+1시간")
         var end: String
@@ -72,6 +72,8 @@ enum AppleAI {
     - 새 일정: action="create", targetIndex=0.
     - "○○ 취소/삭제/지워" 등 기존 일정을 없애라는 요청: action="delete", targetIndex=그 일정 번호.
     - "○○를 △시로 바꿔/옮겨/변경" 등 기존 일정 변경: action="update", targetIndex=그 일정 번호, 바뀐 내용 반영.
+    - 입력에 적힌 시각을 start에 정확히 반영한다(9시→09:00, 오후 3시→15:00, 저녁 7시→19:00). 절대 임의/랜덤 시각을 지어내지 마라.
+    - title에는 시간·날짜를 넣지 말고 핵심 내용만 남긴다(예: "9시 회의"→"회의").
     - start/end는 ISO8601(타임존 오프셋 포함). 종료 미지정 시 시작+1시간.
     - 상대 표현(내일/오늘/오후/저녁/점심 등)은 프롬프트의 현재 시각 기준 절대 시각으로.
     - 장소 없으면 location="".
@@ -120,6 +122,7 @@ enum AppleAI {
         prewarm()   // 다음 요청을 위해 새 세션을 미리 데움
         guard response.content.isSchedule else { return [] }
         let timeCue = hasTimeCue(text)   // 새 일정은 입력에 시간 단서가 있어야 생성(무작위 글자 차단)
+        let forcedTime = response.content.events.count == 1 ? extractTime(text) : nil   // 단일 일정만 시각 코드 보정
 
         return response.content.events.compactMap { e -> ParsedEvent? in
             let action = ParsedEvent.Action(rawValue: e.action) ?? .create
@@ -140,9 +143,11 @@ enum AppleAI {
             case .create:
                 guard timeCue,
                       !e.title.trimmingCharacters(in: .whitespaces).isEmpty,
-                      let s = AICommon.parseDate(e.start) else { return nil }
-                let end = AICommon.parseDate(e.end) ?? s.addingTimeInterval(3600)
-                return ParsedEvent(title: e.title, start: s, end: end, location: e.location, action: .create)
+                      let parsed = AICommon.parseDate(e.start) else { return nil }
+                let s = forcedTime != nil ? setTime(parsed, forcedTime!) : parsed   // 단일 일정이면 입력 시각으로 강제
+                let dur = AICommon.parseDate(e.end).map { $0 > parsed ? $0.timeIntervalSince(parsed) : 3600 } ?? 3600
+                return ParsedEvent(title: cleanTitle(e.title), start: s, end: s.addingTimeInterval(dur),
+                                   location: e.location, action: .create)
             }
         }
     }
@@ -163,6 +168,46 @@ enum AppleAI {
                     "월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일",
                     "am", "pm", "AM", "PM"]
         return cues.contains { text.contains($0) }
+    }
+
+    /// 제목에서 시간·날짜 표현을 제거해 핵심만 남긴다(모델이 제목에 시각을 넣는 경우 보정).
+    private static func cleanTitle(_ raw: String) -> String {
+        var t = raw
+        let patterns = [
+            #"(오전|오후|새벽|아침|점심|저녁|밤|정오|자정)\s*"#,
+            #"\d{1,2}\s*시(\s*반)?(\s*\d{1,2}\s*분)?"#,
+            #"\d{1,2}:\d{2}"#,
+            #"(내일모레|내일|오늘|모레|글피|다음주|이번주|다음 주|이번 주)\s*"#,
+            #"[월화수목금토일]요일\s*"#
+        ]
+        for p in patterns { t = t.replacingOccurrences(of: p, with: "", options: .regularExpression) }
+        t = t.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespaces)
+        return t.isEmpty ? raw : t
+    }
+
+    /// 입력에서 시각(시:분)을 추출 — 단일 일정일 때 모델의 랜덤 시각을 입력값으로 보정.
+    private static func extractTime(_ text: String) -> (hour: Int, minute: Int)? {
+        var hour: Int?
+        var minute = 0
+        if let r = text.range(of: #"\d{1,2}:\d{2}"#, options: .regularExpression) {
+            let parts = text[r].split(separator: ":")
+            if let h = Int(parts[0]), let m = Int(parts[1]), h < 24, m < 60 { hour = h; minute = m }
+        } else if let r = text.range(of: #"\d{1,2}\s*시"#, options: .regularExpression) {
+            hour = Int(text[r].prefix { $0.isNumber })
+            if text.contains("반") { minute = 30 }
+            if let mr = text.range(of: #"시\s*\d{1,2}\s*분"#, options: .regularExpression) {
+                minute = Int(text[mr].filter { $0.isNumber }) ?? 0
+            }
+        }
+        guard var h = hour, h < 24 else { return nil }
+        if ["오후", "저녁", "밤"].contains(where: text.contains), h < 12 { h += 12 }
+        if ["오전", "새벽", "아침"].contains(where: text.contains), h == 12 { h = 0 }
+        return (h, minute)
+    }
+
+    private static func setTime(_ date: Date, _ t: (hour: Int, minute: Int)) -> Date {
+        Calendar.current.date(bySettingHour: t.hour, minute: t.minute, second: 0, of: date) ?? date
     }
 
     private static func describe(
