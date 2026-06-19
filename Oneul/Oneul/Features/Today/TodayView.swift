@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 struct TodayView: View {
     @Environment(\.modelContext) private var context
@@ -98,12 +99,9 @@ struct TodayView: View {
             dDayBar.padding(.horizontal, 16)
             CalendarBar(selectedDay: $selectedDay).padding(.horizontal, 16)
             collapsingTimeline.padding(.horizontal, 16)   // 페이저 밖에 고정 — 슬라이드해도 안 생겼다 사라졌다 안 함
-            TabView(selection: dayOffsetBinding) {
-                ForEach(-180...180, id: \.self) { off in
-                    gridPage(dayFor(off)).tag(off)
-                }
+            DayPager(selectedDay: $selectedDay) { day in   // UIPageViewController 3페이지 재사용 → 렉/튐 없음
+                gridPage(day)
             }
-            .tabViewStyle(.page(indexDisplayMode: .never))
         }
         .padding(.top, 8)
         .onPreferenceChange(TimelineHeightKey.self) { if $0 > 0 { timelineH = $0 } }
@@ -116,9 +114,10 @@ struct TodayView: View {
             .background(GeometryReader { g in
                 Color.clear.preference(key: TimelineHeightKey.self, value: g.size.height)
             })
+            .offset(y: -timelineH * timelineProgress)                              // 위로 말려 올라가는 모션
             .frame(height: timelineH > 0 ? max(0, timelineH * (1 - timelineProgress)) : nil, alignment: .top)
             .clippedIf(timelineProgress > 0.001)
-            .opacity(Double(max(0, 1 - timelineProgress * 1.4)))
+            .opacity(Double(max(0, 1 - timelineProgress * 1.3)))
     }
 
     // 페이지 = 그리드만 (타임라인은 고정)
@@ -130,20 +129,6 @@ struct TodayView: View {
             timelineProgress = min(1, max(0, delta / timelineH))
         } : nil)
         .padding(.horizontal, 16)
-    }
-
-    private func dayFor(_ offset: Int) -> Date {
-        Calendar.current.date(byAdding: .day, value: offset, to: Calendar.current.startOfDay(for: Date())) ?? Date()
-    }
-    private var dayOffsetBinding: Binding<Int> {
-        Binding(
-            get: {
-                Calendar.current.dateComponents([.day],
-                    from: Calendar.current.startOfDay(for: Date()),
-                    to: Calendar.current.startOfDay(for: selectedDay)).day ?? 0
-            },
-            set: { selectedDay = dayFor($0) }
-        )
     }
 
     // MARK: 아이패드/넓은 화면(2단). 가로=화면 꽉 채움, 세로=위 정렬 컴팩트.
@@ -324,6 +309,67 @@ struct TodayView: View {
         f.locale = Locale(identifier: "ko_KR")
         f.dateFormat = "M월 d일 EEEE"
         return f.string(from: .now)
+    }
+}
+
+// MARK: - 날짜 페이저 (UIPageViewController) — 좌우 슬라이드로 하루씩, 3페이지만 재사용(애플 캘린더식, 렉/튐 없음)
+private struct DayPager<Content: View>: UIViewControllerRepresentable {
+    @Binding var selectedDay: Date
+    @ViewBuilder var content: (Date) -> Content
+
+    func makeUIViewController(context: Context) -> UIPageViewController {
+        let pvc = UIPageViewController(transitionStyle: .scroll, navigationOrientation: .horizontal)
+        pvc.dataSource = context.coordinator
+        pvc.delegate = context.coordinator
+        pvc.view.backgroundColor = .clear
+        pvc.setViewControllers([context.coordinator.host(selectedDay)], direction: .forward, animated: false)
+        return pvc
+    }
+
+    func updateUIViewController(_ pvc: UIPageViewController, context: Context) {
+        context.coordinator.parent = self
+        guard let cur = pvc.viewControllers?.first as? Host else { return }
+        if !Calendar.current.isDate(cur.day, inSameDayAs: selectedDay) {
+            let forward = selectedDay > cur.day                       // 캘린더바 등 외부 변경 → 그 방향으로 애니메이션 이동
+            pvc.setViewControllers([context.coordinator.host(selectedDay)],
+                                   direction: forward ? .forward : .reverse, animated: true)
+        } else {
+            cur.rootView = AnyView(content(cur.day))                  // 데이터/상태 변경 반영(일정 추가·이동 등)
+        }
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    final class Coordinator: NSObject, UIPageViewControllerDataSource, UIPageViewControllerDelegate {
+        var parent: DayPager
+        init(_ parent: DayPager) { self.parent = parent }
+
+        func host(_ day: Date) -> Host { Host(day: day, rootView: AnyView(parent.content(day))) }
+
+        func pageViewController(_ p: UIPageViewController, viewControllerBefore vc: UIViewController) -> UIViewController? {
+            guard let h = vc as? Host, let d = Calendar.current.date(byAdding: .day, value: -1, to: h.day) else { return nil }
+            return host(d)
+        }
+        func pageViewController(_ p: UIPageViewController, viewControllerAfter vc: UIViewController) -> UIViewController? {
+            guard let h = vc as? Host, let d = Calendar.current.date(byAdding: .day, value: 1, to: h.day) else { return nil }
+            return host(d)
+        }
+        func pageViewController(_ p: UIPageViewController, didFinishAnimating finished: Bool,
+                                previousViewControllers: [UIViewController], transitionCompleted completed: Bool) {
+            guard completed, let h = p.viewControllers?.first as? Host,
+                  !Calendar.current.isDate(parent.selectedDay, inSameDayAs: h.day) else { return }
+            parent.selectedDay = h.day                                // 슬라이드 끝나면 선택일 갱신
+        }
+    }
+
+    final class Host: UIHostingController<AnyView> {
+        let day: Date
+        init(day: Date, rootView: AnyView) {
+            self.day = day
+            super.init(rootView: rootView)
+            view.backgroundColor = .clear
+        }
+        @MainActor required dynamic init?(coder: NSCoder) { fatalError() }
     }
 }
 
