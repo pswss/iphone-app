@@ -16,7 +16,7 @@ struct AIScheduleView: View {
     @AppStorage("neisName") private var neisName = ""
     @AppStorage("neisKind") private var neisKind = ""
     @State private var speech = SpeechRecognizer()
-    @State private var micPulse = false              // 녹음 중 펄스 애니메이션
+    @State private var micPressing = false           // 마이크를 누르고 있는 동안
     @FocusState private var editorFocused: Bool
     private let lang = AppLanguage.shared
 
@@ -92,41 +92,35 @@ struct AIScheduleView: View {
         .overlay(alignment: .bottomTrailing) { micButton }
     }
 
-    /// 애플 키보드 마이크처럼 토글 + 녹음 중 펄스 애니메이션.
+    /// 꾹 누르는 동안 녹음 → 떼면 정지. 리퀴드 글래스(애플 감성).
     private var micButton: some View {
-        Button {
-            editorFocused = false
-            speech.toggle()
-        } label: {
-            Image(systemName: "mic.fill")
-                .font(.headline)
-                .foregroundStyle(speech.isRecording ? .white : Color.appAccentText)
-                .frame(width: 40, height: 40)
-                .background {
-                    ZStack {
-                        if speech.isRecording {   // 퍼지며 사라지는 펄스 링
-                            Circle().stroke(Color.red.opacity(0.6), lineWidth: 2)
-                                .scaleEffect(micPulse ? 1.75 : 1.0)
-                                .opacity(micPulse ? 0 : 0.85)
+        Image(systemName: speech.isRecording ? "waveform" : "mic.fill")
+            .font(.system(size: 17, weight: .semibold))
+            .foregroundStyle(speech.isRecording ? Color.appAccentText : .secondary)
+            .symbolEffect(.variableColor.iterative, isActive: speech.isRecording)
+            .frame(width: 46, height: 46)
+            .glassEffect(.regular.interactive(), in: Circle())
+            .scaleEffect(micPressing ? 1.18 : 1.0)
+            .shadow(color: speech.isRecording ? Color.appAccent.opacity(0.35) : .clear, radius: 10)
+            .animation(.spring(response: 0.32, dampingFraction: 0.7), value: micPressing)
+            .contentShape(Circle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in
+                        if !micPressing {
+                            micPressing = true
+                            editorFocused = false
+                            Haptics.impact(.soft)
+                            speech.start()
                         }
-                        Circle().fill(speech.isRecording ? Color.red : Color.clear)
-                        Circle().fill(.ultraThinMaterial).opacity(speech.isRecording ? 0 : 1)
                     }
-                }
-                .overlay(Circle().strokeBorder(.white.opacity(speech.isRecording ? 0.3 : 0.15)))
-                .scaleEffect(speech.isRecording ? 1.1 : 1.0)
-                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: speech.isRecording)
-        }
-        .buttonStyle(.plain)
-        .padding(10)
-        .onChange(of: speech.isRecording) { _, recording in
-            if recording {
-                micPulse = false
-                withAnimation(.easeOut(duration: 1.1).repeatForever(autoreverses: false)) { micPulse = true }
-            } else {
-                withAnimation(.easeOut(duration: 0.2)) { micPulse = false }
-            }
-        }
+                    .onEnded { _ in
+                        micPressing = false
+                        speech.stop()
+                        Haptics.impact(.light)
+                    }
+            )
+            .padding(10)
     }
 
     private var canGenerate: Bool {

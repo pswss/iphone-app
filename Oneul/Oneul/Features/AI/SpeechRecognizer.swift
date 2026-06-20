@@ -12,10 +12,12 @@ final class SpeechRecognizer {
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
     @ObservationIgnored private lazy var engine = AVAudioEngine()
+    private var wantsRecording = false   // 꾹 누르는 동안 true. 권한 비동기 처리 중 떼면 begin을 막는다.
 
     func toggle() { isRecording ? stop() : start() }
 
     func start() {
+        wantsRecording = true
         transcript = ""
         SFSpeechRecognizer.requestAuthorization { status in
             guard status == .authorized else { return }
@@ -27,7 +29,7 @@ final class SpeechRecognizer {
     }
 
     private func begin() {
-        guard let recognizer, recognizer.isAvailable else { return }
+        guard wantsRecording, let recognizer, recognizer.isAvailable else { return }   // 이미 손을 뗐으면 시작 안 함
         do {
             let audio = AVAudioSession.sharedInstance()
             try audio.setCategory(.record, mode: .measurement, options: .duckOthers)
@@ -57,6 +59,7 @@ final class SpeechRecognizer {
     }
 
     func stop() {
+        wantsRecording = false
         engine.stop()
         engine.inputNode.removeTap(onBus: 0)
         request?.endAudio()
