@@ -163,25 +163,48 @@ enum AIKoreanDate {
         return r
     }
 
-    /// "HH:MM" 또는 "N시[반][M분]" + 오전/오후. 범위("~","부터","N-M")면 모델에 맡기려 nil.
+    /// "HH:MM" 또는 "N시[반][M분]" + 오전/오후. 확실할 때만 값을 돌려주고, 모호한 맨숫자 시각(예: "3시")은
+    /// 모델 판단(낮 활동→오후)에 맡기려 nil. 범위("~","부터","N-M")도 nil.
     private static func parseSingleTime(_ text: String) -> (h: Int, m: Int)? {
         if text.contains("~") || text.contains("부터") ||
             text.range(of: #"\d\s*-\s*\d"#, options: .regularExpression) != nil { return nil }
-        var hour: Int?
-        var minute = 0
+
+        // HH:MM — 명확
         if let r = text.range(of: #"\d{1,2}:\d{2}"#, options: .regularExpression) {
             let parts = text[r].split(separator: ":")
-            if let h = Int(parts[0]), let m = Int(parts[1]), h < 24, m < 60 { hour = h; minute = m }
-        } else if let r = text.range(of: #"\d{1,2}\s*시"#, options: .regularExpression) {
-            hour = Int(text[r].prefix { $0.isNumber })
-            if text.contains("반") { minute = 30 }
-            if let mr = text.range(of: #"시\s*\d{1,2}\s*분"#, options: .regularExpression) {
-                minute = Int(text[mr].filter { $0.isNumber }) ?? 0
-            }
+            if let h = Int(parts[0]), let m = Int(parts[1]), h < 24, m < 60 { return (h, m) }
         }
-        guard var h = hour, h < 24 else { return nil }
-        if ["오후", "저녁", "밤"].contains(where: text.contains), h < 12 { h += 12 }
-        if ["오전", "새벽", "아침"].contains(where: text.contains), h == 12 { h = 0 }
-        return (h, minute)
+
+        guard let r = text.range(of: #"\d{1,2}\s*시"#, options: .regularExpression),
+              var h = Int(text[r].prefix { $0.isNumber }), h < 24 else { return nil }
+        var minute = 0
+        if text.contains("반") { minute = 30 }
+        if let mr = text.range(of: #"시\s*\d{1,2}\s*분"#, options: .regularExpression) {
+            minute = Int(text[mr].filter { $0.isNumber }) ?? 0
+        }
+
+        let pm = ["오후", "저녁", "밤"].contains { text.contains($0) }
+        let am = ["오전", "새벽", "아침"].contains { text.contains($0) }
+        let noon = text.contains("정오"), midnight = text.contains("자정")
+        if pm, h < 12 { h += 12 }
+        if am, h == 12 { h = 0 }
+        if noon { h = 12 }
+        if midnight { h = 0 }
+
+        // 오전/오후·정오·자정 표시가 있거나, 이미 24시간제(13시 이상)거나, HH:MM이면 확실 → 덮어씀.
+        // 맨숫자 1~12시(표시 없음)는 모호 → 모델에 맡김.
+        let confident = pm || am || noon || midnight || h >= 13
+        return confident ? (h, minute) : nil
+    }
+
+    /// 한 문장의 여러 일정을 쉼표·'그리고'로 분리(명령마다 정확히 보정하기 위해).
+    static func segments(_ text: String) -> [String] {
+        var t = text
+        for sep in ["그리고나서", "그리고는", "그리고", "그 다음에", "그다음에", "그 담에", "그담에"] {
+            t = t.replacingOccurrences(of: sep, with: ",")
+        }
+        return t.split(whereSeparator: { $0 == "," || $0 == "，" || $0 == "\n" || $0 == "·" })
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
     }
 }

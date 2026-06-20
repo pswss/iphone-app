@@ -184,9 +184,13 @@ enum AppleAI {
         var actions: [AIAction] = []
         var seen = Set<UUID>()
 
-        // 단일 명령은 한국어 날짜·시각을 코드로 직접 파싱해 슬롯을 보정(작은 모델 오류 교정)
+        // 한국어 날짜·시각을 코드로 직접 파싱해 슬롯 보정(작은 모델 오류 교정).
+        // 문장을 쉼표·'그리고'로 쪼갠 조각 수가 명령 수와 같으면 명령마다, 아니면 단일 명령만.
         var cmds = commands
-        if cmds.count == 1 {
+        let segs = AIKoreanDate.segments(text)
+        if cmds.count >= 1 && segs.count == cmds.count {
+            for i in cmds.indices { cmds[i] = applyParsed(AIKoreanDate.parse(segs[i], now: now), to: cmds[i]) }
+        } else if cmds.count == 1 {
             cmds[0] = applyParsed(AIKoreanDate.parse(text, now: now), to: cmds[0])
         }
 
