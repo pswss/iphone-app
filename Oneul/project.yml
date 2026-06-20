@@ -3,6 +3,7 @@ options:
   bundleIdPrefix: com.oneul
   deploymentTarget:
     iOS: "26.0"
+    watchOS: "11.0"
   createIntermediateGroups: true
   groupSortPosition: top
 
@@ -25,6 +26,8 @@ targets:
       - Shared
     dependencies:
       - target: OneulWidget
+        embed: true
+      - target: OneulWatch
         embed: true
     settings:
       base:
@@ -69,3 +72,20 @@ targets:
         CFBundleDisplayName: 오늘 위젯
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
+
+  OneulWatch:
+    type: application
+    platform: watchOS
+    sources:
+      - OneulWatch
+      - Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.oneul.app.watchkitapp
+        TARGETED_DEVICE_FAMILY: "4"
+    info:
+      path: Generated/OneulWatch-Info.plist
+      properties:
+        CFBundleDisplayName: 오늘
+        WKApplication: true
+        WKCompanionAppBundleIdentifier: com.oneul.app

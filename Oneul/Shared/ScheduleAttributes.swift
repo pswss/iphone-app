@@ -1,5 +1,7 @@
-import ActivityKit
 import Foundation
+#if canImport(ActivityKit)
+import ActivityKit
+#endif
 
 /// Live Activity 한 칸(일정)의 스냅샷.
 /// SwiftData 모델(`ScheduleEvent`)과 별개로, 위젯에 넘기기 위한 가벼운 값 타입입니다.
@@ -14,6 +16,7 @@ struct EventSnapshot: Codable, Hashable, Identifiable {
     var isMultiDay: Bool = false
 }
 
+#if canImport(ActivityKit)
 /// 잠금화면 + 다이나믹 아일랜드 Live Activity의 데이터 정의.
 /// - `attributes`(고정): 그날 라벨
 /// - `ContentState`(갱신): 그날 일정 목록 + 현재/다음 일정
@@ -36,6 +39,7 @@ struct ScheduleActivityAttributes: ActivityAttributes {
     /// 예: "6월 17일 화요일"
     var dayLabel: String
 }
+#endif
 
 /// 일정들을 빈틈없이 붙여 바를 채우는 레이아웃 + 진행 위치 계산.
 /// (앱·위젯 공통) 진행 중이면 그 칸 안 비율, 쉬는 시간엔 다음 칸 경계에 정지.

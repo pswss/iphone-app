@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		01B03CBFC066FA4AE84FB90F /* AppleIntelligenceClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AEF004D088ABDDA2FD61577 /* AppleIntelligenceClient.swift */; };
+		0F506EF0648DD738B3180989 /* OneulWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 2BA16226B30D84045A77F03B /* OneulWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		162CDA1685661DC1777F7FC1 /* OneulWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 4F7FC0B293541145B57F17CD /* OneulWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		1CDAAB28C96E1D2652437EC6 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6CDAF136B89C9CD70A564B1 /* AppConfig.swift */; };
 		27289D8F1B5A2E06AF20D96E /* AICommon.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B0BDB1D75C0BC7A988A590 /* AICommon.swift */; };
@@ -22,7 +23,9 @@
 		52D18DA1E0BFF37AFCA77DB0 /* EventEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5057FFD3739CA0A9C50D19B /* EventEditorView.swift */; };
 		53D7519E7811C519E51F224D /* EventPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B86C494CBB8B41E58CDC3E /* EventPalette.swift */; };
 		5AB447DA13E62E3DF893E9CB /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BA30100A3889640819877BDE /* Assets.xcassets */; };
+		5C45AC90E1D23B9E5D0E8352 /* EventPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B86C494CBB8B41E58CDC3E /* EventPalette.swift */; };
 		6335D486832092D829A5B858 /* WidgetTimelineBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = B875E87DC1AAC7F636AB7E65 /* WidgetTimelineBar.swift */; };
+		66DEC831D54E1054389D3688 /* ScheduleAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 334A2A6B08661B685EF25A76 /* ScheduleAttributes.swift */; };
 		75309A16D28C87AA17064433 /* AIScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A7DA356E9BE16433ED03A34 /* AIScheduleView.swift */; };
 		770DBDF8A2340C77EBA48398 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16EF8C9737267FC333CC19EC /* NotificationManager.swift */; };
 		78A750E85B9DF3E94FD5F04F /* Glass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A201BB565E9308A6DAAEAB4 /* Glass.swift */; };
@@ -33,20 +36,28 @@
 		8D8728FC5A77B9D0A65A3EE2 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4945B28361CA4844CD0BE2A0 /* RootView.swift */; };
 		94288FF630F4E04FD1FB58B6 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6CDAF136B89C9CD70A564B1 /* AppConfig.swift */; };
 		97BAA858C7D312E7C5E090F1 /* SchoolSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FE512E0EFCA4922CDD6E120 /* SchoolSetupView.swift */; };
+		98CC0BB2485C2B8A92CD624E /* WatchPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = B120768A33C004DCF2F45013 /* WatchPayload.swift */; };
 		A13AE6AE7D3A89DE8C23A3C2 /* NEIS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 741F7445372DEF5858438E89 /* NEIS.swift */; };
 		AD1FDE6AC6C6BD1FAD733E65 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F3E3AE2F482E8821D392598 /* SettingsView.swift */; };
 		B53B622954D5D8FBD25C5F54 /* CalendarBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C645C9FB29A1DD74C886502 /* CalendarBar.swift */; };
+		B8492275D42152776351D3CB /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6CDAF136B89C9CD70A564B1 /* AppConfig.swift */; };
 		C3C8A27FED06E8DF5FDE3D86 /* DayGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6455A65474E956EDA02D3D48 /* DayGridView.swift */; };
 		CBC2A029F08197D2257C32A3 /* LiveActivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14B607682CCEA115B95212B8 /* LiveActivityController.swift */; };
 		CCB5BAF3023A1F25BC6696D7 /* PlaceSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9779CF0E668CEF123968ACE /* PlaceSearch.swift */; };
 		D0A38FC10823361801D6E040 /* ScheduleEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9845203CDC1D337EDEB41376 /* ScheduleEvent.swift */; };
+		D160E04413B46F8E9EBBFECA /* WatchPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = B120768A33C004DCF2F45013 /* WatchPayload.swift */; };
+		D486E703178E6EA656583725 /* WatchSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = A16CFD8B435D3E1D46EF0F09 /* WatchSync.swift */; };
 		DA1B100733D4D79C56226FF7 /* ElectiveSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DDD92EAE062AD8537F2B53E /* ElectiveSetupView.swift */; };
 		E4592FB74E0748311A618CBF /* SpeechRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93B892D311D56026159282E3 /* SpeechRecognizer.swift */; };
 		E737EB9D49F5A808C1E599A3 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90270A5784A434E2BD4F8EB7 /* KeychainStore.swift */; };
 		E823D7F623DA11AA93889FB4 /* AIProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 535CFBC05030B47581C0E6A6 /* AIProvider.swift */; };
+		EFE035A3D77BA658A142A159 /* WatchPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = B120768A33C004DCF2F45013 /* WatchPayload.swift */; };
 		F1F5D51D84584898B44A586D /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 777161A31B7E4F39C0973C6E /* TodayView.swift */; };
 		F2BE172507853AEAAA7F3798 /* AICommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A4018B36A49D3884C07100 /* AICommand.swift */; };
 		F54DF9FCFD510AE0BFE27C1F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 94270AF8C3F1645E053EDB34 /* Assets.xcassets */; };
+		F865AE78CCAE00394D810C75 /* WatchTodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 815B39ECC50A54E32E23A9EB /* WatchTodayView.swift */; };
+		F9BBC1280B4DFCFD1697E63D /* WatchStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFBCDB0ECA3D2AB171BE319 /* WatchStore.swift */; };
+		FEF3CB825D0B369B4449938C /* OneulWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 306B6C9EB3EE7319C5856947 /* OneulWatchApp.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -57,9 +68,27 @@
 			remoteGlobalIDString = D05D06124A978171A4BB5D30;
 			remoteInfo = OneulWidget;
 		};
+		DA452E881A50F0512C7E3539 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 27639F42328FCAFAF86BBE08 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 791E2C062FDA3FD3E93D19EB;
+			remoteInfo = OneulWatch;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		015EF19C7678D07DD8E7D9C5 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				0F506EF0648DD738B3180989 /* OneulWatch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		87B6C599469245354E540141 /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -85,6 +114,8 @@
 		1FE512E0EFCA4922CDD6E120 /* SchoolSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchoolSetupView.swift; sourceTree = "<group>"; };
 		28D1C0B69DAE7EC2BFA4E7A8 /* TimelineBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineBar.swift; sourceTree = "<group>"; };
 		2ACF06EA2A9B63E4872D0D82 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		2BA16226B30D84045A77F03B /* OneulWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OneulWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		306B6C9EB3EE7319C5856947 /* OneulWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OneulWatchApp.swift; sourceTree = "<group>"; };
 		334A2A6B08661B685EF25A76 /* ScheduleAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleAttributes.swift; sourceTree = "<group>"; };
 		4945B28361CA4844CD0BE2A0 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		4F7FC0B293541145B57F17CD /* OneulWidget.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = OneulWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -96,19 +127,23 @@
 		741F7445372DEF5858438E89 /* NEIS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NEIS.swift; sourceTree = "<group>"; };
 		74A7ECD14CA79E4D059D2386 /* DayPlan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayPlan.swift; sourceTree = "<group>"; };
 		777161A31B7E4F39C0973C6E /* TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayView.swift; sourceTree = "<group>"; };
+		815B39ECC50A54E32E23A9EB /* WatchTodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchTodayView.swift; sourceTree = "<group>"; };
 		8C8478ADD1C15960DDC8879E /* Persistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Persistence.swift; sourceTree = "<group>"; };
 		90270A5784A434E2BD4F8EB7 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		93B892D311D56026159282E3 /* SpeechRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechRecognizer.swift; sourceTree = "<group>"; };
 		94270AF8C3F1645E053EDB34 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		9845203CDC1D337EDEB41376 /* ScheduleEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleEvent.swift; sourceTree = "<group>"; };
 		9DDD92EAE062AD8537F2B53E /* ElectiveSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ElectiveSetupView.swift; sourceTree = "<group>"; };
+		A16CFD8B435D3E1D46EF0F09 /* WatchSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSync.swift; sourceTree = "<group>"; };
 		A6CDAF136B89C9CD70A564B1 /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
+		B120768A33C004DCF2F45013 /* WatchPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchPayload.swift; sourceTree = "<group>"; };
 		B875E87DC1AAC7F636AB7E65 /* WidgetTimelineBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetTimelineBar.swift; sourceTree = "<group>"; };
 		BA30100A3889640819877BDE /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		C7570E900508DF43B3D91D84 /* EventRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventRow.swift; sourceTree = "<group>"; };
 		C9F7A51A479EF765DCADE7CC /* AppChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppChrome.swift; sourceTree = "<group>"; };
 		D2A4018B36A49D3884C07100 /* AICommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AICommand.swift; sourceTree = "<group>"; };
 		D5057FFD3739CA0A9C50D19B /* EventEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventEditorView.swift; sourceTree = "<group>"; };
+		DCFBCDB0ECA3D2AB171BE319 /* WatchStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchStore.swift; sourceTree = "<group>"; };
 		E6AED8BA9142551D4DADE991 /* ScheduleLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleLiveActivity.swift; sourceTree = "<group>"; };
 		E9779CF0E668CEF123968ACE /* PlaceSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceSearch.swift; sourceTree = "<group>"; };
 		E9B0BDB1D75C0BC7A988A590 /* AICommon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AICommon.swift; sourceTree = "<group>"; };
@@ -119,6 +154,7 @@
 			isa = PBXGroup;
 			children = (
 				B7A2963EFB5FCD75DBB7FA8D /* Oneul */,
+				47ABD67BC7245533CB09183F /* OneulWatch */,
 				EE14A0A543BE0CDB0F652206 /* OneulWidget */,
 				E254DEA67DD54F22935C7584 /* Shared */,
 				EA64B18BE3BC1A32D1C9E67C /* Products */,
@@ -150,6 +186,16 @@
 				1FE512E0EFCA4922CDD6E120 /* SchoolSetupView.swift */,
 			);
 			path = School;
+			sourceTree = "<group>";
+		};
+		47ABD67BC7245533CB09183F /* OneulWatch */ = {
+			isa = PBXGroup;
+			children = (
+				306B6C9EB3EE7319C5856947 /* OneulWatchApp.swift */,
+				DCFBCDB0ECA3D2AB171BE319 /* WatchStore.swift */,
+				815B39ECC50A54E32E23A9EB /* WatchTodayView.swift */,
+			);
+			path = OneulWatch;
 			sourceTree = "<group>";
 		};
 		6EBB0B848678946D2309A44C /* Features */ = {
@@ -190,6 +236,14 @@
 			path = Persistence;
 			sourceTree = "<group>";
 		};
+		851AD1BD3E095A8D0AADFF84 /* Watch */ = {
+			isa = PBXGroup;
+			children = (
+				A16CFD8B435D3E1D46EF0F09 /* WatchSync.swift */,
+			);
+			path = Watch;
+			sourceTree = "<group>";
+		};
 		9F8AF7F212A6629969F80154 /* Notifications */ = {
 			isa = PBXGroup;
 			children = (
@@ -220,6 +274,7 @@
 				9F8AF7F212A6629969F80154 /* Notifications */,
 				80092D50E2095F9BA0E5120B /* Persistence */,
 				220D8BB0B3D177353EBEEA32 /* Resources */,
+				851AD1BD3E095A8D0AADFF84 /* Watch */,
 				5ACE8189A99207C779416B4D /* OneulApp.swift */,
 				4945B28361CA4844CD0BE2A0 /* RootView.swift */,
 			);
@@ -263,6 +318,7 @@
 				A6CDAF136B89C9CD70A564B1 /* AppConfig.swift */,
 				01B86C494CBB8B41E58CDC3E /* EventPalette.swift */,
 				334A2A6B08661B685EF25A76 /* ScheduleAttributes.swift */,
+				B120768A33C004DCF2F45013 /* WatchPayload.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -271,6 +327,7 @@
 			isa = PBXGroup;
 			children = (
 				07F49EA0A79B8606A3CA0B76 /* Oneul.app */,
+				2BA16226B30D84045A77F03B /* OneulWatch.app */,
 				4F7FC0B293541145B57F17CD /* OneulWidget.appex */,
 			);
 			name = Products;
@@ -297,17 +354,36 @@
 				1E9C3C9EC106D974D56B8713 /* Sources */,
 				6D6495DCE3358AE35E0D1AE5 /* Resources */,
 				87B6C599469245354E540141 /* Embed Foundation Extensions */,
+				015EF19C7678D07DD8E7D9C5 /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				316190FA067D45B1240DF8CE /* PBXTargetDependency */,
+				3F3262BB50A590BAE0CF0BD9 /* PBXTargetDependency */,
 			);
 			name = Oneul;
 			packageProductDependencies = (
 			);
 			productName = Oneul;
 			productReference = 07F49EA0A79B8606A3CA0B76 /* Oneul.app */;
+			productType = "com.apple.product-type.application";
+		};
+		791E2C062FDA3FD3E93D19EB /* OneulWatch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 950332E0D4C525B4E02159B7 /* Build configuration list for PBXNativeTarget "OneulWatch" */;
+			buildPhases = (
+				1EC9965F4E5DCF0C6B8ECDC0 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = OneulWatch;
+			packageProductDependencies = (
+			);
+			productName = OneulWatch;
+			productReference = 2BA16226B30D84045A77F03B /* OneulWatch.app */;
 			productType = "com.apple.product-type.application";
 		};
 		D05D06124A978171A4BB5D30 /* OneulWidget */ = {
@@ -341,6 +417,10 @@
 						DevelopmentTeam = 8ZU657QBXU;
 						ProvisioningStyle = Automatic;
 					};
+					791E2C062FDA3FD3E93D19EB = {
+						DevelopmentTeam = 8ZU657QBXU;
+						ProvisioningStyle = Automatic;
+					};
 					D05D06124A978171A4BB5D30 = {
 						DevelopmentTeam = 8ZU657QBXU;
 						ProvisioningStyle = Automatic;
@@ -362,6 +442,7 @@
 			projectRoot = "";
 			targets = (
 				55AD186002AC235EE2017970 /* Oneul */,
+				791E2C062FDA3FD3E93D19EB /* OneulWatch */,
 				D05D06124A978171A4BB5D30 /* OneulWidget */,
 			);
 		};
@@ -422,6 +503,22 @@
 				510A835B944A7DC75A0BDA9F /* Theme.swift in Sources */,
 				87A755AE1D706C14FC969AB7 /* TimelineBar.swift in Sources */,
 				F1F5D51D84584898B44A586D /* TodayView.swift in Sources */,
+				EFE035A3D77BA658A142A159 /* WatchPayload.swift in Sources */,
+				D486E703178E6EA656583725 /* WatchSync.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		1EC9965F4E5DCF0C6B8ECDC0 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B8492275D42152776351D3CB /* AppConfig.swift in Sources */,
+				5C45AC90E1D23B9E5D0E8352 /* EventPalette.swift in Sources */,
+				FEF3CB825D0B369B4449938C /* OneulWatchApp.swift in Sources */,
+				66DEC831D54E1054389D3688 /* ScheduleAttributes.swift in Sources */,
+				98CC0BB2485C2B8A92CD624E /* WatchPayload.swift in Sources */,
+				F9BBC1280B4DFCFD1697E63D /* WatchStore.swift in Sources */,
+				F865AE78CCAE00394D810C75 /* WatchTodayView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -434,6 +531,7 @@
 				8C727C52A59118C9F354FE41 /* OneulWidgetBundle.swift in Sources */,
 				5068B44582D9C8F403AB4398 /* ScheduleAttributes.swift in Sources */,
 				44E99C13B7D22A3854B5AA07 /* ScheduleLiveActivity.swift in Sources */,
+				D160E04413B46F8E9EBBFECA /* WatchPayload.swift in Sources */,
 				6335D486832092D829A5B858 /* WidgetTimelineBar.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -446,9 +544,26 @@
 			target = D05D06124A978171A4BB5D30 /* OneulWidget */;
 			targetProxy = BB50001F91D18F2191B241AE /* PBXContainerItemProxy */;
 		};
+		3F3262BB50A590BAE0CF0BD9 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 791E2C062FDA3FD3E93D19EB /* OneulWatch */;
+			targetProxy = DA452E881A50F0512C7E3539 /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		068AF6B5E427C8F2BD0F68C8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				INFOPLIST_FILE = "Generated/OneulWatch-Info.plist";
+				PRODUCT_BUNDLE_IDENTIFIER = com.oneul.app.watchkitapp;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = 4;
+			};
+			name = Debug;
+		};
 		1E8E2C2C67A9AEAC65DA846B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -467,6 +582,18 @@
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
+		};
+		43E1F1BA8FF399CDC495F0A7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				INFOPLIST_FILE = "Generated/OneulWatch-Info.plist";
+				PRODUCT_BUNDLE_IDENTIFIER = com.oneul.app.watchkitapp;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = 4;
+			};
+			name = Release;
 		};
 		79E8C5F9A5D9FFF0CD9E1361 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -529,11 +656,11 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				WATCHOS_DEPLOYMENT_TARGET = 11.0;
 			};
 			name = Debug;
 		};
@@ -591,11 +718,11 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				WATCHOS_DEPLOYMENT_TARGET = 11.0;
 			};
 			name = Release;
 		};
@@ -667,6 +794,15 @@
 			buildConfigurations = (
 				1E8E2C2C67A9AEAC65DA846B /* Debug */,
 				B838E156A543D534F3688961 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		950332E0D4C525B4E02159B7 /* Build configuration list for PBXNativeTarget "OneulWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				068AF6B5E427C8F2BD0F68C8 /* Debug */,
+				43E1F1BA8FF399CDC495F0A7 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

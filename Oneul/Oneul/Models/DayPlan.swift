@@ -79,6 +79,20 @@ struct DayPlan {
             nextStart: nxt?.start
         )
     }
+
+    /// 애플워치로 보낼 오늘 일정 스냅샷.
+    func watchPayload(dayLabel: String, at now: Date = .now) -> WatchSchedulePayload {
+        let snaps = events.enumerated().map { index, e in
+            EventSnapshot(id: e.id, title: e.title, start: e.start, end: e.end,
+                          colorIndex: index, isMultiDay: e.isMultiDay())
+        }
+        let cur = current(at: now)
+        let nxt = next(at: now)
+        return WatchSchedulePayload(
+            dayLabel: dayLabel, dayStart: dayStart, dayEnd: dayEnd, events: snaps,
+            currentTitle: cur?.title, currentEnd: cur?.end,
+            nextTitle: nxt?.title, nextStart: nxt?.start, updatedAt: now)
+    }
 }
 
 // MARK: - 공휴일 (양력 + 음력 설날/추석/부처님오신날)

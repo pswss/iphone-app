@@ -51,6 +51,9 @@ struct RootView: View {
         }
         .task {
             AppleIntelligenceClient.prewarm()                  // 앱 시작 시 온디바이스 모델 워밍업(AI 첫 입력 렉↓)
+            #if canImport(WatchConnectivity)
+            WatchSync.shared.activate()                        // 애플워치 연결 활성화
+            #endif
             await SchoolAutoRefresh.runIfDue(context: context)
         }
         .onChange(of: scenePhase) { _, phase in

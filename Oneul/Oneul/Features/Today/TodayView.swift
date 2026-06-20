@@ -306,6 +306,9 @@ struct TodayView: View {
         let todayPlan = DayPlan(events: events, day: .now)
         LiveActivityController.shared.refresh(plan: todayPlan, dayLabel: todayLabel())
         NotificationManager.shared.reschedule(for: events)   // 전체 일정(가까운 알림 + 시험 전날)
+        #if canImport(WatchConnectivity)
+        WatchSync.shared.send(todayPlan.watchPayload(dayLabel: todayLabel()))   // 애플워치로 오늘 일정 전송
+        #endif
     }
 
     private func todayLabel() -> String {
