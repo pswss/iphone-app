@@ -16,7 +16,6 @@ struct AIScheduleView: View {
     @AppStorage("neisName") private var neisName = ""
     @AppStorage("neisKind") private var neisKind = ""
     @State private var speech = SpeechRecognizer()
-    @State private var micPressing = false           // 마이크를 누르고 있는 동안
     @FocusState private var editorFocused: Bool
     private let lang = AppLanguage.shared
 
@@ -82,42 +81,31 @@ struct AIScheduleView: View {
             .overlay(alignment: .bottomTrailing) { micButton }
     }
 
-    /// 꾹 누르는 동안 녹음 → 떼면 정지. 리퀴드 글래스(애플 감성). 녹음 중엔 하얗게 빛난다.
+    /// 한 번 눌렀다 떼면 녹음 시작, 다시 눌렀다 떼면 정지(토글). 리퀴드 글래스, 녹음 중 하얗게 빛난다.
     private var micButton: some View {
-        Image(systemName: speech.isRecording ? "waveform" : "mic.fill")
-            .font(.system(size: 17, weight: .semibold))
-            .foregroundStyle(speech.isRecording ? .white : .secondary)
-            .symbolEffect(.variableColor.iterative, isActive: speech.isRecording)
-            .frame(width: 46, height: 46)
-            .background {
-                if speech.isRecording {   // 작동 중 하얀 빛
-                    Circle().fill(.white.opacity(0.18))
+        Button {
+            editorFocused = false
+            speech.toggle()
+            Haptics.impact(.soft)
+        } label: {
+            Image(systemName: speech.isRecording ? "waveform" : "mic.fill")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(speech.isRecording ? .white : .secondary)
+                .symbolEffect(.variableColor.iterative, isActive: speech.isRecording)
+                .frame(width: 46, height: 46)
+                .background {
+                    if speech.isRecording {   // 작동 중 하얀 빛
+                        Circle().fill(.white.opacity(0.18))
+                    }
                 }
-            }
-            .glassEffect(.regular.interactive(), in: Circle())
-            .scaleEffect(micPressing ? 1.18 : 1.0)
-            .shadow(color: speech.isRecording ? .white.opacity(0.9) : .clear, radius: 14)
-            .shadow(color: speech.isRecording ? .white.opacity(0.6) : .clear, radius: 5)
-            .animation(.spring(response: 0.32, dampingFraction: 0.7), value: micPressing)
-            .animation(.easeInOut(duration: 0.25), value: speech.isRecording)
-            .contentShape(Circle())
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { _ in
-                        if !micPressing {
-                            micPressing = true
-                            editorFocused = false
-                            Haptics.impact(.soft)
-                            speech.start()
-                        }
-                    }
-                    .onEnded { _ in
-                        micPressing = false
-                        speech.stop()
-                        Haptics.impact(.light)
-                    }
-            )
-            .padding(10)
+                .glassEffect(.regular.interactive(), in: Circle())
+                .shadow(color: speech.isRecording ? .white.opacity(0.9) : .clear, radius: 14)
+                .shadow(color: speech.isRecording ? .white.opacity(0.6) : .clear, radius: 5)
+                .scaleEffect(speech.isRecording ? 1.1 : 1.0)
+                .animation(.spring(response: 0.32, dampingFraction: 0.7), value: speech.isRecording)
+        }
+        .buttonStyle(.plain)
+        .padding(10)
     }
 
     private var canGenerate: Bool {
@@ -399,9 +387,9 @@ private struct AIReplyCard: View {
             }
 
             Text(text)
-                .font(.system(.body, design: .serif))
+                .font(.system(.subheadline, design: .default).weight(.bold))   // 기본 SF Pro · 볼드 · 약간 작게
                 .foregroundStyle(.primary)
-                .lineSpacing(6)
+                .lineSpacing(4)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
