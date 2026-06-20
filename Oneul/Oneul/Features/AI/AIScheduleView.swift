@@ -145,9 +145,13 @@ struct AIScheduleView: View {
                                         .background(e.action == .delete ? Color.red : Color.orange, in: Capsule())
                                 }
                             }
-                            Text("\(timeText(e.start)) – \(timeText(e.end))" +
-                                 (e.location.isEmpty ? "" : " · \(e.location)"))
-                                .font(.caption2).foregroundStyle(.secondary)
+                            if e.action == .delete && e.targetID == nil {
+                                Text(lang.tr("제목이 같은 일정 전부")).font(.caption2).foregroundStyle(.secondary)
+                            } else {
+                                Text("\(timeText(e.start)) – \(timeText(e.end))" +
+                                     (e.location.isEmpty ? "" : " · \(e.location)"))
+                                    .font(.caption2).foregroundStyle(.secondary)
+                            }
                         }
                         Spacer()
                         if e.action != .delete {
@@ -208,7 +212,13 @@ struct AIScheduleView: View {
                     applied += 1
                 }
             case .delete:
-                if let t = find(e.targetID) { context.delete(t); applied += 1 }
+                if let id = e.targetID {
+                    if let t = find(id) { context.delete(t); applied += 1 }
+                } else {
+                    // bulk: 제목에 키워드가 든 일정을 전부 삭제(과거·미래·시간표 포함, 개수 제한 없음)
+                    let all = (try? context.fetch(FetchDescriptor<ScheduleEvent>())) ?? []
+                    for t in all where !e.title.isEmpty && t.title.contains(e.title) { context.delete(t); applied += 1 }
+                }
             }
         }
         do {

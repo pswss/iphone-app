@@ -139,11 +139,10 @@ enum AppleAI {
             let target = byText ?? ref(e.targetIndex, in: existing)
             switch action {
             case .delete:
-                if bulk {   // "생명과학 싹다 없애줘" → 입력 단어가 제목에 들어간 일정 전부(생명과학Ⅰ·Ⅱ 등)
-                    let matched = existing.filter { ev in !ev.title.isEmpty && words.contains { ev.title.contains($0) } }
-                    if !matched.isEmpty {
-                        return matched.map { ParsedEvent(title: $0.title, start: $0.start, end: $0.end,
-                                                         location: $0.location, action: .delete, targetID: $0.id) }
+                if bulk {   // "생명과학 전체 삭제" → 그 제목이 든 일정 전부(개수 제한 없이 적용 단계가 전체 검색)
+                    if let key = words.first(where: { w in existing.contains { $0.title.contains(w) } }) {
+                        return [ParsedEvent(title: key, start: now, end: now,
+                                            location: "", action: .delete, targetID: nil)]   // targetID nil = 제목 일괄 삭제
                     }
                 }
                 guard let t = target else { return [] }
