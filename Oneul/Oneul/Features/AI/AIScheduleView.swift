@@ -9,6 +9,12 @@ struct AIScheduleView: View {
     @State private var editingIndex: Int?            // AI 결과 항목 직접 수정
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var reply: String?                // 급식·외형 등 액션 답변
+    @AppStorage("appearance") private var appearanceRaw = Appearance.system.rawValue
+    @AppStorage("neisOffice") private var neisOffice = ""
+    @AppStorage("neisCode") private var neisCode = ""
+    @AppStorage("neisName") private var neisName = ""
+    @AppStorage("neisKind") private var neisKind = ""
     @State private var speech = SpeechRecognizer()
     @FocusState private var editorFocused: Bool
     private let lang = AppLanguage.shared
@@ -26,6 +32,13 @@ struct AIScheduleView: View {
                                 Text(errorMessage)
                                     .font(.footnote).foregroundStyle(.red)
                                     .padding(.horizontal, 4)
+                            }
+                            if let reply {
+                                Text(reply)
+                                    .font(.subheadline).foregroundStyle(.primary)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(14)
+                                    .glassCard(cornerRadius: 18)
                             }
                             if !results.isEmpty { resultsSection }
                         }
@@ -176,17 +189,66 @@ struct AIScheduleView: View {
     }
 
     private func generate() async {
-        errorMessage = nil
-        isLoading = true
-        defer { isLoading = false }
+        errorMessage = nil; reply = nil; results = []
+        let text = inputText
+        // 1) 외형(다크/라이트/시스템) 전환 — 코드로 즉시
+        if let mode = detectAppearance(text) {
+            appearanceRaw = mode.rawValue
+            reply = lang.tr(mode.label) + " " + lang.tr("모드로 바꿨어요.")
+            inputText = ""
+            return
+        }
+        // 2) 급식 질문 — NEIS 조회해서 답변
+        if text.contains("급식") {
+            isLoading = true; defer { isLoading = false }
+            reply = await mealReply(text)
+            inputText = ""
+            return
+        }
+        // 3) 일정 — 온디바이스 모델
+        isLoading = true; defer { isLoading = false }
         do {
             let events = try await AppleIntelligenceClient()
-                .generateSchedule(from: inputText, now: .now, existing: fetchUpcoming())
+                .generateSchedule(from: text, now: .now, existing: fetchUpcoming())
             results = events.sorted { $0.start < $1.start }
             if results.isEmpty { errorMessage = lang.tr("일정을 만들 수 없어요 — 유효한 내용을 입력해 주세요.") }
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    /// "다크모드로 바꿔" 류 → 외형. 일정 제목과 헷갈리지 않게 동사가 있을 때만 인식.
+    private func detectAppearance(_ t: String) -> Appearance? {
+        let wants = t.contains("바꿔") || t.contains("해줘") || t.contains("모드") || t.contains("전환") || t.contains("설정")
+        guard wants else { return nil }
+        if t.contains("다크") || t.contains("어둡") { return .dark }
+        if t.contains("라이트") || t.contains("화이트") || t.contains("밝") { return .light }
+        if t.contains("시스템") || t.contains("자동") { return .system }
+        return nil
+    }
+
+    /// 급식 질문 → 날짜 파싱 + NEIS 조회 + 답변 문자열.
+    private func mealReply(_ text: String) async -> String {
+        guard !neisCode.isEmpty else { return lang.tr("학교를 먼저 등록해 주세요 (설정 → 학생).") }
+        let school = School(office: neisOffice, code: neisCode, name: neisName, kind: neisKind, address: "")
+        let cal = Calendar.current
+        let day: Date = text.contains("내일") ? (cal.date(byAdding: .day, value: 1, to: .now) ?? .now)
+            : text.contains("모레") ? (cal.date(byAdding: .day, value: 2, to: .now) ?? .now)
+            : text.contains("어제") ? (cal.date(byAdding: .day, value: -1, to: .now) ?? .now)
+            : .now
+        let dateStr = day.formatted(.dateTime.month().day().weekday(.short).locale(lang.locale))
+        let meals = (try? await NEISClient.shared.fetchMeal(school: school, date: day)) ?? []
+        guard !meals.isEmpty else { return "\(dateStr) " + lang.tr("급식 정보가 없어요") }
+        let body = meals.map { m -> String in
+            let menu = m.menu.split(separator: "\n").map { line -> String in
+                var s = line.trimmingCharacters(in: .whitespaces)
+                while s.hasPrefix("*") { s.removeFirst() }
+                if let r = s.range(of: #"\s*\([0-9.\s]+\)\s*$"#, options: .regularExpression) { s.removeSubrange(r) }
+                return s.trimmingCharacters(in: .whitespaces)
+            }.filter { !$0.isEmpty }.joined(separator: ", ")
+            return "\(m.type) — \(menu)"
+        }.joined(separator: "\n\n")
+        return "\(dateStr)\n\(body)"
     }
 
     /// 수정/삭제 대상이 될 다가오는 일정(최대 25개).
