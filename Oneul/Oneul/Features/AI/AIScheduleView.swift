@@ -35,13 +35,7 @@ struct AIScheduleView: View {
                                     .padding(.horizontal, 4)
                             }
                             if let reply {
-                                Text(reply)
-                                    .font(.body).foregroundStyle(.primary)
-                                    .lineSpacing(4)
-                                    .textSelection(.enabled)
-                                    .frame(maxWidth: .infinity, minHeight: 80, alignment: .topLeading)
-                                    .padding(18)
-                                    .glassCard(cornerRadius: 20)
+                                AIReplyCard(text: reply)
                             }
                             if !results.isEmpty { resultsSection }
                         }
@@ -373,6 +367,55 @@ struct AIScheduleView: View {
         var d = FetchDescriptor<ScheduleEvent>(predicate: #Predicate { $0.id == id })
         d.fetchLimit = 1
         return (try? context.fetch(d))?.first
+    }
+}
+
+// Apple Intelligence 답변 — 신비로운 느낌(오로라 그라데이션 보더가 천천히 흐르고, 세리프 글자, 은은한 빛)
+private struct AIReplyCard: View {
+    let text: String
+    @State private var hue = 0.0
+
+    private var aurora: LinearGradient {
+        LinearGradient(
+            colors: [Color(red: 0.55, green: 0.45, blue: 0.96),
+                     Color(red: 0.95, green: 0.45, blue: 0.80),
+                     Color(red: 0.40, green: 0.65, blue: 0.98),
+                     Color(red: 0.35, green: 0.85, blue: 0.84)],
+            startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 6) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 13, weight: .semibold))
+                Text("Apple Intelligence")
+                    .font(.system(.caption, design: .rounded).weight(.semibold))
+                    .tracking(0.4)
+            }
+            .foregroundStyle(aurora)
+            .hueRotation(.degrees(hue))
+
+            Text(text)
+                .font(.system(.body, design: .serif))
+                .foregroundStyle(.primary)
+                .lineSpacing(6)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 24, style: .continuous).fill(.ultraThinMaterial))
+        .overlay {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .strokeBorder(aurora, lineWidth: 1.2)
+                .hueRotation(.degrees(hue))
+                .opacity(0.85)
+        }
+        .shadow(color: Color(red: 0.5, green: 0.4, blue: 0.95).opacity(0.22), radius: 20, y: 10)
+        .onAppear {
+            withAnimation(.linear(duration: 10).repeatForever(autoreverses: false)) { hue = 360 }
+        }
     }
 }
 
