@@ -16,6 +16,7 @@ struct AIScheduleView: View {
     @AppStorage("neisName") private var neisName = ""
     @AppStorage("neisKind") private var neisKind = ""
     @State private var speech = SpeechRecognizer()
+    @State private var micPulse = false              // 녹음 중 펄스 애니메이션
     @FocusState private var editorFocused: Bool
     private let lang = AppLanguage.shared
 
@@ -35,10 +36,12 @@ struct AIScheduleView: View {
                             }
                             if let reply {
                                 Text(reply)
-                                    .font(.subheadline).foregroundStyle(.primary)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(14)
-                                    .glassCard(cornerRadius: 18)
+                                    .font(.body).foregroundStyle(.primary)
+                                    .lineSpacing(4)
+                                    .textSelection(.enabled)
+                                    .frame(maxWidth: .infinity, minHeight: 80, alignment: .topLeading)
+                                    .padding(18)
+                                    .glassCard(cornerRadius: 20)
                             }
                             if !results.isEmpty { resultsSection }
                         }
@@ -82,24 +85,47 @@ struct AIScheduleView: View {
             TextEditor(text: $inputText)
                 .focused($editorFocused)
                 .scrollContentBackground(.hidden)
-                .frame(minHeight: 110)
+                .frame(minHeight: 68)
                 .padding(8)
         }
         .glassCard(cornerRadius: 20)
-        .overlay(alignment: .bottomTrailing) {
-            Button {
-                editorFocused = false
-                speech.toggle()
-            } label: {
-                Image(systemName: speech.isRecording ? "mic.fill" : "mic")
-                    .font(.headline)
-                    .foregroundStyle(speech.isRecording ? .red : Color.appAccentText)
-                    .frame(width: 40, height: 40)
-                    .background(.ultraThinMaterial, in: Circle())
-                    .overlay(Circle().strokeBorder(.white.opacity(0.15)))
+        .overlay(alignment: .bottomTrailing) { micButton }
+    }
+
+    /// 애플 키보드 마이크처럼 토글 + 녹음 중 펄스 애니메이션.
+    private var micButton: some View {
+        Button {
+            editorFocused = false
+            speech.toggle()
+        } label: {
+            Image(systemName: "mic.fill")
+                .font(.headline)
+                .foregroundStyle(speech.isRecording ? .white : Color.appAccentText)
+                .frame(width: 40, height: 40)
+                .background {
+                    ZStack {
+                        if speech.isRecording {   // 퍼지며 사라지는 펄스 링
+                            Circle().stroke(Color.red.opacity(0.6), lineWidth: 2)
+                                .scaleEffect(micPulse ? 1.75 : 1.0)
+                                .opacity(micPulse ? 0 : 0.85)
+                        }
+                        Circle().fill(speech.isRecording ? Color.red : Color.clear)
+                        Circle().fill(.ultraThinMaterial).opacity(speech.isRecording ? 0 : 1)
+                    }
+                }
+                .overlay(Circle().strokeBorder(.white.opacity(speech.isRecording ? 0.3 : 0.15)))
+                .scaleEffect(speech.isRecording ? 1.1 : 1.0)
+                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: speech.isRecording)
+        }
+        .buttonStyle(.plain)
+        .padding(10)
+        .onChange(of: speech.isRecording) { _, recording in
+            if recording {
+                micPulse = false
+                withAnimation(.easeOut(duration: 1.1).repeatForever(autoreverses: false)) { micPulse = true }
+            } else {
+                withAnimation(.easeOut(duration: 0.2)) { micPulse = false }
             }
-            .buttonStyle(.plain)
-            .padding(10)
         }
     }
 

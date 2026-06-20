@@ -102,3 +102,86 @@ enum AIDateResolver {
 
     private static func clampMinute(_ m: Int) -> Int { max(0, min(59, m)) }
 }
+
+/// 입력 텍스트에서 직접 뽑은 한국어 날짜·시각(작은 모델보다 신뢰도 높음).
+/// 값이 있으면 단일 명령의 슬롯을 덮어써 정확도를 높인다. 요일은 오늘 기준 일수(relativeDay)로 환산.
+struct AIKoreanDateTime {
+    var relativeDay: Int?
+    var month: Int?
+    var day: Int?
+    var startHour: Int?
+    var startMinute: Int?
+    var endHour: Int?
+    var endMinute: Int?
+}
+
+enum AIKoreanDate {
+    static func parse(_ text: String, now: Date, cal: Calendar = .current) -> AIKoreanDateTime {
+        var r = AIKoreanDateTime()
+        let today = cal.startOfDay(for: now)
+
+        // 주차 키워드
+        var weekOffset: Int?
+        if text.contains("다다음주") || text.contains("다다음 주") { weekOffset = 2 }
+        else if text.contains("다음주") || text.contains("다음 주") || text.contains("담주") { weekOffset = 1 }
+        else if text.contains("이번주") || text.contains("이번 주") { weekOffset = 0 }
+
+        // 요일(전체 표기)
+        let wdMap: [(String, Int)] = [("월요일", 2), ("화요일", 3), ("수요일", 4),
+                                      ("목요일", 5), ("금요일", 6), ("토요일", 7), ("일요일", 1)]
+        let weekday = wdMap.first(where: { text.contains($0.0) })?.1
+
+        if let wd = weekday {
+            let todayWd = cal.component(.weekday, from: today)   // 1=일…7=토
+            if let off = weekOffset {
+                // 명시적 주차: 그 주의 해당 요일
+                let mondayOffset = (todayWd + 5) % 7
+                if let monday = cal.date(byAdding: .day, value: -mondayOffset + off * 7, to: today),
+                   let target = cal.date(byAdding: .day, value: (wd + 5) % 7, to: monday) {
+                    r.relativeDay = cal.dateComponents([.day], from: today, to: target).day
+                }
+            } else {
+                // 막연한 요일: 오늘 포함 다가오는 그 요일
+                r.relativeDay = (wd - todayWd + 7) % 7
+            }
+        } else {
+            if text.contains("모레") || text.contains("내일모레") { r.relativeDay = 2 }
+            else if text.contains("글피") { r.relativeDay = 3 }
+            else if text.contains("내일") { r.relativeDay = 1 }
+            else if text.contains("어제") { r.relativeDay = -1 }
+            else if text.contains("오늘") { r.relativeDay = 0 }
+        }
+
+        // 절대 월/일 (요일보다 우선)
+        if let m = text.range(of: #"(\d{1,2})\s*월\s*(\d{1,2})\s*일"#, options: .regularExpression) {
+            let nums = String(text[m]).components(separatedBy: CharacterSet.decimalDigits.inverted).compactMap { Int($0) }
+            if nums.count >= 2 { r.month = nums[0]; r.day = nums[1]; r.relativeDay = nil }
+        }
+
+        // 시각(범위가 아니면 단일 시각)
+        if let t = parseSingleTime(text) { r.startHour = t.h; r.startMinute = t.m }
+        return r
+    }
+
+    /// "HH:MM" 또는 "N시[반][M분]" + 오전/오후. 범위("~","부터","N-M")면 모델에 맡기려 nil.
+    private static func parseSingleTime(_ text: String) -> (h: Int, m: Int)? {
+        if text.contains("~") || text.contains("부터") ||
+            text.range(of: #"\d\s*-\s*\d"#, options: .regularExpression) != nil { return nil }
+        var hour: Int?
+        var minute = 0
+        if let r = text.range(of: #"\d{1,2}:\d{2}"#, options: .regularExpression) {
+            let parts = text[r].split(separator: ":")
+            if let h = Int(parts[0]), let m = Int(parts[1]), h < 24, m < 60 { hour = h; minute = m }
+        } else if let r = text.range(of: #"\d{1,2}\s*시"#, options: .regularExpression) {
+            hour = Int(text[r].prefix { $0.isNumber })
+            if text.contains("반") { minute = 30 }
+            if let mr = text.range(of: #"시\s*\d{1,2}\s*분"#, options: .regularExpression) {
+                minute = Int(text[mr].filter { $0.isNumber }) ?? 0
+            }
+        }
+        guard var h = hour, h < 24 else { return nil }
+        if ["오후", "저녁", "밤"].contains(where: text.contains), h < 12 { h += 12 }
+        if ["오전", "새벽", "아침"].contains(where: text.contains), h == 12 { h = 0 }
+        return (h, minute)
+    }
+}

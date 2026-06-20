@@ -130,6 +130,8 @@ enum AppleAI {
 
     // 매 요청마다 새 세션(누적 컨텍스트 초과 방지). 1개 미리 데워 첫 응답 지연만 줄인다.
     private static var _primed: LanguageModelSession?
+    // 직전 사용자 요청 — '그거/그럼/거기' 같은 후속 질문의 맥락으로만 사용(세션은 누적 안 함).
+    private static var lastRequest: String?
 
     static func prewarm() {
         guard case .available = SystemLanguageModel.default.availability else { return }
@@ -154,6 +156,9 @@ enum AppleAI {
 
         let isoNow = ISO8601DateFormatter().string(from: now)
         var prompt = "현재 시각: \(isoNow) (\(TimeZone.current.identifier)).\n"
+        if let last = lastRequest {
+            prompt += "직전 질문: \(last)\n(이번 요청에 '그거/거기/그날/그럼/그때' 같은 지시어가 있으면 직전 질문을 이어서 해석. 직전 질문 자체를 다시 처리하지는 말 것.)\n"
+        }
         if !existing.isEmpty {
             prompt += "기존 일정 목록(수정/삭제 대상):\n"
             for (i, e) in existing.enumerated() {
@@ -167,7 +172,9 @@ enum AppleAI {
         let response = try await session.respond(to: prompt, generating: GenResponse.self)
         prewarm()   // 다음 요청용 세션 미리 데움
 
-        return route(response.content.commands, text: text, now: now, existing: existing)
+        let result = route(response.content.commands, text: text, now: now, existing: existing)
+        lastRequest = text
+        return result
     }
 
     // MARK: 슬롯 → 결과(미리보기 일정 + 즉시 액션)
@@ -177,7 +184,13 @@ enum AppleAI {
         var actions: [AIAction] = []
         var seen = Set<UUID>()
 
-        for c in commands {
+        // 단일 명령은 한국어 날짜·시각을 코드로 직접 파싱해 슬롯을 보정(작은 모델 오류 교정)
+        var cmds = commands
+        if cmds.count == 1 {
+            cmds[0] = applyParsed(AIKoreanDate.parse(text, now: now), to: cmds[0])
+        }
+
+        for c in cmds {
             switch c.intent {
             case "scheduleCreate":
                 let r = AIDateResolver.resolve(relativeDay: c.relativeDay, weekday: c.weekday, weekOffset: c.weekOffset,
@@ -228,6 +241,23 @@ enum AppleAI {
             }
         }
         return AIResult(events: events, actions: actions)
+    }
+
+    /// 코드로 파싱한 한국어 날짜·시각을 명령 슬롯에 덮어쓴다(있는 값만).
+    private static func applyParsed(_ p: AIKoreanDateTime, to cmd: GenCommand) -> GenCommand {
+        var c = cmd
+        if let v = p.relativeDay { c.relativeDay = v; c.weekday = ""; c.weekOffset = 0 }
+        if let v = p.month { c.month = v; c.weekday = "" }
+        if let v = p.day { c.day = v; c.weekday = "" }
+        if let v = p.startHour {
+            c.startHour = v
+            c.startMinute = p.startMinute ?? 0
+        }
+        if let v = p.endHour {
+            c.endHour = v
+            c.endMinute = p.endMinute ?? 0
+        }
+        return c
     }
 
     // 수정: 날짜 슬롯이 있으면 그 날짜, 없으면 기존 일정 날짜 유지. 시각 슬롯이 있으면 그 시각, 없으면 기존 시각. 길이 유지.
