@@ -70,12 +70,11 @@ struct AIScheduleView: View {
 
     private var inputCard: some View {
         ZStack(alignment: .topLeading) {
-            if inputText.isEmpty {
-                Text(lang.tr("예: 매주 월요일 7시 영어학원 · 다음주 월요일 급식 · 내일 뭐 있어? · 다크모드로 바꿔줘"))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 16).padding(.vertical, 16)
-                    .allowsHitTesting(false)
-            }
+            Text(lang.tr("예: 매주 월요일 7시 영어학원 · 다음주 월요일 급식 · 내일 뭐 있어? · 다크모드로 바꿔줘"))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 16).padding(.vertical, 16)
+                .allowsHitTesting(false)
+                .opacity(inputText.isEmpty ? 1 : 0)   // 구조 토글 대신 투명도 → 첫 타이핑 시 레이아웃 다시 잡힘 방지
             TextEditor(text: $inputText)
                 .focused($editorFocused)
                 .scrollContentBackground(.hidden)
@@ -86,17 +85,24 @@ struct AIScheduleView: View {
         .overlay(alignment: .bottomTrailing) { micButton }
     }
 
-    /// 꾹 누르는 동안 녹음 → 떼면 정지. 리퀴드 글래스(애플 감성).
+    /// 꾹 누르는 동안 녹음 → 떼면 정지. 리퀴드 글래스(애플 감성). 녹음 중엔 하얗게 빛난다.
     private var micButton: some View {
         Image(systemName: speech.isRecording ? "waveform" : "mic.fill")
             .font(.system(size: 17, weight: .semibold))
-            .foregroundStyle(speech.isRecording ? Color.appAccentText : .secondary)
+            .foregroundStyle(speech.isRecording ? .white : .secondary)
             .symbolEffect(.variableColor.iterative, isActive: speech.isRecording)
             .frame(width: 46, height: 46)
+            .background {
+                if speech.isRecording {   // 작동 중 하얀 빛
+                    Circle().fill(.white.opacity(0.18))
+                }
+            }
             .glassEffect(.regular.interactive(), in: Circle())
             .scaleEffect(micPressing ? 1.18 : 1.0)
-            .shadow(color: speech.isRecording ? Color.appAccent.opacity(0.35) : .clear, radius: 10)
+            .shadow(color: speech.isRecording ? .white.opacity(0.9) : .clear, radius: 14)
+            .shadow(color: speech.isRecording ? .white.opacity(0.6) : .clear, radius: 5)
             .animation(.spring(response: 0.32, dampingFraction: 0.7), value: micPressing)
+            .animation(.easeInOut(duration: 0.25), value: speech.isRecording)
             .contentShape(Circle())
             .gesture(
                 DragGesture(minimumDistance: 0)
@@ -370,31 +376,29 @@ struct AIScheduleView: View {
     }
 }
 
-// Apple Intelligence 답변 — 신비로운 느낌(오로라 그라데이션 보더가 천천히 흐르고, 세리프 글자, 은은한 빛)
+// Apple Intelligence 답변 — 차분하고 정제된 애플 감성(반짝임 없이, 은은한 그라데이션 한 줄·세리프 글자).
 private struct AIReplyCard: View {
     let text: String
-    @State private var hue = 0.0
 
-    private var aurora: LinearGradient {
+    private var accent: LinearGradient {
         LinearGradient(
-            colors: [Color(red: 0.55, green: 0.45, blue: 0.96),
-                     Color(red: 0.95, green: 0.45, blue: 0.80),
-                     Color(red: 0.40, green: 0.65, blue: 0.98),
-                     Color(red: 0.35, green: 0.85, blue: 0.84)],
-            startPoint: .topLeading, endPoint: .bottomTrailing)
+            colors: [Color(red: 0.45, green: 0.50, blue: 0.98),
+                     Color(red: 0.78, green: 0.45, blue: 0.95),
+                     Color(red: 0.40, green: 0.70, blue: 0.98)],
+            startPoint: .leading, endPoint: .trailing)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 6) {
                 Image(systemName: "sparkles")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(accent)
                 Text("Apple Intelligence")
                     .font(.system(.caption, design: .rounded).weight(.semibold))
-                    .tracking(0.4)
+                    .tracking(0.3)
+                    .foregroundStyle(.secondary)
             }
-            .foregroundStyle(aurora)
-            .hueRotation(.degrees(hue))
 
             Text(text)
                 .font(.system(.body, design: .serif))
@@ -405,17 +409,12 @@ private struct AIReplyCard: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 24, style: .continuous).fill(.ultraThinMaterial))
+        .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(.ultraThinMaterial))
         .overlay {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .strokeBorder(aurora, lineWidth: 1.2)
-                .hueRotation(.degrees(hue))
-                .opacity(0.85)
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(accent.opacity(0.22), lineWidth: 1)   // 정적인 은은한 그라데이션 한 줄
         }
-        .shadow(color: Color(red: 0.5, green: 0.4, blue: 0.95).opacity(0.22), radius: 20, y: 10)
-        .onAppear {
-            withAnimation(.linear(duration: 10).repeatForever(autoreverses: false)) { hue = 360 }
-        }
+        .shadow(color: .black.opacity(0.10), radius: 14, y: 7)
     }
 }
 

@@ -134,8 +134,8 @@ enum AppleAI {
     private static var lastRequest: String?
 
     static func prewarm() {
+        guard _primed == nil else { return }   // 이미 데웠으면 즉시 반환(탭 재진입 시 가용성 조회 비용 제거)
         guard case .available = SystemLanguageModel.default.availability else { return }
-        guard _primed == nil else { return }
         let s = LanguageModelSession(instructions: instructions)
         _primed = s
         s.prewarm()
