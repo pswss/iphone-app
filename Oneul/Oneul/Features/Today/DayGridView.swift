@@ -69,7 +69,9 @@ struct DayGridView: View {
                             .frame(height: gridHeight, alignment: .topLeading)
                         }
                         .scrollDisabled(dragID != nil || resizeID != nil)         // 이동/리사이즈 중에만 스크롤 잠금
-                        .onAppear { proxy.scrollTo(scrollHour ?? scrollAnchorHour, anchor: .top) }   // 공유 위치로 시작(없으면 앵커)
+                        .onAppear {   // 공유 위치로 시작(없으면 앵커) — 렌더 직후 적용해야 grid 시작=접힘 기준점이 됨
+                            DispatchQueue.main.async { proxy.scrollTo(scrollHour ?? scrollAnchorHour, anchor: .top) }
+                        }
                         .trackScroll(enabled: onScrollDelta != nil, anchorY: anchorY, hourHeight: hourHeight,
                                      onDelta: onScrollDelta, onHour: { scrollHour = $0 })   // 보이는 페이지만 공유값·진행률 갱신
                     }
