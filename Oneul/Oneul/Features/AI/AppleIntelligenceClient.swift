@@ -151,9 +151,10 @@ enum AppleAI {
                                     location: t.location, action: .delete, targetID: t.id)]
             case .update:
                 guard let t = target else { return [] }
-                let newStart = AICommon.parseDate(e.start)
-                let s = newStart ?? t.start
-                let end = AICommon.parseDate(e.end) ?? (newStart != nil ? s.addingTimeInterval(3600) : t.end)
+                let llmStart = AICommon.parseDate(e.start)
+                let s = forcedTime != nil ? setTime(llmStart ?? t.start, forcedTime!) : (llmStart ?? t.start)   // 입력에 시각 있으면 강제
+                let dur = max(0, t.end.timeIntervalSince(t.start))
+                let end = AICommon.parseDate(e.end) ?? s.addingTimeInterval(dur > 0 ? dur : 3600)   // 기존 길이 유지
                 return [ParsedEvent(title: e.title.isEmpty ? t.title : e.title, start: s, end: end,
                                     location: e.location.isEmpty ? t.location : e.location,
                                     action: .update, targetID: t.id)]
