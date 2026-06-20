@@ -181,21 +181,28 @@ struct AIScheduleView: View {
     }
 
     private func addAll() {
+        var applied = 0
         for e in results {
             switch e.action {
             case .create:
                 context.insert(ScheduleEvent(title: e.title, start: e.start, end: e.end, location: e.location))
+                applied += 1
             case .update:
                 if let t = find(e.targetID) {
                     t.title = e.title; t.start = e.start; t.end = e.end; t.location = e.location
+                    applied += 1
                 }
             case .delete:
-                if let t = find(e.targetID) { context.delete(t) }
+                if let t = find(e.targetID) { context.delete(t); applied += 1 }
             }
         }
-        try? context.save()
-        results = []
-        inputText = ""
+        do {
+            try context.save()
+            if applied == 0 { errorMessage = lang.tr("적용할 대상을 찾지 못했어요.") }
+            else { results = []; inputText = ""; errorMessage = nil }
+        } catch {
+            errorMessage = "저장 오류: \(error.localizedDescription)"
+        }
     }
 
     private func find(_ id: UUID?) -> ScheduleEvent? {
