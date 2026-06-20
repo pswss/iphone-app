@@ -69,20 +69,17 @@ struct AIScheduleView: View {
     }
 
     private var inputCard: some View {
-        ZStack(alignment: .topLeading) {
-            Text(lang.tr("예: 매주 월요일 7시 영어학원 · 다음주 월요일 급식 · 내일 뭐 있어? · 다크모드로 바꿔줘"))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 16).padding(.vertical, 16)
-                .allowsHitTesting(false)
-                .opacity(inputText.isEmpty ? 1 : 0)   // 구조 토글 대신 투명도 → 첫 타이핑 시 레이아웃 다시 잡힘 방지
-            TextEditor(text: $inputText)
-                .focused($editorFocused)
-                .scrollContentBackground(.hidden)
-                .frame(minHeight: 68)
-                .padding(8)
-        }
-        .glassCard(cornerRadius: 20)
-        .overlay(alignment: .bottomTrailing) { micButton }
+        // TextEditor(무거운 UITextView) 대신 TextField(axis:.vertical) — 첫 타이핑 렉↓, 플레이스홀더 내장.
+        TextField(lang.tr("예: 매주 월요일 7시 영어학원 · 다음주 월요일 급식 · 내일 뭐 있어? · 다크모드로 바꿔줘"),
+                  text: $inputText, axis: .vertical)
+            .focused($editorFocused)
+            .lineLimit(2...7)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .padding(.trailing, 40)   // 마이크 버튼 자리
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .glassCard(cornerRadius: 20)
+            .overlay(alignment: .bottomTrailing) { micButton }
     }
 
     /// 꾹 누르는 동안 녹음 → 떼면 정지. 리퀴드 글래스(애플 감성). 녹음 중엔 하얗게 빛난다.
@@ -376,16 +373,17 @@ struct AIScheduleView: View {
     }
 }
 
-// Apple Intelligence 답변 — 차분하고 정제된 애플 감성(반짝임 없이, 은은한 그라데이션 한 줄·세리프 글자).
+// Apple Intelligence 답변 — 천상의 느낌(은은한 오로라 + 위에서 내리는 빛 + 부드럽게 숨 쉬는 발광 헤일로).
 private struct AIReplyCard: View {
     let text: String
+    @State private var glow = false
 
-    private var accent: LinearGradient {
-        LinearGradient(
-            colors: [Color(red: 0.45, green: 0.50, blue: 0.98),
-                     Color(red: 0.78, green: 0.45, blue: 0.95),
-                     Color(red: 0.40, green: 0.70, blue: 0.98)],
-            startPoint: .leading, endPoint: .trailing)
+    private let corner: CGFloat = 24
+
+    private var headerGradient: LinearGradient {
+        LinearGradient(colors: [Color(red: 0.62, green: 0.58, blue: 1.0),
+                                Color(red: 0.55, green: 0.80, blue: 1.0)],
+                       startPoint: .leading, endPoint: .trailing)
     }
 
     var body: some View {
@@ -393,7 +391,7 @@ private struct AIReplyCard: View {
             HStack(spacing: 6) {
                 Image(systemName: "sparkles")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(accent)
+                    .foregroundStyle(headerGradient)
                 Text("Apple Intelligence")
                     .font(.system(.caption, design: .rounded).weight(.semibold))
                     .tracking(0.3)
@@ -409,12 +407,38 @@ private struct AIReplyCard: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(.ultraThinMaterial))
-        .overlay {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .strokeBorder(accent.opacity(0.22), lineWidth: 1)   // 정적인 은은한 그라데이션 한 줄
+        .background {
+            ZStack {
+                RoundedRectangle(cornerRadius: corner, style: .continuous).fill(.ultraThinMaterial)
+                // 은은한 오로라 틴트
+                RoundedRectangle(cornerRadius: corner, style: .continuous)
+                    .fill(LinearGradient(colors: [
+                        Color(red: 0.62, green: 0.55, blue: 0.98).opacity(0.22),
+                        Color(red: 0.95, green: 0.66, blue: 0.86).opacity(0.13),
+                        Color(red: 0.50, green: 0.80, blue: 0.98).opacity(0.20)
+                    ], startPoint: .topLeading, endPoint: .bottomTrailing))
+                // 천상의 빛 — 위에서 내리는 라디얼 하이라이트
+                RoundedRectangle(cornerRadius: corner, style: .continuous)
+                    .fill(RadialGradient(colors: [.white.opacity(0.38), .clear],
+                                         center: .top, startRadius: 0, endRadius: 190))
+            }
         }
-        .shadow(color: .black.opacity(0.10), radius: 14, y: 7)
+        .overlay {
+            RoundedRectangle(cornerRadius: corner, style: .continuous)
+                .strokeBorder(LinearGradient(colors: [
+                    .white.opacity(0.55),
+                    Color(red: 0.70, green: 0.62, blue: 1.0).opacity(0.35),
+                    .clear
+                ], startPoint: .top, endPoint: .bottom), lineWidth: 1)
+        }
+        // 발광 헤일로 — 천천히 숨 쉬듯(빠른 반짝임 아님)
+        .shadow(color: Color(red: 0.50, green: 0.45, blue: 0.98).opacity(glow ? 0.40 : 0.22),
+                radius: glow ? 26 : 18, y: 8)
+        .shadow(color: Color(red: 0.55, green: 0.80, blue: 1.0).opacity(glow ? 0.24 : 0.12),
+                radius: glow ? 34 : 22, y: 2)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 3.2).repeatForever(autoreverses: true)) { glow = true }
+        }
     }
 }
 
