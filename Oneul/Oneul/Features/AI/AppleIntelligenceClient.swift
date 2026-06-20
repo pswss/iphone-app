@@ -134,11 +134,13 @@ enum AppleAI {
     private static var lastRequest: String?
 
     static func prewarm() {
-        guard _primed == nil else { return }   // 이미 데웠으면 즉시 반환(탭 재진입 시 가용성 조회 비용 제거)
-        guard case .available = SystemLanguageModel.default.availability else { return }
-        let s = LanguageModelSession(instructions: instructions)
-        _primed = s
-        s.prewarm()
+        guard _primed == nil else { return }   // 이미 데웠으면 즉시 반환
+        Task.detached(priority: .utility) {    // 모델 워밍업을 메인 스레드 밖 낮은 우선순위로(첫 타이핑 렉↓)
+            guard case .available = SystemLanguageModel.default.availability else { return }
+            let s = LanguageModelSession(instructions: instructions)
+            _primed = s
+            s.prewarm()
+        }
     }
 
     static func availability() -> AIValidation {

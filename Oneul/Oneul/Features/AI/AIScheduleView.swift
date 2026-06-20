@@ -73,11 +73,11 @@ struct AIScheduleView: View {
         TextField(lang.tr("예: 매주 월요일 7시 영어학원 · 다음주 월요일 급식 · 내일 뭐 있어? · 다크모드로 바꿔줘"),
                   text: $inputText, axis: .vertical)
             .focused($editorFocused)
-            .lineLimit(2...7)
+            .lineLimit(nil)
             .padding(.horizontal, 14)
-            .padding(.vertical, 12)
+            .padding(.vertical, 14)
             .padding(.trailing, 40)   // 마이크 버튼 자리
-            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .frame(maxWidth: .infinity, minHeight: 180, alignment: .topLeading)
             .glassCard(cornerRadius: 20)
             .overlay(alignment: .bottomTrailing) { micButton }
     }
