@@ -10,6 +10,9 @@ struct ParsedEvent: Identifiable, Hashable {
     var location: String
     var action: Action = .create
     var targetID: UUID? = nil   // update/delete 대상 기존 일정 id
+    var recurrence: Recurrence = .none   // 반복 일정(create 적용 시 EventActions.create로)
+    var weekdays: Set<Int> = []          // 매주 특정 요일(1=일…7=토)
+    var endDate: Date? = nil             // 반복 종료일(없으면 기본 1년)
 }
 
 /// AI에 컨텍스트로 넘기는 기존(다가오는) 일정 스냅샷.
@@ -41,14 +44,14 @@ enum AIValidation: Equatable {
     case failed(String)
 }
 
-/// 자연어 → 일정 변환(+ 기존 일정 수정/삭제) + 키 검증 인터페이스.
+/// 자연어 → 앱 동작(일정 변경 미리보기 + 즉시 액션) + 키 검증 인터페이스.
 protocol ScheduleAI {
-    func generateSchedule(from text: String, now: Date, existing: [ExistingEvent]) async throws -> [ParsedEvent]
+    func generateSchedule(from text: String, now: Date, existing: [ExistingEvent]) async throws -> AIResult
     func validate() async -> AIValidation
 }
 
 extension ScheduleAI {
-    func generateSchedule(from text: String) async throws -> [ParsedEvent] {
+    func generateSchedule(from text: String) async throws -> AIResult {
         try await generateSchedule(from: text, now: .now, existing: [])
     }
 }

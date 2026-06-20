@@ -45,6 +45,7 @@
 		E737EB9D49F5A808C1E599A3 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90270A5784A434E2BD4F8EB7 /* KeychainStore.swift */; };
 		E823D7F623DA11AA93889FB4 /* AIProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 535CFBC05030B47581C0E6A6 /* AIProvider.swift */; };
 		F1F5D51D84584898B44A586D /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 777161A31B7E4F39C0973C6E /* TodayView.swift */; };
+		F2BE172507853AEAAA7F3798 /* AICommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A4018B36A49D3884C07100 /* AICommand.swift */; };
 		F54DF9FCFD510AE0BFE27C1F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 94270AF8C3F1645E053EDB34 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
@@ -106,6 +107,7 @@
 		BA30100A3889640819877BDE /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		C7570E900508DF43B3D91D84 /* EventRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventRow.swift; sourceTree = "<group>"; };
 		C9F7A51A479EF765DCADE7CC /* AppChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppChrome.swift; sourceTree = "<group>"; };
+		D2A4018B36A49D3884C07100 /* AICommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AICommand.swift; sourceTree = "<group>"; };
 		D5057FFD3739CA0A9C50D19B /* EventEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventEditorView.swift; sourceTree = "<group>"; };
 		E6AED8BA9142551D4DADE991 /* ScheduleLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleLiveActivity.swift; sourceTree = "<group>"; };
 		E9779CF0E668CEF123968ACE /* PlaceSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceSearch.swift; sourceTree = "<group>"; };
@@ -236,6 +238,7 @@
 		D213170BD5D74DF1721BD9D9 /* AI */ = {
 			isa = PBXGroup;
 			children = (
+				D2A4018B36A49D3884C07100 /* AICommand.swift */,
 				E9B0BDB1D75C0BC7A988A590 /* AICommon.swift */,
 				535CFBC05030B47581C0E6A6 /* AIProvider.swift */,
 				6A7DA356E9BE16433ED03A34 /* AIScheduleView.swift */,
@@ -388,6 +391,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F2BE172507853AEAAA7F3798 /* AICommand.swift in Sources */,
 				27289D8F1B5A2E06AF20D96E /* AICommon.swift in Sources */,
 				E823D7F623DA11AA93889FB4 /* AIProvider.swift in Sources */,
 				75309A16D28C87AA17064433 /* AIScheduleView.swift in Sources */,

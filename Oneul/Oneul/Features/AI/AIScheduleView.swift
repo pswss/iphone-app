@@ -74,7 +74,7 @@ struct AIScheduleView: View {
     private var inputCard: some View {
         ZStack(alignment: .topLeading) {
             if inputText.isEmpty {
-                Text(lang.tr("예: 내일 9시 팀 회의 추가, 금요일 약속 취소, 점심 1시로 옮겨줘"))
+                Text(lang.tr("예: 매주 월요일 7시 영어학원 · 다음주 월요일 급식 · 내일 뭐 있어? · 다크모드로 바꿔줘"))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 16).padding(.vertical, 16)
                     .allowsHitTesting(false)
@@ -157,6 +157,12 @@ struct AIScheduleView: View {
                                         .padding(.horizontal, 6).padding(.vertical, 1)
                                         .background(e.action == .delete ? Color.red : Color.orange, in: Capsule())
                                 }
+                                if e.recurrence != .none {
+                                    Text(repeatLabel(e))
+                                        .font(.caption2).bold().foregroundStyle(.white)
+                                        .padding(.horizontal, 6).padding(.vertical, 1)
+                                        .background(Color.blue, in: Capsule())
+                                }
                             }
                             if e.action == .delete && e.targetID == nil {
                                 Text(lang.tr("제목이 같은 일정 전부")).font(.caption2).foregroundStyle(.secondary)
@@ -188,54 +194,58 @@ struct AIScheduleView: View {
         date.formatted(.dateTime.hour().minute().locale(lang.locale))
     }
 
+    /// 반복 배지 문구: "매주" 또는 "매주 월수금".
+    private func repeatLabel(_ e: ParsedEvent) -> String {
+        guard e.recurrence != .none else { return "" }
+        if e.recurrence == .weekly && !e.weekdays.isEmpty {
+            let syms = ["일", "월", "화", "수", "목", "금", "토"]
+            let days = e.weekdays.sorted().compactMap { (1...7).contains($0) ? syms[$0 - 1] : nil }.joined()
+            return lang.tr(e.recurrence.label) + " " + days
+        }
+        return lang.tr(e.recurrence.label)
+    }
+
     private func generate() async {
         errorMessage = nil; reply = nil; results = []
         let text = inputText
-        // 1) 외형(다크/라이트/시스템) 전환 — 코드로 즉시
-        if let mode = detectAppearance(text) {
-            appearanceRaw = mode.rawValue
-            reply = lang.tr(mode.label) + " " + lang.tr("모드로 바꿨어요.")
-            inputText = ""
-            return
-        }
-        // 2) 급식 질문 — NEIS 조회해서 답변
-        if text.contains("급식") {
-            isLoading = true; defer { isLoading = false }
-            reply = await mealReply(text)
-            inputText = ""
-            return
-        }
-        // 3) 일정 — 온디바이스 모델
         isLoading = true; defer { isLoading = false }
         do {
-            let events = try await AppleIntelligenceClient()
+            let result = try await AppleIntelligenceClient()
                 .generateSchedule(from: text, now: .now, existing: fetchUpcoming())
-            results = events.sorted { $0.start < $1.start }
-            if results.isEmpty { errorMessage = lang.tr("일정을 만들 수 없어요 — 유효한 내용을 입력해 주세요.") }
+
+            // 즉시 액션(외형/급식/일정 질문) 처리 → 답변 모음
+            var replies: [String] = []
+            for action in result.actions {
+                switch action {
+                case .setAppearance(let mode):
+                    appearanceRaw = mode.rawValue
+                    replies.append(lang.tr(mode.label) + " " + lang.tr("모드로 바꿨어요."))
+                case .mealQuery(let date):
+                    replies.append(await mealReply(date: date))
+                case .scheduleQuery(let kind, let day):
+                    replies.append(scheduleQueryReply(kind: kind, day: day))
+                case .unknown:
+                    break
+                }
+            }
+
+            results = result.events.sorted { $0.start < $1.start }
+            if !replies.isEmpty { reply = replies.joined(separator: "\n\n") }
+
+            if result.isEmpty {
+                errorMessage = lang.tr("무엇을 할지 이해하지 못했어요. 다시 말해 주세요.")
+            } else {
+                inputText = ""   // 처리됨(미리보기는 results로, 답변은 reply로)
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
-    /// "다크모드로 바꿔" 류 → 외형. 일정 제목과 헷갈리지 않게 동사가 있을 때만 인식.
-    private func detectAppearance(_ t: String) -> Appearance? {
-        let wants = t.contains("바꿔") || t.contains("해줘") || t.contains("모드") || t.contains("전환") || t.contains("설정")
-        guard wants else { return nil }
-        if t.contains("다크") || t.contains("어둡") { return .dark }
-        if t.contains("라이트") || t.contains("화이트") || t.contains("밝") { return .light }
-        if t.contains("시스템") || t.contains("자동") { return .system }
-        return nil
-    }
-
-    /// 급식 질문 → 날짜 파싱 + NEIS 조회 + 답변 문자열.
-    private func mealReply(_ text: String) async -> String {
+    /// 급식 질문 → 해석된 날짜로 NEIS 조회 + 답변 문자열.
+    private func mealReply(date day: Date) async -> String {
         guard !neisCode.isEmpty else { return lang.tr("학교를 먼저 등록해 주세요 (설정 → 학생).") }
         let school = School(office: neisOffice, code: neisCode, name: neisName, kind: neisKind, address: "")
-        let cal = Calendar.current
-        let day: Date = text.contains("내일") ? (cal.date(byAdding: .day, value: 1, to: .now) ?? .now)
-            : text.contains("모레") ? (cal.date(byAdding: .day, value: 2, to: .now) ?? .now)
-            : text.contains("어제") ? (cal.date(byAdding: .day, value: -1, to: .now) ?? .now)
-            : .now
         let dateStr = day.formatted(.dateTime.month().day().weekday(.short).locale(lang.locale))
         let meals = (try? await NEISClient.shared.fetchMeal(school: school, date: day)) ?? []
         guard !meals.isEmpty else { return "\(dateStr) " + lang.tr("급식 정보가 없어요") }
@@ -249,6 +259,50 @@ struct AIScheduleView: View {
             return "\(m.type) — \(menu)"
         }.joined(separator: "\n\n")
         return "\(dateStr)\n\(body)"
+    }
+
+    /// 일정·시험 질문 → 저장된 일정 조회 + 텍스트 답변.
+    private func scheduleQueryReply(kind: AIQueryKind, day: Date) -> String {
+        let cal = Calendar.current
+        switch kind {
+        case .exam:
+            let now = Date()
+            var d = FetchDescriptor<ScheduleEvent>(
+                predicate: #Predicate { $0.start >= now }, sortBy: [SortDescriptor(\.start)])
+            d.fetchLimit = 200
+            let items = (try? context.fetch(d)) ?? []
+            guard let next = items.first(where: { $0.examKind.isExam }) else {
+                return lang.tr("다가오는 시험이 없어요.")
+            }
+            let days = cal.dateComponents([.day], from: cal.startOfDay(for: now),
+                                          to: cal.startOfDay(for: next.start)).day ?? 0
+            let dleft = days <= 0 ? "D-DAY" : "D-\(days)"
+            let ds = next.start.formatted(.dateTime.month().day().locale(lang.locale))
+            return "\(next.title) · \(ds) (\(dleft))"
+        case .day:
+            let from = cal.startOfDay(for: day)
+            let to = cal.date(byAdding: .day, value: 1, to: from) ?? from
+            let label = day.formatted(.dateTime.month().day().weekday(.short).locale(lang.locale))
+            return eventsReply(from: from, to: to, label: label)
+        case .week:
+            let todayWd = cal.component(.weekday, from: day)
+            let monday = cal.date(byAdding: .day, value: -((todayWd + 5) % 7), to: cal.startOfDay(for: day)) ?? day
+            let to = cal.date(byAdding: .day, value: 7, to: monday) ?? day
+            let label = monday.formatted(.dateTime.month().day().locale(lang.locale)) + " " + lang.tr("주")
+            return eventsReply(from: monday, to: to, label: label)
+        }
+    }
+
+    private func eventsReply(from: Date, to: Date, label: String) -> String {
+        var d = FetchDescriptor<ScheduleEvent>(
+            predicate: #Predicate { $0.start >= from && $0.start < to }, sortBy: [SortDescriptor(\.start)])
+        d.fetchLimit = 50
+        let items = (try? context.fetch(d)) ?? []
+        guard !items.isEmpty else { return "\(label) " + lang.tr("일정이 없어요.") }
+        let body = items.prefix(20).map { e in
+            "\(e.start.formatted(.dateTime.month().day().hour().minute().locale(lang.locale))) \(e.title)"
+        }.joined(separator: "\n")
+        return "\(label)\n\(body)"
     }
 
     /// 수정/삭제 대상이 될 다가오는 일정(최대 25개).
@@ -266,7 +320,9 @@ struct AIScheduleView: View {
         for e in results {
             switch e.action {
             case .create:
-                context.insert(ScheduleEvent(title: e.title, start: e.start, end: e.end, location: e.location))
+                EventActions.create(title: e.title, start: e.start, end: e.end, location: e.location,
+                                    reminderMinutes: 10, recurrence: e.recurrence,
+                                    weekdays: e.weekdays, endDate: e.endDate, into: context)
                 applied += 1
             case .update:
                 if let t = find(e.targetID) {
@@ -306,6 +362,15 @@ private struct AIResultEditView: View {
     @Environment(\.dismiss) private var dismiss
     private let lang = AppLanguage.shared
 
+    private var repeatText: String {
+        if event.recurrence == .weekly && !event.weekdays.isEmpty {
+            let syms = ["일", "월", "화", "수", "목", "금", "토"]
+            let days = event.weekdays.sorted().compactMap { (1...7).contains($0) ? syms[$0 - 1] : nil }.joined()
+            return lang.tr(event.recurrence.label) + " " + days
+        }
+        return lang.tr(event.recurrence.label)
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -323,6 +388,11 @@ private struct AIResultEditView: View {
                         }
                         field(lang.tr("장소")) {
                             TextField(lang.tr("위치"), text: $event.location).multilineTextAlignment(.trailing)
+                        }
+                        if event.recurrence != .none {
+                            field(lang.tr("반복")) {
+                                Text(repeatText).foregroundStyle(.secondary)
+                            }
                         }
                     }
                     .padding(16).frame(maxWidth: 640).frame(maxWidth: .infinity)

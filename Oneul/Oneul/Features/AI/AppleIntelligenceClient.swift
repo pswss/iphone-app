@@ -3,10 +3,10 @@ import Foundation
 import FoundationModels
 #endif
 
-/// 애플 인텔리전스(온디바이스, iOS 26+) 기반 일정 생성/수정. 키 불필요.
-/// 미지원 기기/구버전에서는 사용 불가 에러를 던져 다른 AI로 안내.
+/// 애플 인텔리전스(온디바이스, iOS 26+) 기반 앱 비서. 키 불필요.
+/// 모델은 '의미 슬롯'만 채우고(날짜/시각 ISO 생성 금지), 실제 계산은 Swift(AIDateResolver)가 한다.
 struct AppleIntelligenceClient: ScheduleAI {
-    func generateSchedule(from text: String, now: Date, existing: [ExistingEvent]) async throws -> [ParsedEvent] {
+    func generateSchedule(from text: String, now: Date, existing: [ExistingEvent]) async throws -> AIResult {
         #if canImport(FoundationModels)
         if #available(iOS 26, *) {
             return try await AppleAI.generate(from: text, now: now, existing: existing)
@@ -41,48 +41,94 @@ struct AppleIntelligenceUnavailable: LocalizedError {
 #if canImport(FoundationModels)
 @available(iOS 26, *)
 enum AppleAI {
+    // MARK: 의미 슬롯 스키마 (모델은 슬롯만 채운다 — 날짜/시각 계산은 Swift가)
     @Generable
-    struct GenSchedule {
-        @Guide(description: "할 일이나 시간이 담긴 일정/약속이거나 기존 일정 수정·삭제 요청이면 true. 단순 단어·이름·노래제목·사물명 등 일정과 무관하면 false")
-        var isSchedule: Bool
-        @Guide(description: "만들거나 수정/삭제할 일정 목록. isSchedule이 false면 빈 배열")
-        var events: [GenEvent]
+    struct GenResponse {
+        @Guide(description: "사용자 말에서 뽑아낸 명령 목록. 단순 단어·잡담이면 빈 배열")
+        var commands: [GenCommand]
     }
 
     @Generable
-    struct GenEvent {
-        @Guide(description: "동작: 새 일정이면 create, 기존 일정 수정이면 update, 기존 일정 삭제면 delete")
-        var action: String
-        @Guide(description: "update/delete일 때만 대상 기존 일정 번호([1],[2]…). create면 0")
-        var targetIndex: Int
-        @Guide(description: "일정 제목. 시간·날짜 표현은 빼고 핵심 내용만(예: '9시 회의'→'회의', '내일 점심 약속'→'점심 약속')")
+    struct GenCommand {
+        @Guide(description: "의도 하나: scheduleCreate(새 일정), scheduleUpdate(기존 일정 시간/내용 변경), scheduleDelete(기존 일정 취소/삭제), mealQuery(급식 질문), scheduleQuery(내 일정·시험이 언제/뭐 있는지 질문), setAppearance(다크/라이트/시스템 전환), unknown(그 외·잡담)")
+        var intent: String
+
+        @Guide(description: "상대 날짜: 오늘=0, 내일=1, 모레=2, 어제=-1. 요일·절대날짜를 쓰면 0")
+        var relativeDay: Int
+        @Guide(description: "요일을 말하면 mon,tue,wed,thu,fri,sat,sun 중 하나. 요일 안 쓰면 빈 문자열")
+        var weekday: String
+        @Guide(description: "요일과 함께: 이번주=0, 다음주=1, 다다음주=2. 요일 없으면 0")
+        var weekOffset: Int
+        @Guide(description: "절대 월(1-12). 며칠을 콕 집어 말할 때만. 아니면 0")
+        var month: Int
+        @Guide(description: "절대 일(1-31). 아니면 0")
+        var day: Int
+
+        @Guide(description: "시작 시(24시간제 0-23). 오후 5시=17, 저녁 7시=19, 밤 9시=21. 시각 안 말하면 -1")
+        var startHour: Int
+        @Guide(description: "시작 분(0-59). 안 말하면 0")
+        var startMinute: Int
+        @Guide(description: "종료 시(24시간제 0-23). 'N~M시'의 M. 없으면 -1")
+        var endHour: Int
+        @Guide(description: "종료 분(0-59). 없으면 0")
+        var endMinute: Int
+
+        @Guide(description: "반복: none,daily,weekly,biweekly,monthly,yearly. 반복 아니면 none")
+        var recurrence: String
+        @Guide(description: "매주 특정 요일 반복이면 쉼표로(예 'mon,wed,fri'). 아니면 빈 문자열")
+        var recurrenceWeekdays: String
+
+        @Guide(description: "제목(시간·날짜 빼고 핵심만, 예 '내일 9시 회의'→'회의'). 일정이 아니면 빈 문자열")
         var title: String
-        @Guide(description: "시작 시각 ISO8601. 입력의 시각을 그대로 정확히(9시=09:00, 오후 3시=15:00, 저녁 7시=19:00). 임의/랜덤 시각 금지. 예: 2026-06-20T09:00:00+09:00")
-        var start: String
-        @Guide(description: "종료 시각, ISO8601 형식. 없으면 시작+1시간")
-        var end: String
         @Guide(description: "장소. 없으면 빈 문자열")
         var location: String
+
+        @Guide(description: "수정/삭제 대상 기존 일정 번호([1],[2]…). 새 일정·그 외면 0")
+        var targetIndex: Int
+        @Guide(description: "'전부·싹다·모두'처럼 같은 제목 일괄 삭제면 true")
+        var bulk: Bool
+
+        @Guide(description: "setAppearance면 system/light/dark. 아니면 빈 문자열")
+        var appearance: String
+        @Guide(description: "scheduleQuery면 day(특정 날 일정)/week(한 주 일정)/exam(시험 언제). 아니면 빈 문자열")
+        var queryKind: String
     }
 
-    // 정적 instructions로 세션 1개 재사용 (동적 컨텍스트는 프롬프트로 전달 → prewarm 가능).
+    // 정적 instructions로 세션 1개 재사용(동적 컨텍스트는 프롬프트로 → prewarm 가능).
     private static let instructions = """
-    너는 한국어 일정 비서다. 사용자의 자연어를 해석해 일정을 새로 만들거나, 기존 일정을 수정/삭제한다.
-    - 일정/계획/약속/할 일이 아니면 isSchedule=false, events=[]. 특히 시간이나 할 일이 없는 단순 단어·이름·노래제목·사물명·잡담(예: "아리랑", "안녕", "사과")은 반드시 isSchedule=false.
-    - 새 일정: action="create", targetIndex=0.
-    - "○○ 취소/삭제/지워" 등 기존 일정을 없애라는 요청: action="delete", targetIndex=그 일정 번호.
-    - "○○를 △시로 바꿔/옮겨/변경" 등 기존 일정 변경: action="update", targetIndex=그 일정 번호, 바뀐 내용 반영.
-    - 입력에 적힌 시각을 start에 정확히 반영한다(9시→09:00, 오후 3시→15:00, 저녁 7시→19:00). 절대 임의/랜덤 시각을 지어내지 마라.
-    - title에는 시간·날짜를 넣지 말고 핵심 내용만 남긴다(예: "9시 회의"→"회의").
-    - start/end는 ISO8601(타임존 오프셋 포함). 종료 미지정 시 시작+1시간.
-    - 상대 표현(내일/오늘/오후/저녁/점심 등)은 프롬프트의 현재 시각 기준 절대 시각으로.
-    - 날짜를 말하지 않으면 오늘로 한다. 절대 과거 날짜로 만들지 마라.
-    - 쉼표·'그리고'로 나뉜 여러 일정은 각각 따로 만든다(events 배열에 여러 개). 각 일정의 시각을 정확히 반영.
-    - "N~M시"/"N-M시"는 시작 N시·종료 M시. 오전/오후 표시가 없고 학원·수업·약속 등 낮 활동이면 오후(13시 이후)로 본다. 예: "1~5시 수학학원, 10~12시 코딩학원" → 수학학원 13:00~17:00, 코딩학원 10:00~12:00.
-    - 장소 없으면 location="".
+    너는 한국어 개인 비서다. 사용자의 말을 이해해 commands 목록으로 바꾼다.
+    가장 중요: 절대 ISO 날짜/타임스탬프를 만들지 마라. 날짜·시각 계산은 앱이 한다. 너는 아래 '슬롯'만 채운다.
+
+    [intent 고르기] 명령마다 하나. 여러 일을 말하면 commands에 여러 개(쉼표·'그리고'로 나뉜 일정은 각각).
+    - scheduleCreate: 새 일정/약속/할 일 추가.
+    - scheduleUpdate: 기존 일정의 시간·내용 변경(옮겨/바꿔/변경).
+    - scheduleDelete: 기존 일정 취소/삭제/지워.
+    - mealQuery: 급식/식단 질문.
+    - scheduleQuery: 내 일정이나 시험이 언제/뭐가 있는지 묻는 질문.
+    - setAppearance: 다크/라이트/시스템(자동) 모드로 바꿔달라는 요청.
+    - unknown: 위 어디에도 안 맞거나 단순 단어·이름·잡담(예: "아리랑", "안녕").
+
+    [날짜 슬롯] 말 안 한 건 기본값.
+    - relativeDay: 오늘=0, 내일=1, 모레=2, 어제=-1.
+    - 요일을 말하면 weekday(mon..sun) + weekOffset(이번주=0, 다음주=1, 다다음주=2). 요일 안 쓰면 weekday="".
+    - 며칠을 콕 집으면 month·day(예: 12월 25일 → month=12, day=25).
+
+    [시각 슬롯] 24시간제로 변환.
+    - startHour 0-23. 오후 5시=17, 저녁 7시=19, 밤 9시=21. 시각을 안 말하면 startHour=-1.
+    - "N~M시"/"N시부터 M시까지"는 startHour=N, endHour=M. 오전/오후 표시가 없고 학원·수업·약속 등 낮 활동이면 오후(13시 이후)로 본다. 예: "1~5시 수학학원" → startHour=13, endHour=17.
+    - 종료를 안 말하면 endHour=-1.
+
+    [반복] 매주/매일 등 반복이면 recurrence 설정. "매주 월수금" → recurrence=weekly, recurrenceWeekdays="mon,wed,fri". 반복 아니면 recurrence=none, recurrenceWeekdays="".
+
+    [수정/삭제 대상] 프롬프트의 기존 일정 목록에서 [번호]를 targetIndex에 넣는다. "전부/싹다/모두" 삭제면 bulk=true. 새 일정이면 targetIndex=0, bulk=false.
+
+    [기타]
+    - title은 시간·날짜를 빼고 핵심만 남긴다. 장소 없으면 location="".
+    - setAppearance면 appearance=system/light/dark, 아니면 "".
+    - scheduleQuery면 queryKind=day/week/exam, 아니면 "".
     """
 
-    // 매 요청마다 새 세션을 쓴다(대화가 누적돼 컨텍스트를 초과하지 않도록). 1개 미리 데워 첫 응답 지연만 줄인다.
+    // 매 요청마다 새 세션(누적 컨텍스트 초과 방지). 1개 미리 데워 첫 응답 지연만 줄인다.
     private static var _primed: LanguageModelSession?
 
     static func prewarm() {
@@ -95,14 +141,12 @@ enum AppleAI {
 
     static func availability() -> AIValidation {
         switch SystemLanguageModel.default.availability {
-        case .available:
-            return .ok
-        case .unavailable(let reason):
-            return .failed(describe(reason))
+        case .available: return .ok
+        case .unavailable(let reason): return .failed(describe(reason))
         }
     }
 
-    static func generate(from text: String, now: Date, existing: [ExistingEvent]) async throws -> [ParsedEvent] {
+    static func generate(from text: String, now: Date, existing: [ExistingEvent]) async throws -> AIResult {
         guard case .available = SystemLanguageModel.default.availability else {
             throw AppleIntelligenceUnavailable(
                 reason: "애플 인텔리전스를 사용할 수 없어요 (설정에서 켜야 할 수 있어요).")
@@ -118,117 +162,116 @@ enum AppleAI {
         }
         prompt += "\n요청: \(text)"
 
-        // 미리 데운 세션을 1회만 쓰고 버린다(transcript 누적 → 컨텍스트 초과 방지).
         let session = _primed ?? LanguageModelSession(instructions: instructions)
         _primed = nil
-        let response = try await session.respond(to: prompt, generating: GenSchedule.self)
-        prewarm()   // 다음 요청을 위해 새 세션을 미리 데움
-        guard response.content.isSchedule else { return [] }
-        let timeCue = hasTimeCue(text)   // 새 일정은 입력에 시간 단서가 있어야 생성(무작위 글자 차단)
-        let forcedTime = response.content.events.count == 1 ? extractTime(text) : nil   // 단일 일정만 시각 코드 보정
-        // 단일 삭제/수정: 입력에 제목이 들어간 기존 일정을 우선 타겟(모델의 번호 오류 보정)
-        let byText: ExistingEvent? = response.content.events.count == 1
-            ? existing.filter { !$0.title.isEmpty && text.contains($0.title) }.max(by: { $0.title.count < $1.title.count })
-            : nil
+        let response = try await session.respond(to: prompt, generating: GenResponse.self)
+        prewarm()   // 다음 요청용 세션 미리 데움
 
-        let bulk = ["싹다", "모두", "전부", "전체", "모든"].contains { text.contains($0) }   // 여러 개 한 번에
-        let words = text.components(separatedBy: CharacterSet(charactersIn: " ,.\n")).filter { $0.count >= 2 }
+        return route(response.content.commands, text: text, now: now, existing: existing)
+    }
+
+    // MARK: 슬롯 → 결과(미리보기 일정 + 즉시 액션)
+    private static func route(_ commands: [GenCommand], text: String,
+                              now: Date, existing: [ExistingEvent]) -> AIResult {
+        var events: [ParsedEvent] = []
+        var actions: [AIAction] = []
         var seen = Set<UUID>()
-        return response.content.events.flatMap { e -> [ParsedEvent] in
-            let action = ParsedEvent.Action(rawValue: e.action) ?? .create
-            let target = byText ?? ref(e.targetIndex, in: existing)
-            switch action {
-            case .delete:
-                if bulk {   // "생명과학 전체 삭제" → 그 제목이 든 일정 전부(개수 제한 없이 적용 단계가 전체 검색)
-                    if let key = words.first(where: { w in existing.contains { $0.title.contains(w) } }) {
-                        return [ParsedEvent(title: key, start: now, end: now,
-                                            location: "", action: .delete, targetID: nil)]   // targetID nil = 제목 일괄 삭제
+
+        for c in commands {
+            switch c.intent {
+            case "scheduleCreate":
+                let r = AIDateResolver.resolve(relativeDay: c.relativeDay, weekday: c.weekday, weekOffset: c.weekOffset,
+                                               month: c.month, day: c.day,
+                                               startHour: c.startHour, startMinute: c.startMinute,
+                                               endHour: c.endHour, endMinute: c.endMinute, now: now)
+                let title = c.title.trimmingCharacters(in: .whitespaces)
+                guard r.hasTime, !title.isEmpty else { break }   // 시각 단서 없으면 생성 안 함
+                let rec = Recurrence(rawValue: c.recurrence) ?? .none
+                let wds = rec == .weekly ? AIDateResolver.weekdaySet(c.recurrenceWeekdays) : []
+                events.append(ParsedEvent(title: title, start: r.start, end: r.end, location: c.location,
+                                          action: .create, recurrence: rec, weekdays: wds))
+
+            case "scheduleUpdate":
+                guard let t = target(c, text: text, existing: existing) else { break }
+                if seen.insert(t.id).inserted { events.append(makeUpdate(c, t, now: now)) }
+
+            case "scheduleDelete":
+                if c.bulk {
+                    if let key = bulkKey(text: text, existing: existing) {
+                        events.append(ParsedEvent(title: key, start: now, end: now,
+                                                  location: "", action: .delete, targetID: nil))
                     }
+                    break
                 }
-                guard let t = target else { return [] }
-                return [ParsedEvent(title: t.title, start: t.start, end: t.end,
-                                    location: t.location, action: .delete, targetID: t.id)]
-            case .update:
-                guard let t = target else { return [] }
-                let llmStart = AICommon.parseDate(e.start)
-                let s = forcedTime != nil ? setTime(llmStart ?? t.start, forcedTime!) : (llmStart ?? t.start)   // 입력에 시각 있으면 강제
-                let dur = max(0, t.end.timeIntervalSince(t.start))
-                let end = AICommon.parseDate(e.end) ?? s.addingTimeInterval(dur > 0 ? dur : 3600)   // 기존 길이 유지
-                return [ParsedEvent(title: e.title.isEmpty ? t.title : e.title, start: s, end: end,
-                                    location: e.location.isEmpty ? t.location : e.location,
-                                    action: .update, targetID: t.id)]
-            case .create:
-                guard timeCue,
-                      !e.title.trimmingCharacters(in: .whitespaces).isEmpty,
-                      let parsed = AICommon.parseDate(e.start) else { return [] }
-                let s = forcedTime != nil ? setTime(parsed, forcedTime!) : parsed   // 단일 일정이면 입력 시각으로 강제
-                let dur = AICommon.parseDate(e.end).map { $0 > parsed ? $0.timeIntervalSince(parsed) : 3600 } ?? 3600
-                return [ParsedEvent(title: cleanTitle(e.title), start: s, end: s.addingTimeInterval(dur),
-                                    location: e.location, action: .create)]
+                guard let t = target(c, text: text, existing: existing) else { break }
+                if seen.insert(t.id).inserted {
+                    events.append(ParsedEvent(title: t.title, start: t.start, end: t.end,
+                                              location: t.location, action: .delete, targetID: t.id))
+                }
+
+            case "mealQuery":
+                let day = AIDateResolver.resolveDate(relativeDay: c.relativeDay, weekday: c.weekday,
+                                                     weekOffset: c.weekOffset, month: c.month, day: c.day, now: now)
+                actions.append(.mealQuery(date: day))
+
+            case "scheduleQuery":
+                let day = AIDateResolver.resolveDate(relativeDay: c.relativeDay, weekday: c.weekday,
+                                                     weekOffset: c.weekOffset, month: c.month, day: c.day, now: now)
+                let kind: AIQueryKind = c.queryKind == "exam" ? .exam : (c.queryKind == "week" ? .week : .day)
+                actions.append(.scheduleQuery(kind: kind, day: day))
+
+            case "setAppearance":
+                if let a = Appearance(rawValue: c.appearance) { actions.append(.setAppearance(a)) }
+
+            default:
+                break   // unknown
             }
         }
-        .filter { p in
-            guard let id = p.targetID else { return true }   // create는 대상 없음 → 통과
-            return seen.insert(id).inserted                  // delete/update 중복 제거
-        }
+        return AIResult(events: events, actions: actions)
     }
 
-    private static func ref(_ idx: Int, in existing: [ExistingEvent]) -> ExistingEvent? {
-        existing.indices.contains(idx - 1) ? existing[idx - 1] : nil
+    // 수정: 날짜 슬롯이 있으면 그 날짜, 없으면 기존 일정 날짜 유지. 시각 슬롯이 있으면 그 시각, 없으면 기존 시각. 길이 유지.
+    private static func makeUpdate(_ c: GenCommand, _ t: ExistingEvent, now: Date) -> ParsedEvent {
+        let cal = Calendar.current
+        let hasDate = !c.weekday.isEmpty || ((1...12).contains(c.month) && (1...31).contains(c.day)) || c.relativeDay != 0
+        let baseDay = hasDate
+            ? AIDateResolver.resolveDate(relativeDay: c.relativeDay, weekday: c.weekday, weekOffset: c.weekOffset,
+                                         month: c.month, day: c.day, now: now)
+            : cal.startOfDay(for: t.start)
+        let newStart: Date
+        if (0...23).contains(c.startHour) {
+            newStart = cal.date(bySettingHour: c.startHour, minute: max(0, min(59, c.startMinute)),
+                                second: 0, of: baseDay) ?? t.start
+        } else if hasDate {
+            let h = cal.component(.hour, from: t.start), m = cal.component(.minute, from: t.start)
+            newStart = cal.date(bySettingHour: h, minute: m, second: 0, of: baseDay) ?? t.start
+        } else {
+            newStart = t.start
+        }
+        let dur = max(0, t.end.timeIntervalSince(t.start))
+        let newEnd = newStart.addingTimeInterval(dur > 0 ? dur : 3600)
+        return ParsedEvent(title: c.title.isEmpty ? t.title : c.title,
+                           start: newStart, end: newEnd,
+                           location: c.location.isEmpty ? t.location : c.location,
+                           action: .update, targetID: t.id)
     }
+
+    /// 대상: 번호 우선, 없으면 입력에 제목이 든 기존 일정(가장 긴 제목).
+    private static func target(_ c: GenCommand, text: String, existing: [ExistingEvent]) -> ExistingEvent? {
+        if existing.indices.contains(c.targetIndex - 1) { return existing[c.targetIndex - 1] }
+        return existing.filter { !$0.title.isEmpty && text.contains($0.title) }
+            .max(by: { $0.title.count < $1.title.count })
+    }
+
+    /// 일괄 삭제 키워드: 입력 단어 중 기존 일정 제목에 들어간 것.
+    private static func bulkKey(text: String, existing: [ExistingEvent]) -> String? {
+        let words = text.components(separatedBy: CharacterSet(charactersIn: " ,.\n")).filter { $0.count >= 2 }
+        return words.first(where: { w in existing.contains { $0.title.contains(w) } })
+    }
+
     private static func shortDate(_ d: Date) -> String {
         let f = DateFormatter(); f.locale = Locale(identifier: "ko_KR"); f.dateFormat = "M/d HH:mm"
         return f.string(from: d)
-    }
-
-    /// 입력에 시간/날짜 단서(숫자, 오전·오후, 내일·요일 등)가 있는지 — 새 일정 생성의 최소 조건.
-    private static func hasTimeCue(_ text: String) -> Bool {
-        if text.range(of: #"\d"#, options: .regularExpression) != nil { return true }
-        let cues = ["오전", "오후", "새벽", "아침", "점심", "저녁", "밤", "정오", "자정",
-                    "내일", "오늘", "모레", "글피", "다음주", "이번주", "다음 주", "이번 주", "주말", "평일",
-                    "월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일",
-                    "am", "pm", "AM", "PM"]
-        return cues.contains { text.contains($0) }
-    }
-
-    /// 제목에서 시간·날짜 표현을 제거해 핵심만 남긴다(모델이 제목에 시각을 넣는 경우 보정).
-    private static func cleanTitle(_ raw: String) -> String {
-        var t = raw
-        let patterns = [
-            #"(오전|오후|새벽|아침|점심|저녁|밤|정오|자정)\s*"#,
-            #"\d{1,2}\s*시(\s*반)?(\s*\d{1,2}\s*분)?"#,
-            #"\d{1,2}:\d{2}"#,
-            #"(내일모레|내일|오늘|모레|글피|다음주|이번주|다음 주|이번 주)\s*"#,
-            #"[월화수목금토일]요일\s*"#
-        ]
-        for p in patterns { t = t.replacingOccurrences(of: p, with: "", options: .regularExpression) }
-        t = t.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
-            .trimmingCharacters(in: .whitespaces)
-        return t.isEmpty ? raw : t
-    }
-
-    /// 입력에서 시각(시:분)을 추출 — 단일 일정일 때 모델의 랜덤 시각을 입력값으로 보정.
-    private static func extractTime(_ text: String) -> (hour: Int, minute: Int)? {
-        var hour: Int?
-        var minute = 0
-        if let r = text.range(of: #"\d{1,2}:\d{2}"#, options: .regularExpression) {
-            let parts = text[r].split(separator: ":")
-            if let h = Int(parts[0]), let m = Int(parts[1]), h < 24, m < 60 { hour = h; minute = m }
-        } else if let r = text.range(of: #"\d{1,2}\s*시"#, options: .regularExpression) {
-            hour = Int(text[r].prefix { $0.isNumber })
-            if text.contains("반") { minute = 30 }
-            if let mr = text.range(of: #"시\s*\d{1,2}\s*분"#, options: .regularExpression) {
-                minute = Int(text[mr].filter { $0.isNumber }) ?? 0
-            }
-        }
-        guard var h = hour, h < 24 else { return nil }
-        if ["오후", "저녁", "밤"].contains(where: text.contains), h < 12 { h += 12 }
-        if ["오전", "새벽", "아침"].contains(where: text.contains), h == 12 { h = 0 }
-        return (h, minute)
-    }
-
-    private static func setTime(_ date: Date, _ t: (hour: Int, minute: Int)) -> Date {
-        Calendar.current.date(bySettingHour: t.hour, minute: t.minute, second: 0, of: date) ?? date
     }
 
     private static func describe(
