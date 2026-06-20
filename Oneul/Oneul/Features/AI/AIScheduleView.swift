@@ -6,6 +6,7 @@ struct AIScheduleView: View {
 
     @State private var inputText = ""
     @State private var results: [ParsedEvent] = []
+    @State private var editingIndex: Int?            // AI 결과 항목 직접 수정
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var speech = SpeechRecognizer()
@@ -47,6 +48,11 @@ struct AIScheduleView: View {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
                     Button(lang.tr("완료")) { editorFocused = false }
+                }
+            }
+            .sheet(isPresented: Binding(get: { editingIndex != nil }, set: { if !$0 { editingIndex = nil } })) {
+                if let i = editingIndex, results.indices.contains(i) {
+                    AIResultEditView(event: $results[i]).presentationDetents([.medium, .large])
                 }
             }
         }
@@ -122,28 +128,37 @@ struct AIScheduleView: View {
                 .font(.caption).bold().foregroundStyle(.secondary).padding(.leading, 4)
 
             ForEach(Array(results.enumerated()), id: \.element.id) { idx, e in
-                HStack(spacing: 12) {
-                    RoundedRectangle(cornerRadius: 3).fill(EventPalette.color(idx)).frame(width: 4)
-                    Text(timeText(e.start))
-                        .font(.caption).bold().foregroundStyle(.secondary).frame(width: 58)
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 6) {
-                            Text(e.title).font(.subheadline).bold()
-                            if e.action != .create {
-                                Text(e.action == .delete ? lang.tr("삭제") : lang.tr("수정"))
-                                    .font(.caption2).bold().foregroundStyle(.white)
-                                    .padding(.horizontal, 6).padding(.vertical, 1)
-                                    .background(e.action == .delete ? Color.red : Color.orange, in: Capsule())
+                Button {
+                    if e.action != .delete { editingIndex = idx }   // 삭제 항목은 대상이라 수정 불필요
+                } label: {
+                    HStack(spacing: 12) {
+                        RoundedRectangle(cornerRadius: 3).fill(EventPalette.color(idx)).frame(width: 4)
+                        Text(timeText(e.start))
+                            .font(.caption).bold().foregroundStyle(.secondary).frame(width: 58)
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack(spacing: 6) {
+                                Text(e.title).font(.subheadline).bold()
+                                if e.action != .create {
+                                    Text(e.action == .delete ? lang.tr("삭제") : lang.tr("수정"))
+                                        .font(.caption2).bold().foregroundStyle(.white)
+                                        .padding(.horizontal, 6).padding(.vertical, 1)
+                                        .background(e.action == .delete ? Color.red : Color.orange, in: Capsule())
+                                }
                             }
+                            Text("\(timeText(e.start)) – \(timeText(e.end))" +
+                                 (e.location.isEmpty ? "" : " · \(e.location)"))
+                                .font(.caption2).foregroundStyle(.secondary)
                         }
-                        Text("\(timeText(e.start)) – \(timeText(e.end))" +
-                             (e.location.isEmpty ? "" : " · \(e.location)"))
-                            .font(.caption2).foregroundStyle(.secondary)
+                        Spacer()
+                        if e.action != .delete {
+                            Image(systemName: "pencil").font(.caption).foregroundStyle(.secondary)
+                        }
                     }
-                    Spacer()
+                    .padding(12)
+                    .glassCard(cornerRadius: 18)
+                    .contentShape(Rectangle())
                 }
-                .padding(12)
-                .glassCard(cornerRadius: 18)
+                .buttonStyle(.plain)
             }
 
             Button(lang.tr("적용하기"), action: addAll)
@@ -210,5 +225,53 @@ struct AIScheduleView: View {
         var d = FetchDescriptor<ScheduleEvent>(predicate: #Predicate { $0.id == id })
         d.fetchLimit = 1
         return (try? context.fetch(d))?.first
+    }
+}
+
+// AI 결과 항목을 적용 전에 직접 수정
+private struct AIResultEditView: View {
+    @Binding var event: ParsedEvent
+    @Environment(\.dismiss) private var dismiss
+    private let lang = AppLanguage.shared
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                AppBackground()
+                ScrollView {
+                    VStack(spacing: 12) {
+                        field(lang.tr("제목")) {
+                            TextField(lang.tr("제목"), text: $event.title).multilineTextAlignment(.trailing)
+                        }
+                        field(lang.tr("시작")) {
+                            DatePicker("", selection: $event.start).labelsHidden()
+                        }
+                        field(lang.tr("종료")) {
+                            DatePicker("", selection: $event.end, in: event.start...).labelsHidden()
+                        }
+                        field(lang.tr("장소")) {
+                            TextField(lang.tr("위치"), text: $event.location).multilineTextAlignment(.trailing)
+                        }
+                    }
+                    .padding(16).frame(maxWidth: 640).frame(maxWidth: .infinity)
+                }
+            }
+            .navigationTitle(lang.tr("수정"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) { Button(lang.tr("완료")) { dismiss() } }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func field<C: View>(_ label: String, @ViewBuilder _ content: () -> C) -> some View {
+        HStack {
+            Text(label).foregroundStyle(.secondary)
+            Spacer(minLength: 12)
+            content()
+        }
+        .padding(.horizontal, 14).padding(.vertical, 12)
+        .glassCard(cornerRadius: 18)
     }
 }
