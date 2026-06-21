@@ -136,6 +136,8 @@ enum AIKoreanDate {
            endDate > startDate {
             r.relativeDay = cal.dateComponents([.day], from: today, to: startDate).day
             r.endRelativeDay = cal.dateComponents([.day], from: today, to: endDate).day
+            if let st = rangeTime(startPart) { r.startHour = st.h; r.startMinute = st.m }   // 시작 시각(말했으면)
+            if let et = rangeTime(endPart) { r.endHour = et.h; r.endMinute = et.m }         // 종료 시각(말했으면)
             return r
         }
 
@@ -214,6 +216,24 @@ enum AIKoreanDate {
         // 맨숫자 1~12시(표시 없음)는 모호 → 모델에 맡김.
         let confident = pm || am || noon || midnight || h >= 13
         return confident ? (h, minute) : nil
+    }
+
+    /// 기간 일정 부분의 시각(말한 그대로, 모호해도 face value). "HH:MM" 또는 "N시" + 오전/오후.
+    private static func rangeTime(_ text: String) -> (h: Int, m: Int)? {
+        if let r = text.range(of: #"\d{1,2}:\d{2}"#, options: .regularExpression) {
+            let p = text[r].split(separator: ":")
+            if let h = Int(p[0]), let m = Int(p[1]), h < 24, m < 60 { return (h, m) }
+        }
+        guard let r = text.range(of: #"\d{1,2}\s*시"#, options: .regularExpression),
+              var h = Int(text[r].prefix { $0.isNumber }), h < 24 else { return nil }
+        var m = 0
+        if text.contains("반") { m = 30 }
+        if let mr = text.range(of: #"시\s*\d{1,2}\s*분"#, options: .regularExpression) {
+            m = Int(text[mr].filter { $0.isNumber }) ?? 0
+        }
+        if ["오후", "저녁", "밤"].contains(where: text.contains), h < 12 { h += 12 }
+        if ["오전", "새벽", "아침"].contains(where: text.contains), h == 12 { h = 0 }
+        return (h, m)
     }
 
     /// "A부터 B까지" / "A~B" / "A에서 B까지" → (앞, 뒤). 범위 표현이 없으면 nil.
