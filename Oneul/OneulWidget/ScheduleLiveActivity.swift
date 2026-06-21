@@ -34,11 +34,13 @@ struct ScheduleLiveActivity: Widget {
                         .font(.caption).bold()
                         .lineLimit(1)
                         .foregroundStyle(.white)
+                        .padding(.leading, 4)   // 둥근 코너에 아이콘이 잘리지 않게
                 }
                 DynamicIslandExpandedRegion(.trailing) {
                     countdownText(context.state)
                         .font(.headline)
                         .foregroundStyle(.white)
+                        .padding(.trailing, 4)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     VStack(spacing: 6) {
