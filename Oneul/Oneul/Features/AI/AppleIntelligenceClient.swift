@@ -1,4 +1,5 @@
 import Foundation
+import MapKit
 #if canImport(FoundationModels)
 import FoundationModels
 #endif
@@ -191,9 +192,34 @@ enum AppleAI {
         let response = try await session.respond(to: prompt, generating: GenResponse.self)
         prewarm()   // 다음 요청용 세션 미리 데움
 
-        let result = route(response.content.commands, text: text, now: now, existing: existing)
+        var result = route(response.content.commands, text: text, now: now, existing: existing)
+        result = await resolveLocations(in: result)   // 장소를 실제 존재하는 곳으로 검증(지어내기 방지)
         lastRequest = text
         return result
+    }
+
+    /// create/update 이벤트의 장소를 MapKit으로 검증 — 실제 장소면 그 이름, 없으면 비움.
+    private static func resolveLocations(in result: AIResult) async -> AIResult {
+        var r = result
+        for i in r.events.indices where r.events[i].action != .delete && !r.events[i].location.isEmpty {
+            r.events[i].location = await validateLocation(r.events[i].location)
+        }
+        return r
+    }
+
+    /// 장소 문자열 → 실제 장소 이름. 모호해도 검색해 가장 가까운 실제 장소를 찾고, 없으면 ""(지어내지 않음).
+    private static func validateLocation(_ query: String) async -> String {
+        let q = query.trimmingCharacters(in: .whitespaces)
+        guard !q.isEmpty else { return "" }
+        let generic = ["집", "우리집", "집앞", "학교", "회사", "교실", "도서관", "동네", "근처"]
+        if generic.contains(q) { return q }   // 일반 장소는 그대로 둠
+        let request = MKLocalSearch.Request()
+        request.naturalLanguageQuery = q
+        request.resultTypes = [.pointOfInterest, .address]
+        if let resp = try? await MKLocalSearch(request: request).start(), let item = resp.mapItems.first {
+            return item.name ?? q
+        }
+        return ""   // 실제 장소를 못 찾으면 비움
     }
 
     // MARK: 슬롯 → 결과(미리보기 일정 + 즉시 액션)

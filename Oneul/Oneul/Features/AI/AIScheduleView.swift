@@ -86,44 +86,32 @@ struct AIScheduleView: View {
     }
 
     /// 꾹(0.35초) 눌렀다 떼면 토글 — 빠른 탭 오작동 방지.
-    /// 녹음 중: 마이크 아이콘이 빨갛게 빛나고 빨간 소나 링이 퍼지며 맥동 → 작동 중임이 분명.
+    /// 녹음 중: 마이크 아이콘 자체만 빨갛게 빛나며(테두리·링 없음) 호흡하듯 맥동.
     private var micButton: some View {
-        ZStack {
-            if speech.isRecording {
-                Circle()
-                    .stroke(.red.opacity(0.75), lineWidth: 2.5)
-                    .frame(width: 46, height: 46)
-                    .scaleEffect(micPulse ? 1.7 : 0.85)
-                    .opacity(micPulse ? 0 : 0.9)
+        Image(systemName: "mic.fill")
+            .font(.system(size: 18, weight: .semibold))
+            .foregroundStyle(speech.isRecording ? .red : .secondary)
+            .shadow(color: speech.isRecording ? .red.opacity(0.95) : .clear, radius: micPulse ? 14 : 7)
+            .shadow(color: speech.isRecording ? .red.opacity(0.7) : .clear, radius: micPulse ? 7 : 3)
+            .scaleEffect(speech.isRecording ? (micPulse ? 1.08 : 1.0) : 1.0)
+            .frame(width: 46, height: 46)
+            .glassEffect(.regular.interactive(), in: Circle())
+            .contentShape(Circle())
+            .padding(10)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: speech.isRecording)
+            .onLongPressGesture(minimumDuration: 0.35) {   // 확실히 꾹 눌러야 토글(오작동 방지)
+                editorFocused = false
+                speech.toggle()
+                Haptics.impact(.soft)
             }
-            Image(systemName: "mic.fill")   // 작동 중에도 마이크 아이콘 유지(빨갛게)
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(speech.isRecording ? .red : .secondary)
-                .frame(width: 46, height: 46)
-                .background {
-                    if speech.isRecording { Circle().fill(.red.opacity(0.16)) }
+            .onChange(of: speech.isRecording) { _, rec in
+                if rec {
+                    micPulse = false
+                    withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) { micPulse = true }
+                } else {
+                    withAnimation(.easeOut(duration: 0.2)) { micPulse = false }
                 }
-                .glassEffect(.regular.interactive(), in: Circle())
-                .shadow(color: speech.isRecording ? .red.opacity(0.95) : .clear, radius: micPulse ? 20 : 9)
-                .shadow(color: speech.isRecording ? .red.opacity(0.6) : .clear, radius: 6)
-                .scaleEffect(speech.isRecording ? (micPulse ? 1.14 : 1.06) : 1.0)
-        }
-        .contentShape(Circle())
-        .padding(10)
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: speech.isRecording)
-        .onLongPressGesture(minimumDuration: 0.35) {   // 확실히 꾹 눌러야 토글(오작동 방지)
-            editorFocused = false
-            speech.toggle()
-            Haptics.impact(.soft)
-        }
-        .onChange(of: speech.isRecording) { _, rec in
-            if rec {
-                micPulse = false
-                withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: false)) { micPulse = true }
-            } else {
-                withAnimation(.easeOut(duration: 0.2)) { micPulse = false }
             }
-        }
     }
 
     private var canGenerate: Bool {
