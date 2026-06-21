@@ -82,13 +82,14 @@ struct ScheduleLiveActivity: Widget {
         return L("다음", "Next") + " · \(title) \(f.string(from: start))"
     }
 
-    // 진행 중인 일정이 있으면 카운트다운 대신 "진행 중", 아니면 다음 일정까지 남은 시간.
+    // 진행 중이면 "진행 중", 아니면 다음 일정까지 라이브 카운트다운(시스템이 1초마다 자동 갱신 — 배터리 부담 없음).
     @ViewBuilder
     private func countdownText(_ s: ScheduleActivityAttributes.ContentState) -> some View {
         if s.currentTitle != nil {
             Text(L("진행 중", "Now"))
         } else if let start = s.nextStart, start > .now {
-            Text(remainingLabel(to: start))
+            Text(timerInterval: Date.now...start, countsDown: true)
+                .monospacedDigit().multilineTextAlignment(.trailing).frame(maxWidth: 74)
         } else {
             Text(L("오늘 끝", "Done"))
         }
@@ -125,8 +126,11 @@ struct LockScreenView: View {
             Text(L("진행 중", "Now"))
                 .font(.caption).bold().foregroundStyle(.white)
         } else if let start = state.nextStart, start > .now {
-            Text(L("다음까지 ", "in ") + remainingLabel(to: start))
-                .font(.caption).bold().foregroundStyle(.white)
+            HStack(spacing: 3) {
+                Text(L("다음까지", "in"))
+                Text(timerInterval: Date.now...start, countsDown: true).monospacedDigit().frame(maxWidth: 70)
+            }
+            .font(.caption).bold().foregroundStyle(.white)
         } else {
             Text(L("오늘 끝", "Done")).font(.caption).bold().foregroundStyle(.white.opacity(0.7))
         }
