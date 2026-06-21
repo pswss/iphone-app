@@ -107,6 +107,7 @@ enum AIDateResolver {
 /// 값이 있으면 단일 명령의 슬롯을 덮어써 정확도를 높인다. 요일은 오늘 기준 일수(relativeDay)로 환산.
 struct AIKoreanDateTime {
     var relativeDay: Int?
+    var endRelativeDay: Int?    // 기간(여러 날) 일정의 종료일(오늘 기준 일수). 있으면 멀티데이.
     var month: Int?
     var day: Int?
     var startHour: Int?
@@ -119,6 +120,16 @@ enum AIKoreanDate {
     static func parse(_ text: String, now: Date, cal: Calendar = .current) -> AIKoreanDateTime {
         var r = AIKoreanDateTime()
         let today = cal.startOfDay(for: now)
+
+        // 기간(여러 날) 일정: "A부터 B까지" / "A~B" / "A에서 B까지" (양쪽 다 날짜일 때만)
+        if let (startPart, endPart) = rangeParts(text),
+           let startDate = dayFromKeywords(startPart, today: today, cal: cal),
+           let endDate = dayFromKeywords(endPart, today: today, cal: cal),
+           endDate > startDate {
+            r.relativeDay = cal.dateComponents([.day], from: today, to: startDate).day
+            r.endRelativeDay = cal.dateComponents([.day], from: today, to: endDate).day
+            return r
+        }
 
         // 주차 키워드
         var weekOffset: Int?
@@ -195,6 +206,62 @@ enum AIKoreanDate {
         // 맨숫자 1~12시(표시 없음)는 모호 → 모델에 맡김.
         let confident = pm || am || noon || midnight || h >= 13
         return confident ? (h, minute) : nil
+    }
+
+    /// "A부터 B까지" / "A~B" / "A에서 B까지" → (앞, 뒤). 범위 표현이 없으면 nil.
+    private static func rangeParts(_ text: String) -> (String, String)? {
+        if let r = text.range(of: "~") { return (String(text[..<r.lowerBound]), String(text[r.upperBound...])) }
+        if let r = text.range(of: "부터") { return (String(text[..<r.lowerBound]), String(text[r.upperBound...])) }
+        if text.contains("까지"), let r = text.range(of: "에서") {
+            return (String(text[..<r.lowerBound]), String(text[r.upperBound...]))
+        }
+        return nil
+    }
+
+    /// 텍스트 조각에서 날짜 키워드(요일·절대 월일·상대일)를 찾아 그 날(자정)을 반환. 못 찾으면 nil.
+    private static func dayFromKeywords(_ text: String, today: Date, cal: Calendar) -> Date? {
+        var weekOffset: Int?
+        if text.contains("다다음주") || text.contains("다다음 주") { weekOffset = 2 }
+        else if text.contains("다음주") || text.contains("다음 주") || text.contains("담주") { weekOffset = 1 }
+        else if text.contains("이번주") || text.contains("이번 주") { weekOffset = 0 }
+
+        let wdMap: [(String, Int)] = [("월요일", 2), ("화요일", 3), ("수요일", 4),
+                                      ("목요일", 5), ("금요일", 6), ("토요일", 7), ("일요일", 1)]
+        if let wd = wdMap.first(where: { text.contains($0.0) })?.1 {
+            let todayWd = cal.component(.weekday, from: today)
+            if let off = weekOffset {
+                let mondayOffset = (todayWd + 5) % 7
+                if let monday = cal.date(byAdding: .day, value: -mondayOffset + off * 7, to: today) {
+                    return cal.date(byAdding: .day, value: (wd + 5) % 7, to: monday)
+                }
+            } else {
+                return cal.date(byAdding: .day, value: (wd - todayWd + 7) % 7, to: today)
+            }
+        }
+
+        func absolute(_ m: Int, _ d: Int) -> Date? {
+            guard (1...12).contains(m), (1...31).contains(d) else { return nil }
+            var comps = cal.dateComponents([.year], from: today)
+            comps.month = m; comps.day = d
+            guard let date = cal.date(from: comps) else { return nil }
+            if date < today { comps.year = (comps.year ?? 0) + 1; return cal.date(from: comps) }   // 지났으면 내년
+            return date
+        }
+        if let r = text.range(of: #"(\d{1,2})\s*월\s*(\d{1,2})\s*일"#, options: .regularExpression) {
+            let n = String(text[r]).components(separatedBy: CharacterSet.decimalDigits.inverted).compactMap { Int($0) }
+            if n.count >= 2, let d = absolute(n[0], n[1]) { return d }
+        }
+        if let r = text.range(of: #"\d{1,2}\s*/\s*\d{1,2}"#, options: .regularExpression) {
+            let n = String(text[r]).components(separatedBy: CharacterSet(charactersIn: "/ ")).compactMap { Int($0) }
+            if n.count >= 2, let d = absolute(n[0], n[1]) { return d }
+        }
+
+        if text.contains("모레") || text.contains("내일모레") { return cal.date(byAdding: .day, value: 2, to: today) }
+        if text.contains("글피") { return cal.date(byAdding: .day, value: 3, to: today) }
+        if text.contains("내일") { return cal.date(byAdding: .day, value: 1, to: today) }
+        if text.contains("어제") { return cal.date(byAdding: .day, value: -1, to: today) }
+        if text.contains("오늘") { return today }
+        return nil
     }
 
     /// 한 문장의 여러 일정을 쉼표·'그리고'로 분리(명령마다 정확히 보정하기 위해).

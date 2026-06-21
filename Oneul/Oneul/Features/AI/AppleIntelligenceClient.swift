@@ -123,6 +123,7 @@ enum AppleAI {
     [수정/삭제 대상] 프롬프트의 기존 일정 목록에서 [번호]를 targetIndex에 넣는다. "전부/싹다/모두" 삭제면 bulk=true. 새 일정이면 targetIndex=0, bulk=false.
 
     [기타]
+    - "7/1부터 7/5까지", "A부터 B까지" 같은 여러 날 지속되는 기간 일정도 intent=scheduleCreate, title은 날짜 빼고 핵심만. (날짜 범위 계산은 앱이 한다.)
     - title은 시간·날짜를 빼고 핵심만 남긴다. 장소 없으면 location="".
     - setAppearance면 appearance=system/light/dark, 아니면 "".
     - scheduleQuery면 queryKind=day/week/exam, 아니면 "".
@@ -186,6 +187,12 @@ enum AppleAI {
         var actions: [AIAction] = []
         var seen = Set<UUID>()
 
+        // 단일 명령: 기간(여러 날) 일정 우선 — "7/1부터 7/5까지" 같은 멀티데이를 직접 생성
+        if commands.count == 1, commands[0].intent == "scheduleCreate",
+           let multi = makeMultiDay(AIKoreanDate.parse(text, now: now), command: commands[0], now: now) {
+            return AIResult(events: [multi], actions: [])
+        }
+
         // 한국어 날짜·시각을 코드로 직접 파싱해 슬롯 보정(작은 모델 오류 교정).
         // 문장을 쉼표·'그리고'로 쪼갠 조각 수가 명령 수와 같으면 명령마다, 아니면 단일 명령만.
         var cmds = commands
@@ -247,6 +254,20 @@ enum AppleAI {
             }
         }
         return AIResult(events: events, actions: actions)
+    }
+
+    /// 기간(여러 날) 일정 — 파서가 종료일을 찾았으면 멀티데이 ParsedEvent 생성.
+    private static func makeMultiDay(_ p: AIKoreanDateTime, command c: GenCommand, now: Date) -> ParsedEvent? {
+        guard let endRel = p.endRelativeDay else { return nil }
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: now)
+        let startDay = cal.date(byAdding: .day, value: p.relativeDay ?? 0, to: today) ?? today
+        let endDay = cal.date(byAdding: .day, value: endRel, to: today) ?? today
+        let start = p.startHour.flatMap { cal.date(bySettingHour: $0, minute: p.startMinute ?? 0, second: 0, of: startDay) } ?? startDay
+        let end = p.endHour.flatMap { cal.date(bySettingHour: $0, minute: p.endMinute ?? 0, second: 0, of: endDay) }
+            ?? (cal.date(byAdding: .day, value: 1, to: endDay) ?? endDay)   // 종료 시각 없으면 종료일 끝까지
+        let t = c.title.trimmingCharacters(in: .whitespaces)
+        return ParsedEvent(title: t.isEmpty ? "일정" : t, start: start, end: end, location: c.location, action: .create)
     }
 
     /// 코드로 파싱한 한국어 날짜·시각을 명령 슬롯에 덮어쓴다(있는 값만).
