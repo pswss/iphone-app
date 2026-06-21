@@ -29,6 +29,9 @@ struct DayGridView: View {
     @State private var resizeID: UUID?
     @State private var resizeDY: CGFloat = 0
     @State private var selectedID: UUID?
+    @State private var autoScrollDY: CGFloat = 0          // 드래그 중 자동 스크롤로 밀린 양(일정이 손가락을 따라오게)
+    @State private var autoScrolling = false
+    @State private var scrollProxy: ScrollViewProxy?
 
     private let firstHour = 0
     private let lastHour = 24
@@ -70,6 +73,7 @@ struct DayGridView: View {
                         }
                         .scrollDisabled(dragID != nil || resizeID != nil)         // 이동/리사이즈 중에만 스크롤 잠금
                         .onAppear {   // 공유 위치로 시작(없으면 앵커) — 렌더 직후 적용해야 grid 시작=접힘 기준점이 됨
+                            scrollProxy = proxy
                             DispatchQueue.main.async { proxy.scrollTo(scrollHour ?? scrollAnchorHour, anchor: .top) }
                         }
                         .trackScroll(enabled: onScrollDelta != nil, anchorY: anchorY, hourHeight: hourHeight,
@@ -177,10 +181,10 @@ struct DayGridView: View {
         let selected = selectedID == e.id
         let lifted = dragging || resizing            // 잡고 옮기는/늘리는 중
         let glowing = selected && !lifted            // 그냥 하이라이트 = 빛나는 유리 느낌
-        let dy = dragging ? dragDY : 0
+        let dy = dragging ? dragDY + autoScrollDY : 0          // 자동 스크롤로 밀린 양 포함 → 손가락 따라옴
         let shape = RoundedRectangle(cornerRadius: 11, style: .continuous)
         // 실시간 표시 시간(5분 스냅): 이동 중엔 시작·끝 둘 다, 리사이즈 중엔 끝만
-        let moveMin = dragging ? dragMinutes(dragDY) : 0
+        let moveMin = dragging ? dragMinutes(dragDY + autoScrollDY) : 0
         let resizeMin = resizing ? dragMinutes(resizeDY) : 0
         let dispStart = e.start.addingTimeInterval(moveMin * 60)
         let dispEnd = e.end.addingTimeInterval((moveMin + resizeMin) * 60)
@@ -305,21 +309,43 @@ struct DayGridView: View {
     // 일정 꾹 눌러 이동 — UIKit long-press(스크롤과 동시 인식). 이동이 시작되면 scrollDisabled로 그동안만 스크롤을 잠근다.
     private func beginMove(_ e: ScheduleEvent) {
         guard resizeID == nil else { return }
-        dragID = e.id; selectedID = e.id; lastStep = 0; Haptics.impact(.medium)
+        dragID = e.id; selectedID = e.id; lastStep = 0
+        autoScrollDY = 0; autoScrolling = false
+        Haptics.impact(.medium)
     }
     private func changeMove(_ e: ScheduleEvent, dy: CGFloat, bottomGap: CGFloat) {
         guard dragID == e.id else { return }
         dragDY = dy
-        let step = Int(dragMinutes(dy))
+        let step = Int(dragMinutes(dy + autoScrollDY))
         if step != lastStep { lastStep = step; Haptics.impact(.light) }
-        let nowInTrash = bottomGap < 100
+
+        // 맨 아래 band(휴지통 바로 위)에 대고 있으면 천천히 자동 스크롤 — 일정이 손가락을 따라옴
+        let nearBottom = bottomGap >= 56 && bottomGap < 175
+        if nearBottom && !autoScrolling { autoScrolling = true; autoScrollTick(e) }
+        else if !nearBottom { autoScrolling = false }
+
+        let nowInTrash = bottomGap < 56            // 아주 아래(휴지통)에서만 삭제
         if nowInTrash != inTrash { inTrash = nowInTrash; if nowInTrash { Haptics.impact(.rigid) } }
     }
     private func endMove(_ e: ScheduleEvent, dy: CGFloat) {
         guard dragID == e.id else { return }
+        autoScrolling = false
+        let eff = dy + autoScrollDY
         if inTrash { EventActions.deleteSingle(e, in: context); Haptics.notify(.warning) }
-        else if dragMinutes(dy) != 0 { commitDrag(e); Haptics.impact(.soft) }
-        dragID = nil; dragDY = 0; inTrash = false; lastStep = 0
+        else if dragMinutes(eff) != 0 { commitDrag(e, dy: eff); Haptics.impact(.soft) }
+        dragID = nil; dragDY = 0; autoScrollDY = 0; inTrash = false; lastStep = 0
+    }
+
+    /// 드래그 중 맨 아래 band에 대고 있을 때 천천히 그리드를 내림(일정도 같은 양만큼 함께 내려와 손가락을 따라옴).
+    private func autoScrollTick(_ e: ScheduleEvent) {
+        guard autoScrolling, dragID == e.id, let proxy = scrollProxy else { return }
+        let current = scrollHour ?? scrollAnchorHour
+        guard current < lastHour - 1 else { autoScrolling = false; return }   // 더 내려갈 곳 없으면 멈춤
+        withAnimation(.linear(duration: 0.6)) {
+            proxy.scrollTo(current + 1, anchor: .top)
+            autoScrollDY += hourHeight
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.62) { autoScrollTick(e) }
     }
 
     // MARK: 동작
@@ -329,8 +355,8 @@ struct DayGridView: View {
         let date = gridTop.addingTimeInterval(snapped * 60)
         onAdd(date)
     }
-    private func commitDrag(_ e: ScheduleEvent) {
-        let mins = dragMinutes(dragDY)
+    private func commitDrag(_ e: ScheduleEvent, dy: CGFloat) {
+        let mins = dragMinutes(dy)
         let dur = e.end.timeIntervalSince(e.start)
         e.start = e.start.addingTimeInterval(mins * 60)
         e.end = e.start.addingTimeInterval(dur)
