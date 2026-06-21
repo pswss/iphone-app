@@ -133,6 +133,9 @@ enum AppleAI {
     private static var _primed: LanguageModelSession?
     // 직전 사용자 요청 — '그거/그럼/거기' 같은 후속 질문의 맥락으로만 사용(세션은 누적 안 함).
     private static var lastRequest: String?
+    // 직전 삭제 맥락 — "아니 그거 말고"라고 하면 다른 후보를 제시하기 위해.
+    private static var lastDeleteKeyword: String?
+    private static var lastDeleteChosen: UUID?
 
     static func prewarm() {
         guard _primed == nil else { return }   // 이미 데웠으면 즉시 반환
@@ -155,6 +158,19 @@ enum AppleAI {
         guard case .available = SystemLanguageModel.default.availability else {
             throw AppleIntelligenceUnavailable(
                 reason: "애플 인텔리전스를 사용할 수 없어요 (설정에서 켜야 할 수 있어요).")
+        }
+
+        // "아니 그거 말고" 류 후속 → 모델 호출 없이 직전 삭제 맥락에서 다른 후보 제시
+        if isRejectionFollowup(text), let kw = lastDeleteKeyword {
+            let cands = existing.filter {
+                !$0.title.isEmpty && ($0.title.contains(kw) || kw.contains($0.title)) && $0.id != lastDeleteChosen
+            }
+            if !cands.isEmpty {
+                lastRequest = text
+                return AIResult(events: [], actions: [.clarifyDelete(
+                    candidates: cands.map { DeleteCandidate(id: $0.id, title: $0.title, start: $0.start) },
+                    prompt: "그럼 이 중에 어떤 걸 삭제할까요?")])
+            }
         }
 
         let isoNow = ISO8601DateFormatter().string(from: now)
@@ -229,10 +245,21 @@ enum AppleAI {
                     }
                     break
                 }
-                guard let t = target(c, text: text, existing: existing) else { break }
-                if seen.insert(t.id).inserted {
-                    events.append(ParsedEvent(title: t.title, start: t.start, end: t.end,
-                                              location: t.location, action: .delete, targetID: t.id))
+                let cands = deleteCandidates(text: text, existing: existing)
+                if cands.count > 1 {
+                    // 후보가 여럿이면 바로 지우지 말고 "어떤 것을 삭제할까요?" 물어봄
+                    lastDeleteKeyword = deleteKeyword(text, existing)
+                    lastDeleteChosen = nil
+                    actions.append(.clarifyDelete(
+                        candidates: cands.map { DeleteCandidate(id: $0.id, title: $0.title, start: $0.start) },
+                        prompt: "어떤 것을 삭제할까요?"))
+                } else if let t = cands.first ?? target(c, text: text, existing: existing) {
+                    lastDeleteKeyword = deleteKeyword(text, existing)
+                    lastDeleteChosen = t.id
+                    if seen.insert(t.id).inserted {
+                        events.append(ParsedEvent(title: t.title, start: t.start, end: t.end,
+                                                  location: t.location, action: .delete, targetID: t.id))
+                    }
                 }
 
             case "mealQuery":
@@ -324,6 +351,28 @@ enum AppleAI {
     private static func bulkKey(text: String, existing: [ExistingEvent]) -> String? {
         let words = text.components(separatedBy: CharacterSet(charactersIn: " ,.\n")).filter { $0.count >= 2 }
         return words.first(where: { w in existing.contains { $0.title.contains(w) } })
+    }
+
+    /// 삭제 대상 키워드: 입력에 통째로 든 제목(가장 긴 것) 우선, 없으면 제목에 들어간 단어.
+    private static func deleteKeyword(_ text: String, _ existing: [ExistingEvent]) -> String? {
+        if let t = existing.filter({ !$0.title.isEmpty && text.contains($0.title) })
+            .map(\.title).max(by: { $0.count < $1.count }) { return t }
+        return bulkKey(text: text, existing: existing)
+    }
+
+    /// 키워드에 해당하는 삭제 후보 전부(시간 순).
+    private static func deleteCandidates(text: String, existing: [ExistingEvent]) -> [ExistingEvent] {
+        guard let kw = deleteKeyword(text, existing) else { return [] }
+        return existing.filter { !$0.title.isEmpty && ($0.title.contains(kw) || kw.contains($0.title)) }
+            .sorted { $0.start < $1.start }
+    }
+
+    /// "아니 그거 말고", "다른거" 같은 거부·재요청 짧은 문구인지.
+    private static func isRejectionFollowup(_ text: String) -> Bool {
+        let t = text.replacingOccurrences(of: " ", with: "")
+        let cues = ["그거말고", "그게아니", "다른거", "다른걸", "딴거", "말고다른", "아니다른", "그말고"]
+        if cues.contains(where: t.contains) { return true }
+        return t.count <= 9 && (t.hasPrefix("아니") || t.hasSuffix("말고"))
     }
 
     private static func shortDate(_ d: Date) -> String {

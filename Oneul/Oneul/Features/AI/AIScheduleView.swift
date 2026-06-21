@@ -10,6 +10,8 @@ struct AIScheduleView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var reply: String?                // 급식·외형 등 액션 답변
+    @State private var clarifyCandidates: [DeleteCandidate] = []   // "어떤 것을 삭제할까요?" 후보
+    @State private var clarifyPrompt: String?
     @AppStorage("appearance") private var appearanceRaw = Appearance.system.rawValue
     @AppStorage("neisOffice") private var neisOffice = ""
     @AppStorage("neisCode") private var neisCode = ""
@@ -37,6 +39,7 @@ struct AIScheduleView: View {
                             if let reply {
                                 AIReplyCard(text: reply)
                             }
+                            if let clarifyPrompt { clarifySection(clarifyPrompt) }
                             if !results.isEmpty { resultsSection }
                         }
                         .padding(16)
@@ -216,6 +219,36 @@ struct AIScheduleView: View {
         date.formatted(.dateTime.hour().minute().locale(lang.locale))
     }
 
+    /// "어떤 것을 삭제할까요?" 후보 목록 — 탭하면 그 일정 삭제.
+    private func clarifySection(_ prompt: String) -> some View {
+        VStack(alignment: .leading, spacing: 9) {
+            Text(prompt).font(.subheadline).bold().padding(.leading, 4)
+            ForEach(clarifyCandidates) { c in
+                Button { deleteCandidate(c) } label: {
+                    HStack(spacing: 12) {
+                        Text(c.start.formatted(.dateTime.month().day().hour().minute().locale(lang.locale)))
+                            .font(.caption).foregroundStyle(.secondary)
+                        Text(c.title).font(.subheadline).bold()
+                        Spacer()
+                        Image(systemName: "trash").font(.caption).foregroundStyle(.red)
+                    }
+                    .padding(12).glassCard(cornerRadius: 18).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func deleteCandidate(_ c: DeleteCandidate) {
+        if let e = find(c.id) {
+            context.delete(e)
+            try? context.save()
+            reply = lang.tr("삭제했어요") + ": \(c.title)"
+        }
+        clarifyCandidates = []
+        clarifyPrompt = nil
+    }
+
     /// 반복 배지 문구: "매주" 또는 "매주 월수금".
     private func repeatLabel(_ e: ParsedEvent) -> String {
         guard e.recurrence != .none else { return "" }
@@ -228,14 +261,14 @@ struct AIScheduleView: View {
     }
 
     private func generate() async {
-        errorMessage = nil; reply = nil; results = []
+        errorMessage = nil; reply = nil; results = []; clarifyCandidates = []; clarifyPrompt = nil
         let text = inputText
         isLoading = true; defer { isLoading = false }
         do {
             let result = try await AppleIntelligenceClient()
                 .generateSchedule(from: text, now: .now, existing: fetchUpcoming())
 
-            // 즉시 액션(외형/급식/일정 질문) 처리 → 답변 모음
+            // 즉시 액션(외형/급식/일정 질문/삭제 후보) 처리 → 답변 모음
             var replies: [String] = []
             for action in result.actions {
                 switch action {
@@ -246,6 +279,9 @@ struct AIScheduleView: View {
                     replies.append(await mealReply(date: date))
                 case .scheduleQuery(let kind, let day):
                     replies.append(scheduleQueryReply(kind: kind, day: day))
+                case .clarifyDelete(let cands, let prompt):
+                    clarifyCandidates = cands
+                    clarifyPrompt = prompt
                 case .unknown:
                     break
                 }

@@ -15,7 +15,15 @@ enum AIAction {
     case setAppearance(Appearance)
     case mealQuery(date: Date)
     case scheduleQuery(kind: AIQueryKind, day: Date)
+    case clarifyDelete(candidates: [DeleteCandidate], prompt: String)   // 삭제 대상이 애매할 때 후보 제시
     case unknown
+}
+
+/// 삭제 후보 한 건(어떤 걸 지울지 사용자에게 물을 때).
+struct DeleteCandidate: Identifiable, Hashable {
+    let id: UUID        // 기존 일정 id
+    let title: String
+    let start: Date
 }
 
 /// 일정·시험 질문의 범위.
