@@ -18,8 +18,9 @@ struct DayGridView: View {
     @Environment(\.modelContext) private var context
     private let lang = AppLanguage.shared
     private let cal = Calendar.current
-    private let hourHeight: CGFloat = 58
+    private let hourHeight: CGFloat = 70      // 세로로 늘림(일정이 덜 빽빽하게)
     private let leftInset: CGFloat = 52
+    private let colGap: CGFloat = 2           // 겹치는 일정 간 가로 간격(틈새 축소)
 
     @State private var dragID: UUID?
     @State private var dragDY: CGFloat = 0
@@ -166,7 +167,7 @@ struct DayGridView: View {
         let resizing = resizingBottom || resizingTop
         let top = yOffset(for: clamp(e.start)) + (resizingTop ? resizeTopDY : 0)         // 위 끝 잡으면 시작이 따라옴
         let h = max(26, yOffset(for: clamp(e.end)) - top + (resizingBottom ? resizeDY : 0))
-        let colW = (gridW - CGFloat(item.cols - 1) * 4) / CGFloat(item.cols)
+        let colW = (gridW - CGFloat(item.cols - 1) * colGap) / CGFloat(item.cols)
         let color = EventPalette.color(plan.colorIndex(of: e), of: plan.events.count)
         let dragging = dragID == e.id
         let selected = selectedID == e.id
@@ -195,7 +196,7 @@ struct DayGridView: View {
             .overlay { gestureLayer(e, selected: selected, h: h) }   // 본문=탭/이동, 위·아래 손잡이=리사이즈
             .overlay(alignment: .top) { if deleteBubbleID == e.id { eventMenu(e) } }   // 꾹 눌렀다 떼면 컨텍스트 메뉴
             .scaleEffect(1)   // 확대 없음(하이라이트/이동 시 블록 크기 그대로)
-            .offset(x: leftInset + CGFloat(item.col) * (colW + 4), y: top + dy)
+            .offset(x: leftInset + CGFloat(item.col) * (colW + colGap), y: top + dy)
             .zIndex(dragging || resizing || deleteBubbleID == e.id ? 100000 : (selected ? 10000 : Double(item.order)))
             .animation(.snappy(duration: 0.2), value: deleteBubbleID)
             .animation(.snappy(duration: 0.16), value: dragID)
