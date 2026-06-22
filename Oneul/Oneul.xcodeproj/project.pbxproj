@@ -49,6 +49,7 @@
 		D486E703178E6EA656583725 /* WatchSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = A16CFD8B435D3E1D46EF0F09 /* WatchSync.swift */; };
 		DA1B100733D4D79C56226FF7 /* ElectiveSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DDD92EAE062AD8537F2B53E /* ElectiveSetupView.swift */; };
 		E4592FB74E0748311A618CBF /* SpeechRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93B892D311D56026159282E3 /* SpeechRecognizer.swift */; };
+		E4BE9167F1F82BAD05F04366 /* BackgroundRefresh.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72970E6D99F9137A4E75455D /* BackgroundRefresh.swift */; };
 		E737EB9D49F5A808C1E599A3 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90270A5784A434E2BD4F8EB7 /* KeychainStore.swift */; };
 		E823D7F623DA11AA93889FB4 /* AIProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 535CFBC05030B47581C0E6A6 /* AIProvider.swift */; };
 		EFE035A3D77BA658A142A159 /* WatchPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = B120768A33C004DCF2F45013 /* WatchPayload.swift */; };
@@ -124,6 +125,7 @@
 		5ACE8189A99207C779416B4D /* OneulApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OneulApp.swift; sourceTree = "<group>"; };
 		6455A65474E956EDA02D3D48 /* DayGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayGridView.swift; sourceTree = "<group>"; };
 		6A7DA356E9BE16433ED03A34 /* AIScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIScheduleView.swift; sourceTree = "<group>"; };
+		72970E6D99F9137A4E75455D /* BackgroundRefresh.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundRefresh.swift; sourceTree = "<group>"; };
 		741F7445372DEF5858438E89 /* NEIS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NEIS.swift; sourceTree = "<group>"; };
 		74A7ECD14CA79E4D059D2386 /* DayPlan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayPlan.swift; sourceTree = "<group>"; };
 		777161A31B7E4F39C0973C6E /* TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayView.swift; sourceTree = "<group>"; };
@@ -307,6 +309,7 @@
 		D60849C95362AFD658747AAC /* LiveActivity */ = {
 			isa = PBXGroup;
 			children = (
+				72970E6D99F9137A4E75455D /* BackgroundRefresh.swift */,
 				14B607682CCEA115B95212B8 /* LiveActivityController.swift */,
 			);
 			path = LiveActivity;
@@ -479,6 +482,7 @@
 				811D809B7A894889A5E6B9F4 /* AppChrome.swift in Sources */,
 				94288FF630F4E04FD1FB58B6 /* AppConfig.swift in Sources */,
 				01B03CBFC066FA4AE84FB90F /* AppleIntelligenceClient.swift in Sources */,
+				E4BE9167F1F82BAD05F04366 /* BackgroundRefresh.swift in Sources */,
 				B53B622954D5D8FBD25C5F54 /* CalendarBar.swift in Sources */,
 				C3C8A27FED06E8DF5FDE3D86 /* DayGridView.swift in Sources */,
 				4ADF4B85379FD3B22D3D3DA8 /* DayPlan.swift in Sources */,

@@ -59,6 +59,8 @@ struct RootView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 Task { await SchoolAutoRefresh.runIfDue(context: context) }
+            } else if phase == .background {
+                BackgroundRefresh.schedule()           // 백그라운드 갱신 예약
             }
         }
     }

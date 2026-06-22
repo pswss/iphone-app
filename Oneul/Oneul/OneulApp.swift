@@ -7,6 +7,7 @@ struct OneulApp: App {
 
     init() {
         NotificationManager.shared.requestAuthorizationIfNeeded()
+        BackgroundRefresh.register(container: container)   // 백그라운드 갱신 작업 등록(launch 전)
     }
 
     var body: some Scene {
