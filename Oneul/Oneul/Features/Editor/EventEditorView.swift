@@ -21,7 +21,6 @@ struct EventEditorView: View {
     @State private var endDate = Date()
     @State private var showDeleteOptions = false
     @State private var showPlaceSheet = false
-    @State private var showMap = false
     @FocusState private var focusedField: Field?
     private let lang = AppLanguage.shared
 
@@ -52,10 +51,6 @@ struct EventEditorView: View {
                                 }
                                 .buttonStyle(.plain)
                                 if !location.isEmpty {
-                                    Button { showMap = true } label: {   // 앱 내 지도 보기
-                                        Image(systemName: "map.fill").foregroundStyle(Color.appAccentText)
-                                    }
-                                    .buttonStyle(.plain)
                                     Button { MapDirections.open(to: location) } label: {   // 네이버 지도 길찾기
                                         Image(systemName: "arrow.triangle.turn.up.right.circle.fill")
                                             .foregroundStyle(Color.appAccentText)
@@ -121,18 +116,6 @@ struct EventEditorView: View {
                 }
             }
             .sheet(isPresented: $showPlaceSheet) { PlaceSearchSheet(location: $location) }
-            .sheet(isPresented: $showMap) {
-                NavigationStack {
-                    NaverMapView(place: location)
-                        .ignoresSafeArea(edges: .bottom)
-                        .navigationTitle(location)
-                        .navigationBarTitleDisplayMode(.inline)
-                        .toolbar {
-                            ToolbarItem(placement: .topBarLeading) { Button(lang.tr("닫기")) { showMap = false } }
-                            ToolbarItem(placement: .topBarTrailing) { Button(lang.tr("길찾기")) { MapDirections.open(to: location) } }
-                        }
-                }
-            }
             .onAppear(perform: load)
         }
     }
