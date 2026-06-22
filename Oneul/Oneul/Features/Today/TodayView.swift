@@ -46,9 +46,10 @@ struct TodayView: View {
     var body: some View {
         ZStack {
             AppBackground()
-            if wide { wideContent } else { narrowContent }
+            // 아이패드도 검증된 단일 컬럼(narrowContent)을 중앙 정렬로 — 2단 레이아웃의 동작 불량 해결
+            narrowContent.frame(maxWidth: wide ? 760 : .infinity)
         }
-        .overlay(alignment: .bottomTrailing) { if !wide { addButton } }
+        .overlay(alignment: .bottomTrailing) { addButton }
         .sheet(isPresented: $showingAdd, onDismiss: syncLiveActivity) {
             EventEditorView(event: nil, day: selectedDay, prefillStart: addStart)
                 .presentationDetents([.medium, .large])   // 절반 높이 → 위 그리드의 미리보기 블록이 보임
@@ -133,51 +134,6 @@ struct TodayView: View {
                         timelineProgress = min(1, max(0, delta / timelineH))   // 스크롤한 만큼 1:1로 접힘(타임라인 높이만큼 스크롤하면 완전히 접힘)
                     } : nil)
         .padding(.horizontal, 16)
-    }
-
-    // MARK: 아이패드/넓은 화면(2단). 가로=화면 꽉 채움, 세로=위 정렬 컴팩트.
-    private var wideContent: some View {
-        GeometryReader { geo in
-            if geo.size.width > geo.size.height {
-                // 가로: 전체 높이를 채워 넓고 길쭉하게
-                VStack(spacing: 14) {
-                    header
-                    dDayBar
-                    HStack(alignment: .top, spacing: 22) {
-                        VStack(spacing: 16) {
-                            CalendarBar(selectedDay: $selectedDay)
-                            timelineCard(plan, live: Calendar.current.isDateInToday(selectedDay))
-                        }
-                        .frame(maxWidth: .infinity, alignment: .top)
-                        grid(plan, selectedDay, scrollHour: $sharedScrollHour)
-                            .frame(maxWidth: .infinity)
-                    }
-                    .frame(maxHeight: .infinity)
-                }
-                .padding(.horizontal, 24)
-                .padding(.top, 10)
-            } else {
-                // 세로: 위 정렬 컴팩트 2단
-                ScrollView {
-                    VStack(spacing: 16) {
-                        header
-                        dDayBar
-                        HStack(alignment: .top, spacing: 22) {
-                            VStack(spacing: 16) {
-                                CalendarBar(selectedDay: $selectedDay)
-                                timelineCard(plan, live: Calendar.current.isDateInToday(selectedDay))
-                            }
-                            .frame(maxWidth: .infinity, alignment: .top)
-                            grid(plan, selectedDay, scrollHour: $sharedScrollHour)
-                                .frame(maxWidth: .infinity, alignment: .top)
-                        }
-                        Color.clear.frame(height: 90)
-                    }
-                    .padding(.horizontal, 24)
-                    .padding(.top, 8)
-                }
-            }
-        }
     }
 
     // MARK: 헤더
