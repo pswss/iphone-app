@@ -295,9 +295,13 @@ struct DayPager<Content: View>: UIViewControllerRepresentable {
         context.coordinator.parent = self
         guard let cur = pvc.viewControllers?.first as? Host else { return }
         if !Calendar.current.isDate(cur.day, inSameDayAs: selectedDay) {
-            let forward = selectedDay > cur.day                       // 캘린더바 등 외부 변경 → 그 방향으로 애니메이션 이동
+            let cal = Calendar.current
+            let diff = cal.dateComponents([.day], from: cal.startOfDay(for: cur.day),
+                                          to: cal.startOfDay(for: selectedDay)).day ?? 0
+            let forward = selectedDay > cur.day                       // 외부 변경 → 그 방향으로 이동
+            // 인접 한 칸만 애니메이션. 여러 날 점프는 즉시(스크롤 페이저가 멀리 점프 애니메이션 시 엉뚱한 날 착지 방지)
             pvc.setViewControllers([context.coordinator.host(selectedDay)],
-                                   direction: forward ? .forward : .reverse, animated: true)
+                                   direction: forward ? .forward : .reverse, animated: abs(diff) == 1)
         } else {
             cur.rootView = AnyView(content(cur.day))                  // 데이터/상태 변경 반영(일정 추가·이동 등)
         }
