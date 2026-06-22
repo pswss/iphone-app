@@ -303,13 +303,17 @@ struct DayPager<Content: View>: UIViewControllerRepresentable {
         context.coordinator.parent = self
         guard let cur = pvc.viewControllers?.first as? Host else { return }
         if !Calendar.current.isDate(cur.day, inSameDayAs: selectedDay) {
+            guard !context.coordinator.isAnimating else { return }    // 애니메이션 중 재진입 차단(엉뚱한 날 착지 버그의 원인)
             let cal = Calendar.current
             let diff = cal.dateComponents([.day], from: cal.startOfDay(for: cur.day),
                                           to: cal.startOfDay(for: selectedDay)).day ?? 0
-            let forward = selectedDay > cur.day                       // 외부 변경 → 그 방향으로 이동
-            // 인접 한 칸만 애니메이션. 여러 날 점프는 즉시(스크롤 페이저가 멀리 점프 애니메이션 시 엉뚱한 날 착지 방지)
+            let forward = selectedDay > cur.day
+            let animated = abs(diff) <= 7                             // 일주일 안은 슬라이드, 그 이상은 즉시
+            context.coordinator.isAnimating = animated
             pvc.setViewControllers([context.coordinator.host(selectedDay)],
-                                   direction: forward ? .forward : .reverse, animated: abs(diff) == 1)
+                                   direction: forward ? .forward : .reverse, animated: animated) { _ in
+                context.coordinator.isAnimating = false
+            }
         } else {
             cur.rootView = AnyView(content(cur.day))                  // 데이터/상태 변경 반영(일정 추가·이동 등)
         }
@@ -319,6 +323,7 @@ struct DayPager<Content: View>: UIViewControllerRepresentable {
 
     final class Coordinator: NSObject, UIPageViewControllerDataSource, UIPageViewControllerDelegate {
         var parent: DayPager
+        var isAnimating = false                  // 프로그램 슬라이드 진행 중(재진입 차단용)
         init(_ parent: DayPager) { self.parent = parent }
 
         func host(_ day: Date) -> Host { Host(day: day, rootView: AnyView(parent.content(day))) }
