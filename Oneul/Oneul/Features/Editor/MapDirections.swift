@@ -13,7 +13,7 @@ enum MapDirections {
         Task { @MainActor in
             let request = MKLocalSearch.Request()
             request.naturalLanguageQuery = name
-            let coord = try? await MKLocalSearch(request: request).start().mapItems.first?.placemark.coordinate
+            let coord = try? await MKLocalSearch(request: request).start().mapItems.first?.location.coordinate
             let q = name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? name
             let str = coord.map { "nmap://route/car?dlat=\($0.latitude)&dlng=\($0.longitude)&dname=\(q)&appname=\(appName)" }
                 ?? "nmap://search?query=\(q)&appname=\(appName)"
