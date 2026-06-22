@@ -19,6 +19,13 @@ struct TodayView: View {
     @Environment(\.horizontalSizeClass) private var hSize
 
     private var plan: DayPlan { dayPlan(for: selectedDay) }
+
+    /// 일정이 추가·삭제·수정되면 값이 바뀌는 토큰 — DayPager가 보이는 페이지를 즉시 갱신하도록.
+    private var eventsToken: Int {
+        var h = Hasher()
+        for e in events { h.combine(e.id); h.combine(e.start); h.combine(e.end); h.combine(e.title); h.combine(e.location) }
+        return h.finalize()
+    }
     private var wide: Bool { hSize == .regular }
     private var isStudent: Bool { userType == "student" }
 
@@ -103,7 +110,7 @@ struct TodayView: View {
             dDayBar.padding(.horizontal, 16)
             CalendarBar(selectedDay: $selectedDay).padding(.horizontal, 16)
             collapsingTimeline.padding(.horizontal, 16)   // 페이저 밖에 고정 — 슬라이드해도 안 생겼다 사라졌다 안 함
-            DayPager(selectedDay: $selectedDay) { day in   // UIPageViewController 3페이지 재사용 → 렉/튐 없음
+            DayPager(selectedDay: $selectedDay, refreshID: eventsToken) { day in   // UIPageViewController 3페이지 재사용
                 gridPage(day)
             }
         }
@@ -280,6 +287,7 @@ struct TodayView: View {
 // MARK: - 날짜 페이저 (UIPageViewController) — 좌우 슬라이드로 하루씩, 3페이지만 재사용(애플 캘린더식, 렉/튐 없음)
 struct DayPager<Content: View>: UIViewControllerRepresentable {
     @Binding var selectedDay: Date
+    var refreshID: Int = 0                       // 일정 변경 시 값이 바뀌어 updateUIViewController를 강제 → 보이는 페이지 갱신
     @ViewBuilder var content: (Date) -> Content
 
     func makeUIViewController(context: Context) -> UIPageViewController {
