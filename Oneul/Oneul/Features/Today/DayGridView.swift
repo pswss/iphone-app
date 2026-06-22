@@ -198,8 +198,8 @@ struct DayGridView: View {
             .background(color.opacity(lifted ? 0.9 : (selected ? 0.72 : 0.5)), in: shape)
             .overlay(shape.strokeBorder(.white.opacity(lifted ? 0.6 : (selected ? 0.4 : 0.22)),
                                         lineWidth: lifted ? 1.5 : 1))
-            .shadow(color: glowing ? color.opacity(0.7) : .black.opacity(lifted ? 0.4 : 0.12),
-                    radius: glowing ? 13 : (lifted ? 10 : 3),
+            .shadow(color: glowing ? color.opacity(0.5) : .black.opacity(lifted ? 0.4 : 0.12),
+                    radius: glowing ? 7 : (lifted ? 10 : 3),
                     y: glowing ? 0 : (lifted ? 6 : 2))
             .overlay(alignment: .topTrailing) { bubble(e, dy: dy, show: dragging && !inTrash) }
             .overlay { if selected { cornerHighlight(shape).allowsHitTesting(false) } }  // 왼쪽 아래 코너 곡선만 흰색
