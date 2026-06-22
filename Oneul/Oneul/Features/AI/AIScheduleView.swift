@@ -18,7 +18,6 @@ struct AIScheduleView: View {
     @AppStorage("neisName") private var neisName = ""
     @AppStorage("neisKind") private var neisKind = ""
     @State private var speech = SpeechRecognizer()
-    @State private var micPulse = false              // 녹음 중 퍼지는 링/맥동
     @FocusState private var editorFocused: Bool
     private let lang = AppLanguage.shared
 
@@ -26,6 +25,9 @@ struct AIScheduleView: View {
         NavigationStack {
             ZStack {
                 AppBackground()
+                AIThinkingGlow()                                  // AI 처리 중 배경이 천천히 일렁임
+                    .opacity(isLoading ? 1 : 0)
+                    .animation(.easeInOut(duration: 0.6), value: isLoading)
                 GeometryReader { geo in
                     ScrollView {
                         VStack(alignment: .leading, spacing: 14) {
@@ -85,32 +87,20 @@ struct AIScheduleView: View {
             .overlay(alignment: .bottomTrailing) { micButton }
     }
 
-    /// 꾹(0.35초) 눌렀다 떼면 토글 — 빠른 탭 오작동 방지.
-    /// 녹음 중: 마이크 아이콘 자체만 빨갛게 빛나며(테두리·링 없음) 호흡하듯 맥동.
+    /// 꾹(0.35초) 눌렀다 떼면 토글 — 빠른 탭 오작동 방지. 작동 중엔 아이콘이 빨간색으로만 바뀜.
     private var micButton: some View {
         Image(systemName: "mic.fill")
             .font(.system(size: 18, weight: .semibold))
             .foregroundStyle(speech.isRecording ? .red : .secondary)
-            .shadow(color: speech.isRecording ? .red.opacity(0.95) : .clear, radius: micPulse ? 14 : 7)
-            .shadow(color: speech.isRecording ? .red.opacity(0.7) : .clear, radius: micPulse ? 7 : 3)
-            .scaleEffect(speech.isRecording ? (micPulse ? 1.08 : 1.0) : 1.0)
             .frame(width: 46, height: 46)
             .glassEffect(.regular.interactive(), in: Circle())
             .contentShape(Circle())
             .padding(10)
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: speech.isRecording)
+            .animation(.easeInOut(duration: 0.18), value: speech.isRecording)
             .onLongPressGesture(minimumDuration: 0.35) {   // 확실히 꾹 눌러야 토글(오작동 방지)
                 editorFocused = false
                 speech.toggle()
-                Haptics.impact(.soft)
-            }
-            .onChange(of: speech.isRecording) { _, rec in
-                if rec {
-                    micPulse = false
-                    withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) { micPulse = true }
-                } else {
-                    withAnimation(.easeOut(duration: 0.2)) { micPulse = false }
-                }
+                Haptics.impact(.heavy)                      // 강한 햅틱
             }
     }
 
@@ -397,6 +387,26 @@ struct AIScheduleView: View {
         var d = FetchDescriptor<ScheduleEvent>(predicate: #Predicate { $0.id == id })
         d.fetchLimit = 1
         return (try? context.fetch(d))?.first
+    }
+}
+
+// AI 처리 중 배경에서 천천히 떠다니는 알록달록한 빛.
+private struct AIThinkingGlow: View {
+    @State private var t = false
+    var body: some View {
+        ZStack {
+            blob(Color(red: 0.50, green: 0.40, blue: 1.00), 280, -90, -130, 90, 70)
+            blob(Color(red: 0.95, green: 0.40, blue: 0.80), 250, 110, 150, -80, -50)
+            blob(Color(red: 0.30, green: 0.72, blue: 1.00), 240, -70, 120, 130, 180)
+            blob(Color(red: 0.40, green: 0.90, blue: 0.75), 220, 80, -90, -110, 40)
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+        .onAppear { withAnimation(.easeInOut(duration: 4).repeatForever(autoreverses: true)) { t = true } }
+    }
+    private func blob(_ c: Color, _ size: CGFloat, _ x1: CGFloat, _ y1: CGFloat, _ x2: CGFloat, _ y2: CGFloat) -> some View {
+        Circle().fill(c.opacity(0.45)).frame(width: size, height: size).blur(radius: 85)
+            .offset(x: t ? x1 : x2, y: t ? y1 : y2)
     }
 }
 
