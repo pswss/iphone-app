@@ -12,7 +12,7 @@ struct TimelineBar: View {
     private var layout: PackedLayout {
         PackedLayout(intervals: single.map { (start: $0.start, end: $0.end) })
     }
-    private var bandCount: Int { plan.multiDayEvents.count }
+    private var bandCount: Int { plan.multiDayEvents.isEmpty ? 0 : 1 }   // 밴드는 한 줄만
 
     var body: some View {
         if live {
@@ -31,7 +31,7 @@ struct TimelineBar: View {
         GeometryReader { geo in
             let w = geo.size.width
             VStack(spacing: 5) {
-                ForEach(plan.multiDayEvents) { _ in
+                if !plan.multiDayEvents.isEmpty {     // 멀티데이 밴드는 모두 동일하므로 한 줄만(여러 개여도 안 길어지게)
                     multiDayBand(width: w, fraction: frac)
                 }
 
