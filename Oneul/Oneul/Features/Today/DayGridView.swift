@@ -31,7 +31,10 @@ struct DayGridView: View {
     @State private var selectedID: UUID?
     @State private var autoScrollDY: CGFloat = 0          // 드래그 중 자동 스크롤로 밀린 양(일정이 손가락을 따라오게)
     @State private var autoScrolling = false
+    @State private var autoScrollDir = 0                  // -1 위로, +1 아래로
+    @State private var autoScrollInterval: Double = 0.7   // 당긴 정도에 따라 빨라짐(작을수록 빠름)
     @State private var scrollProxy: ScrollViewProxy?
+    @State private var deleteBubbleID: UUID?              // 꾹 누르고 안 움직이고 떼면 뜨는 삭제 말풍선
 
     private let firstHour = 0
     private let lastHour = 24
@@ -64,7 +67,7 @@ struct DayGridView: View {
                                 LongPressArea(minimumDuration: 0.4,                           // 빈 곳 꾹 → 그 위치에 새 일정(스크롤과 동시)
                                               onBegan: { y in selectedID = nil; addAt(y: y); Haptics.impact(.medium) })
                                     .frame(width: geo.size.width, height: gridHeight)
-                                    .onTapGesture { if selectedID != nil { selectedID = nil } }   // 한 번 탭 → 선택 해제
+                                    .onTapGesture { selectedID = nil; deleteBubbleID = nil }   // 한 번 탭 → 선택/말풍선 해제
                                 if cal.isDateInToday(day) { nowLine(width: geo.size.width) }
                                 ForEach(laidOut, id: \.event.id) { eventBlock($0, gridW: gridW) }
                                 if let ps = previewStart { previewBlock(ps, gridW: gridW) }
@@ -201,10 +204,12 @@ struct DayGridView: View {
             .overlay(alignment: .topTrailing) { bubble(e, dy: dy, show: dragging && !inTrash) }
             .overlay { if selected { cornerHighlight(shape).allowsHitTesting(false) } }  // 왼쪽 아래 코너 곡선만 흰색
             .overlay { gestureLayer(e, selected: selected) }       // 본문=탭/이동, 아래 손잡이=리사이즈(영역 분리)
+            .overlay(alignment: .top) { if deleteBubbleID == e.id { deleteBubble(e) } }   // 꾹 눌렀다 떼면 삭제 말풍선
             .scaleEffect(dragging ? 1.04 : 1)
             .opacity(dragging && inTrash ? 0.4 : 1)
             .offset(x: leftInset + CGFloat(item.col) * (colW + 4), y: top + dy)
-            .zIndex(dragging || resizing ? 100000 : (selected ? 10000 : Double(item.order)))           // 선택 시 맨 앞으로
+            .zIndex(dragging || resizing || deleteBubbleID == e.id ? 100000 : (selected ? 10000 : Double(item.order)))
+            .animation(.snappy(duration: 0.2), value: deleteBubbleID)
             .animation(.snappy(duration: 0.16), value: dragID)
             .animation(.snappy(duration: 0.16), value: inTrash)
             .animation(.snappy(duration: 0.16), value: selectedID)
@@ -244,7 +249,7 @@ struct DayGridView: View {
         LongPressArea(                                              // 꾹 눌러 이동 — 스크롤과 동시 인식(선택 무관)
             minimumDuration: 0.3,
             onBegan: { _ in beginMove(e) },
-            onChanged: { dy, gap in changeMove(e, dy: dy, bottomGap: gap) },
+            onChanged: { dy, topGap, bottomGap in changeMove(e, dy: dy, topGap: topGap, bottomGap: bottomGap) },
             onEnded: { dy in endMove(e, dy: dy) }
         )
         .contentShape(Rectangle())
@@ -310,42 +315,79 @@ struct DayGridView: View {
     private func beginMove(_ e: ScheduleEvent) {
         guard resizeID == nil else { return }
         dragID = e.id; selectedID = e.id; lastStep = 0
-        autoScrollDY = 0; autoScrolling = false
+        autoScrollDY = 0; autoScrolling = false; autoScrollDir = 0
+        deleteBubbleID = nil
         Haptics.impact(.medium)
     }
-    private func changeMove(_ e: ScheduleEvent, dy: CGFloat, bottomGap: CGFloat) {
+    private func changeMove(_ e: ScheduleEvent, dy: CGFloat, topGap: CGFloat, bottomGap: CGFloat) {
         guard dragID == e.id else { return }
         dragDY = dy
         let step = Int(dragMinutes(dy + autoScrollDY))
         if step != lastStep { lastStep = step; Haptics.impact(.light) }
 
-        // 맨 아래 band(휴지통 바로 위)에 대고 있으면 천천히 자동 스크롤 — 일정이 손가락을 따라옴
-        let nearBottom = bottomGap >= 56 && bottomGap < 175
-        if nearBottom && !autoScrolling { autoScrolling = true; autoScrollTick(e) }
-        else if !nearBottom { autoScrolling = false }
+        // 위/아래 가장자리 band에 손가락이 들어오면 자동 스크롤. 더 깊이 갈수록 빠르게(당긴 정도 비례).
+        let bottomBand: CGFloat = 165, trashEdge: CGFloat = 54, topBand: CGFloat = 120
+        if bottomGap >= trashEdge && bottomGap < bottomBand {            // 아래 band → 아래로
+            let depth = Double((bottomBand - bottomGap) / (bottomBand - trashEdge))   // 0~1
+            autoScrollInterval = 0.85 - depth * 0.62                     // 느림 0.85s ~ 빠름 0.23s
+            startAutoScroll(e, dir: 1)
+        } else if topGap >= 0 && topGap < topBand {                      // 위 band → 위로
+            let depth = Double((topBand - topGap) / topBand)
+            autoScrollInterval = 0.85 - depth * 0.62
+            startAutoScroll(e, dir: -1)
+        } else {
+            autoScrolling = false; autoScrollDir = 0
+        }
 
-        let nowInTrash = bottomGap < 56            // 아주 아래(휴지통)에서만 삭제
+        let nowInTrash = bottomGap < trashEdge                           // 아주 아래(휴지통)에서만 삭제
         if nowInTrash != inTrash { inTrash = nowInTrash; if nowInTrash { Haptics.impact(.rigid) } }
     }
     private func endMove(_ e: ScheduleEvent, dy: CGFloat) {
         guard dragID == e.id else { return }
-        autoScrolling = false
+        autoScrolling = false; autoScrollDir = 0
         let eff = dy + autoScrollDY
         if inTrash { EventActions.deleteSingle(e, in: context); Haptics.notify(.warning) }
         else if dragMinutes(eff) != 0 { commitDrag(e, dy: eff); Haptics.impact(.soft) }
+        else { deleteBubbleID = e.id; Haptics.impact(.medium) }          // 안 움직이고 떼면 → 삭제 말풍선
         dragID = nil; dragDY = 0; autoScrollDY = 0; inTrash = false; lastStep = 0
     }
 
-    /// 드래그 중 맨 아래 band에 대고 있을 때 천천히 그리드를 내림(일정도 같은 양만큼 함께 내려와 손가락을 따라옴).
+    private func startAutoScroll(_ e: ScheduleEvent, dir: Int) {
+        autoScrollDir = dir
+        if !autoScrolling { autoScrolling = true; autoScrollTick(e) }
+    }
+
+    /// 일정 위에 뜨는 삭제 말풍선.
+    private func deleteBubble(_ e: ScheduleEvent) -> some View {
+        VStack(spacing: 0) {
+            Button {
+                deleteBubbleID = nil; selectedID = nil
+                EventActions.deleteSingle(e, in: context); Haptics.notify(.warning)
+            } label: {
+                Label("삭제", systemImage: "trash")
+                    .font(.caption2.bold()).foregroundStyle(.white)
+                    .padding(.horizontal, 13).padding(.vertical, 7)
+                    .background(.red, in: Capsule())
+            }
+            .buttonStyle(.plain)
+            DownTriangle().fill(.red).frame(width: 12, height: 6)
+        }
+        .shadow(color: .black.opacity(0.3), radius: 5, y: 2)
+        .offset(y: -42)
+        .transition(.scale(scale: 0.6, anchor: .bottom).combined(with: .opacity))
+    }
+
+    /// 드래그 중 가장자리에 대고 있을 때 그리드를 그 방향으로 스크롤(일정도 같은 양만큼 따라옴). 속도는 autoScrollInterval.
     private func autoScrollTick(_ e: ScheduleEvent) {
         guard autoScrolling, dragID == e.id, let proxy = scrollProxy else { return }
-        let current = scrollHour ?? scrollAnchorHour
-        guard current < lastHour - 1 else { autoScrolling = false; return }   // 더 내려갈 곳 없으면 멈춤
-        withAnimation(.linear(duration: 0.6)) {
-            proxy.scrollTo(current + 1, anchor: .top)
-            autoScrollDY += hourHeight
+        let target = (scrollHour ?? scrollAnchorHour) + autoScrollDir
+        guard target >= firstHour, target <= lastHour - 1 else { autoScrolling = false; return }   // 끝이면 멈춤
+        let dur = autoScrollInterval
+        withAnimation(.linear(duration: dur)) {
+            proxy.scrollTo(target, anchor: .top)
+            autoScrollDY += CGFloat(autoScrollDir) * hourHeight
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.62) { autoScrollTick(e) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + dur) { autoScrollTick(e) }
     }
 
     // MARK: 동작
@@ -401,10 +443,22 @@ struct DayGridView: View {
 }
 
 // MARK: - 꾹 누르기(UIKit) — UIScrollView 스크롤과 "동시 인식". began/changed/ended로 이동까지(애플 캘린더식)
+/// 아래를 가리키는 작은 삼각형(말풍선 꼬리).
+private struct DownTriangle: Shape {
+    func path(in r: CGRect) -> Path {
+        var p = Path()
+        p.move(to: CGPoint(x: r.midX, y: r.maxY))
+        p.addLine(to: CGPoint(x: r.minX, y: r.minY))
+        p.addLine(to: CGPoint(x: r.maxX, y: r.minY))
+        p.closeSubpath()
+        return p
+    }
+}
+
 private struct LongPressArea: UIViewRepresentable {
     var minimumDuration: Double = 0.4
     var onBegan: (CGFloat) -> Void = { _ in }                                   // began 위치 y(콘텐츠 좌표)
-    var onChanged: (_ translationY: CGFloat, _ windowY: CGFloat) -> Void = { _, _ in }
+    var onChanged: (_ translationY: CGFloat, _ topGap: CGFloat, _ bottomGap: CGFloat) -> Void = { _, _, _ in }
     var onEnded: (_ translationY: CGFloat) -> Void = { _ in }
 
     func makeUIView(context: Context) -> UIView {
@@ -426,11 +480,11 @@ private struct LongPressArea: UIViewRepresentable {
 
     final class Coordinator: NSObject, UIGestureRecognizerDelegate {
         var onBegan: (CGFloat) -> Void
-        var onChanged: (CGFloat, CGFloat) -> Void
+        var onChanged: (CGFloat, CGFloat, CGFloat) -> Void
         var onEnded: (CGFloat) -> Void
         private var startY: CGFloat = 0
         init(onBegan: @escaping (CGFloat) -> Void,
-             onChanged: @escaping (CGFloat, CGFloat) -> Void,
+             onChanged: @escaping (CGFloat, CGFloat, CGFloat) -> Void,
              onEnded: @escaping (CGFloat) -> Void) {
             self.onBegan = onBegan; self.onChanged = onChanged; self.onEnded = onEnded
         }
@@ -442,7 +496,7 @@ private struct LongPressArea: UIViewRepresentable {
             case .changed:
                 let winH = g.view?.window?.bounds.height ?? 99_999
                 let winY = g.location(in: nil).y
-                onChanged(winY - startY, winH - winY)           // 손가락 실제 이동량(window 기준) → 1:1로 따라옴
+                onChanged(winY - startY, winY, winH - winY)      // 이동량 + 위/아래 가장자리 거리(자동 스크롤용)
             case .ended, .cancelled, .failed:
                 onEnded(g.location(in: nil).y - startY)
             default: break
