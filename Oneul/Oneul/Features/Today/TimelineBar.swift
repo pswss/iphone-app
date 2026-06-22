@@ -45,7 +45,7 @@ struct TimelineBar: View {
                         let slot = layout.slots[idx]
                         let isCurrent = current?.id == event.id
                         let isPast = now >= event.end
-                        let color = EventPalette.color(plan.colorIndex(of: event))
+                        let color = EventPalette.color(plan.colorIndex(of: event), of: plan.events.count)
 
                         RoundedRectangle(cornerRadius: 3, style: .continuous)
                             .fill(color)

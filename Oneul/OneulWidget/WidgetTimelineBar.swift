@@ -33,7 +33,7 @@ struct WidgetTimelineBar: View {
                         let isPast = now >= seg.end
 
                         RoundedRectangle(cornerRadius: 3, style: .continuous)
-                            .fill(EventPalette.color(seg.colorIndex))
+                            .fill(EventPalette.color(seg.colorIndex, of: state.segments.count))
                             .frame(width: max(2, slot.width * w - 1.5), height: height)
                             .opacity(isPast ? 0.3 : (isCurrent ? 1 : 0.55))
                             .offset(x: slot.left * w + 0.75)

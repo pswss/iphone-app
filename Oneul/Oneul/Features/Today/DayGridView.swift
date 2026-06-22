@@ -163,7 +163,7 @@ struct DayGridView: View {
         let resizing = resizeID == e.id
         let h = max(26, yOffset(for: clamp(e.end)) - top + (resizing ? resizeDY : 0))
         let colW = (gridW - CGFloat(item.cols - 1) * 4) / CGFloat(item.cols)
-        let color = EventPalette.color(plan.colorIndex(of: e))
+        let color = EventPalette.color(plan.colorIndex(of: e), of: plan.events.count)
         let dragging = dragID == e.id
         let selected = selectedID == e.id
         let lifted = dragging || resizing            // 잡고 옮기는/늘리는 중

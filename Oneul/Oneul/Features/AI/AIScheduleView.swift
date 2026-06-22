@@ -146,7 +146,7 @@ struct AIScheduleView: View {
                     if e.action != .delete { editingIndex = idx }   // 삭제 항목은 대상이라 수정 불필요
                 } label: {
                     HStack(spacing: 12) {
-                        RoundedRectangle(cornerRadius: 3).fill(EventPalette.color(idx)).frame(width: 4)
+                        RoundedRectangle(cornerRadius: 3).fill(EventPalette.color(idx, of: results.count)).frame(width: 4)
                         Text(timeText(e.start))
                             .font(.caption).bold().foregroundStyle(.secondary).frame(width: 58)
                         VStack(alignment: .leading, spacing: 2) {
