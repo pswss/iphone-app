@@ -198,14 +198,14 @@ struct DayGridView: View {
             .background(color.opacity(lifted ? 0.9 : (selected ? 0.72 : 0.5)), in: shape)
             .overlay(shape.strokeBorder(.white.opacity(lifted ? 0.6 : (selected ? 0.4 : 0.22)),
                                         lineWidth: lifted ? 1.5 : 1))
-            .shadow(color: glowing ? color.opacity(0.5) : .black.opacity(lifted ? 0.4 : 0.12),
-                    radius: glowing ? 7 : (lifted ? 10 : 3),
+            .shadow(color: glowing ? color.opacity(0.7) : .black.opacity(lifted ? 0.4 : 0.12),
+                    radius: glowing ? 13 : (lifted ? 10 : 3),
                     y: glowing ? 0 : (lifted ? 6 : 2))
             .overlay(alignment: .topTrailing) { bubble(e, dy: dy, show: dragging && !inTrash) }
             .overlay { if selected { cornerHighlight(shape).allowsHitTesting(false) } }  // 왼쪽 아래 코너 곡선만 흰색
             .overlay { gestureLayer(e, selected: selected) }       // 본문=탭/이동, 아래 손잡이=리사이즈(영역 분리)
             .overlay(alignment: .top) { if deleteBubbleID == e.id { deleteBubble(e) } }   // 꾹 눌렀다 떼면 삭제 말풍선
-            .scaleEffect(dragging ? 1.04 : 1)
+            .scaleEffect(1)   // 확대 없음(하이라이트/이동 시 블록 크기 그대로)
             .opacity(dragging && inTrash ? 0.4 : 1)
             .offset(x: leftInset + CGFloat(item.col) * (colW + 4), y: top + dy)
             .zIndex(dragging || resizing || deleteBubbleID == e.id ? 100000 : (selected ? 10000 : Double(item.order)))
