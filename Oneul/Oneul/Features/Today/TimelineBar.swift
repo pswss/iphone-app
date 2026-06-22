@@ -50,7 +50,7 @@ struct TimelineBar: View {
                         RoundedRectangle(cornerRadius: 3, style: .continuous)
                             .fill(color)
                             .frame(width: max(2, slot.width * w - 1.5),
-                                   height: height * (isCurrent ? 1.45 : 1))
+                                   height: height * (isCurrent ? 1.15 : 1))   // 현재 일정 강조 높이 축소(너무 튀지 않게)
                             .opacity(isPast ? 0.25 : (isCurrent ? 1 : 0.5))
                             .shadow(color: isCurrent ? color.opacity(0.6) : .clear, radius: 6, y: 3)
                             .offset(x: slot.left * w + 0.75)

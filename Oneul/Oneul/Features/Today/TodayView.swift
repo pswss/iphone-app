@@ -197,7 +197,9 @@ struct TodayView: View {
     private func timelineCard(_ p: DayPlan, live: Bool) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text(lang.tr("오늘 타임라인")).font(.subheadline).bold()
+                Text(live ? lang.tr("오늘 타임라인")
+                          : selectedDay.formatted(.dateTime.month().day().locale(lang.locale)) + " " + lang.tr("타임라인"))
+                    .font(.subheadline).bold()
                 Spacer()
                 if let next = p.next() {
                     Text("\(lang.tr("다음 ·")) \(next.title) \(next.start.formatted(.dateTime.hour().minute().locale(lang.locale)))")
