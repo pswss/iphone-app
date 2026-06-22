@@ -38,6 +38,7 @@
 		97BAA858C7D312E7C5E090F1 /* SchoolSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FE512E0EFCA4922CDD6E120 /* SchoolSetupView.swift */; };
 		98CC0BB2485C2B8A92CD624E /* WatchPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = B120768A33C004DCF2F45013 /* WatchPayload.swift */; };
 		A13AE6AE7D3A89DE8C23A3C2 /* NEIS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 741F7445372DEF5858438E89 /* NEIS.swift */; };
+		A342CC60B0C02D253113EB28 /* MapDirections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E4F2E090381140001B79DD9 /* MapDirections.swift */; };
 		AD1FDE6AC6C6BD1FAD733E65 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F3E3AE2F482E8821D392598 /* SettingsView.swift */; };
 		B53B622954D5D8FBD25C5F54 /* CalendarBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C645C9FB29A1DD74C886502 /* CalendarBar.swift */; };
 		B8492275D42152776351D3CB /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6CDAF136B89C9CD70A564B1 /* AppConfig.swift */; };
@@ -111,6 +112,7 @@
 		15E10C76F7BC3F0106E55F39 /* OneulWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OneulWidgetBundle.swift; sourceTree = "<group>"; };
 		16EF8C9737267FC333CC19EC /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		1AEF004D088ABDDA2FD61577 /* AppleIntelligenceClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleIntelligenceClient.swift; sourceTree = "<group>"; };
+		1E4F2E090381140001B79DD9 /* MapDirections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapDirections.swift; sourceTree = "<group>"; };
 		1F3E3AE2F482E8821D392598 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		1FE512E0EFCA4922CDD6E120 /* SchoolSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchoolSetupView.swift; sourceTree = "<group>"; };
 		28D1C0B69DAE7EC2BFA4E7A8 /* TimelineBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineBar.swift; sourceTree = "<group>"; };
@@ -287,6 +289,7 @@
 			isa = PBXGroup;
 			children = (
 				D5057FFD3739CA0A9C50D19B /* EventEditorView.swift */,
+				1E4F2E090381140001B79DD9 /* MapDirections.swift */,
 				E9779CF0E668CEF123968ACE /* PlaceSearch.swift */,
 			);
 			path = Editor;
@@ -493,6 +496,7 @@
 				78A750E85B9DF3E94FD5F04F /* Glass.swift in Sources */,
 				E737EB9D49F5A808C1E599A3 /* KeychainStore.swift in Sources */,
 				CBC2A029F08197D2257C32A3 /* LiveActivityController.swift in Sources */,
+				A342CC60B0C02D253113EB28 /* MapDirections.swift in Sources */,
 				A13AE6AE7D3A89DE8C23A3C2 /* NEIS.swift in Sources */,
 				770DBDF8A2340C77EBA48398 /* NotificationManager.swift in Sources */,
 				8697B4FE3A5541D083495D75 /* OneulApp.swift in Sources */,

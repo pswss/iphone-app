@@ -43,12 +43,21 @@ struct EventEditorView: View {
                                 .multilineTextAlignment(.trailing)
                         }
                         field(lang.tr("장소")) {
-                            Button { showPlaceSheet = true } label: {
-                                Text(location.isEmpty ? lang.tr("위치") : location)
-                                    .foregroundStyle(location.isEmpty ? .secondary : .primary)
-                                    .lineLimit(1)
+                            HStack(spacing: 10) {
+                                Button { showPlaceSheet = true } label: {
+                                    Text(location.isEmpty ? lang.tr("위치") : location)
+                                        .foregroundStyle(location.isEmpty ? .secondary : .primary)
+                                        .lineLimit(1)
+                                }
+                                .buttonStyle(.plain)
+                                if !location.isEmpty {
+                                    Button { MapDirections.open(to: location) } label: {   // 네이버 지도 길찾기
+                                        Image(systemName: "arrow.triangle.turn.up.right.circle.fill")
+                                            .foregroundStyle(Color.appAccentText)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
                             }
-                            .buttonStyle(.plain)
                         }
                         field(lang.tr("시작")) {
                             DatePicker("", selection: $start).labelsHidden()
