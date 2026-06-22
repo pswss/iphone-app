@@ -2,20 +2,15 @@ import SwiftUI
 import WidgetKit
 import ActivityKit
 
-/// 위젯은 앱 언어 토글에 접근 못 함(App Group 불가) → 기기 언어로 한/영 분기.
-func L(_ ko: String, _ en: String) -> String {
-    (Locale.current.language.languageCode?.identifier == "ko") ? ko : en
-}
-
 /// 남은 시간 거친 표기: 1시간 이상 → "n시간", 1시간 미만 → "n분", 1분 미만 → "< 1분".
 /// (초 단위는 표시하지 않음. 값은 Activity 갱신 시점 기준.)
 func remainingLabel(to target: Date) -> String {
     let secs = target.timeIntervalSince(Date())
-    if secs <= 0 { return L("곧", "soon") }
+    if secs <= 0 { return "곧" }
     let mins = Int(secs) / 60
-    if mins < 1 { return L("< 1분", "< 1m") }
-    if mins < 60 { return L("\(mins)분", "\(mins)m") }
-    return L("\(Int(secs) / 3600)시간", "\(Int(secs) / 3600)h")
+    if mins < 1 { return "< 1분" }
+    if mins < 60 { return "\(mins)분" }
+    return "\(Int(secs) / 3600)시간"
 }
 
 struct ScheduleLiveActivity: Widget {
@@ -34,15 +29,11 @@ struct ScheduleLiveActivity: Widget {
                         .font(.caption).bold()
                         .lineLimit(1)
                         .foregroundStyle(.white)
-                        .padding(.leading, 14)   // 아이콘을 둥근 코너 안쪽으로 당김
-                        .padding(.top, 2)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
                     countdownText(context.state)
                         .font(.headline)
                         .foregroundStyle(.white)
-                        .padding(.trailing, 12)
-                        .padding(.top, 2)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     VStack(spacing: 6) {
@@ -52,8 +43,6 @@ struct ScheduleLiveActivity: Widget {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
-                    .padding(.horizontal, 6)   // 둥근 코너에 바가 잘리지 않게 안쪽으로
-                    .padding(.top, 2)
                 }
             } compactLeading: {
                 Image(systemName: "calendar")
@@ -73,25 +62,23 @@ struct ScheduleLiveActivity: Widget {
 
     // MARK: 헬퍼
     private func currentOrNextTitle(_ s: ScheduleActivityAttributes.ContentState) -> String {
-        s.currentTitle ?? s.nextTitle ?? L("오늘 일정", "Today")
+        s.currentTitle ?? s.nextTitle ?? "오늘 일정"
     }
 
     private func nextLine(_ s: ScheduleActivityAttributes.ContentState) -> String? {
         guard let title = s.nextTitle, let start = s.nextStart else { return nil }
-        let f = DateFormatter(); f.locale = .current; f.dateFormat = "a h:mm"
-        return L("다음", "Next") + " · \(title) \(f.string(from: start))"
+        let f = DateFormatter(); f.locale = Locale(identifier: "ko_KR"); f.dateFormat = "a h:mm"
+        return "다음 · \(title) \(f.string(from: start))"
     }
 
-    // 진행 중이면 "진행 중", 아니면 다음 일정까지 라이브 카운트다운(시스템이 1초마다 자동 갱신 — 배터리 부담 없음).
     @ViewBuilder
     private func countdownText(_ s: ScheduleActivityAttributes.ContentState) -> some View {
         if s.currentTitle != nil {
-            Text(L("진행 중", "Now"))
+            Text("진행 중")                                   // 진행 중이면 남은 시간 대신 '진행 중'
         } else if let start = s.nextStart, start > .now {
-            Text(timerInterval: Date.now...start, countsDown: true)
-                .monospacedDigit().multilineTextAlignment(.trailing).frame(maxWidth: 74)
+            Text(remainingLabel(to: start))                 // 다음 일정까지 거친 표기(초 없음)
         } else {
-            Text(L("오늘 끝", "Done"))
+            Text("오늘 끝")
         }
     }
 }
@@ -104,40 +91,36 @@ struct LockScreenView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Label(L("오늘 일정", "Today"), systemImage: "calendar")
+                Label("오늘 일정", systemImage: "calendar")
                     .font(.caption).bold().foregroundStyle(.white)
                 Spacer()
                 countdown
             }
             WidgetTimelineBar(state: state)
-            Text(L("현재", "Now") + " · " + (state.currentTitle ?? L("진행 중인 일정 없음", "No active event")))
+            Text("현재 일정 · \(state.currentTitle ?? "진행 중인 일정 없음")")
                 .font(.subheadline).bold().foregroundStyle(.white)
             if let title = state.nextTitle, let start = state.nextStart {
-                Text(L("다음", "Next") + " · \(title) \(timeString(start))")
+                Text("다음 · \(title) \(timeString(start))")
                     .font(.caption2).foregroundStyle(.white.opacity(0.7))
             }
         }
     }
 
-    // 진행 중이면 "진행 중", 아니면 다음 일정까지 남은 시간.
     @ViewBuilder
     private var countdown: some View {
         if state.currentTitle != nil {
-            Text(L("진행 중", "Now"))
+            Text("진행 중")
                 .font(.caption).bold().foregroundStyle(.white)
         } else if let start = state.nextStart, start > .now {
-            HStack(spacing: 3) {
-                Text(L("다음까지", "in"))
-                Text(timerInterval: Date.now...start, countsDown: true).monospacedDigit().frame(maxWidth: 70)
-            }
-            .font(.caption).bold().foregroundStyle(.white)
+            Text("다음까지 \(remainingLabel(to: start))")
+                .font(.caption).bold().foregroundStyle(.white)
         } else {
-            Text(L("오늘 끝", "Done")).font(.caption).bold().foregroundStyle(.white.opacity(0.7))
+            Text("오늘 끝").font(.caption).bold().foregroundStyle(.white.opacity(0.7))
         }
     }
 
     private func timeString(_ date: Date) -> String {
-        let f = DateFormatter(); f.locale = .current; f.dateFormat = "a h:mm"
+        let f = DateFormatter(); f.locale = Locale(identifier: "ko_KR"); f.dateFormat = "a h:mm"
         return f.string(from: date)
     }
 }
