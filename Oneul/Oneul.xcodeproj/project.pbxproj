@@ -15,6 +15,7 @@
 		2C9D3F62B28E3A1A227366B1 /* Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C8478ADD1C15960DDC8879E /* Persistence.swift */; };
 		33F2D826536E8CB3514BCF4E /* ScheduleAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 334A2A6B08661B685EF25A76 /* ScheduleAttributes.swift */; };
 		351F425C79906C834932EEA0 /* EventRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7570E900508DF43B3D91D84 /* EventRow.swift */; };
+		368FEFA6555F75C79E02704E /* NaverMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63AAA9846EC784DB29614E38 /* NaverMapView.swift */; };
 		44E99C13B7D22A3854B5AA07 /* ScheduleLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6AED8BA9142551D4DADE991 /* ScheduleLiveActivity.swift */; };
 		4ADF4B85379FD3B22D3D3DA8 /* DayPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74A7ECD14CA79E4D059D2386 /* DayPlan.swift */; };
 		4D142C261BA290186384FAF1 /* EventPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B86C494CBB8B41E58CDC3E /* EventPalette.swift */; };
@@ -125,6 +126,7 @@
 		535CFBC05030B47581C0E6A6 /* AIProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIProvider.swift; sourceTree = "<group>"; };
 		5A201BB565E9308A6DAAEAB4 /* Glass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Glass.swift; sourceTree = "<group>"; };
 		5ACE8189A99207C779416B4D /* OneulApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OneulApp.swift; sourceTree = "<group>"; };
+		63AAA9846EC784DB29614E38 /* NaverMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NaverMapView.swift; sourceTree = "<group>"; };
 		6455A65474E956EDA02D3D48 /* DayGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayGridView.swift; sourceTree = "<group>"; };
 		6A7DA356E9BE16433ED03A34 /* AIScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIScheduleView.swift; sourceTree = "<group>"; };
 		72970E6D99F9137A4E75455D /* BackgroundRefresh.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundRefresh.swift; sourceTree = "<group>"; };
@@ -290,6 +292,7 @@
 			children = (
 				D5057FFD3739CA0A9C50D19B /* EventEditorView.swift */,
 				1E4F2E090381140001B79DD9 /* MapDirections.swift */,
+				63AAA9846EC784DB29614E38 /* NaverMapView.swift */,
 				E9779CF0E668CEF123968ACE /* PlaceSearch.swift */,
 			);
 			path = Editor;
@@ -498,6 +501,7 @@
 				CBC2A029F08197D2257C32A3 /* LiveActivityController.swift in Sources */,
 				A342CC60B0C02D253113EB28 /* MapDirections.swift in Sources */,
 				A13AE6AE7D3A89DE8C23A3C2 /* NEIS.swift in Sources */,
+				368FEFA6555F75C79E02704E /* NaverMapView.swift in Sources */,
 				770DBDF8A2340C77EBA48398 /* NotificationManager.swift in Sources */,
 				8697B4FE3A5541D083495D75 /* OneulApp.swift in Sources */,
 				2C9D3F62B28E3A1A227366B1 /* Persistence.swift in Sources */,
