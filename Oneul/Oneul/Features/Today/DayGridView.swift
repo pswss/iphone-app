@@ -24,7 +24,6 @@ struct DayGridView: View {
     @State private var dragID: UUID?
     @State private var dragDY: CGFloat = 0
     @State private var lastStep = 0
-    @State private var inTrash = false
     @State private var viewportH: CGFloat = 600
     @State private var resizeID: UUID?
     @State private var resizeDY: CGFloat = 0
@@ -82,7 +81,6 @@ struct DayGridView: View {
                         .trackScroll(enabled: onScrollDelta != nil, anchorY: anchorY, hourHeight: hourHeight,
                                      onDelta: onScrollDelta, onHour: { scrollHour = $0 })   // 보이는 페이지만 공유값·진행률 갱신
                     }
-                    if dragID != nil { trashBar }
                 }
                 .coordinateSpace(name: "grid")
                 .onAppear { viewportH = geo.size.height }
@@ -136,20 +134,6 @@ struct DayGridView: View {
         .offset(y: yOffset(for: Date()) - 1)
     }
 
-    // MARK: 휴지통
-    private var trashBar: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "trash.fill")
-            Text(inTrash ? lang.tr("놓으면 삭제") : lang.tr("여기로 끌어 삭제"))
-        }
-        .font(.subheadline.bold())
-        .foregroundStyle(.white)
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 14)
-        .background(inTrash ? Color.red : Color.red.opacity(0.5), in: RoundedRectangle(cornerRadius: 16))
-        .padding(.horizontal, 30).padding(.bottom, 6)
-        .transition(.move(edge: .bottom).combined(with: .opacity))
-    }
 
     // MARK: 새 일정 미리보기 — 탭한 자리에 1시간 점선 블록
     private func previewBlock(_ start: Date, gridW: CGFloat) -> some View {
@@ -201,17 +185,15 @@ struct DayGridView: View {
             .shadow(color: glowing ? color.opacity(0.7) : .black.opacity(lifted ? 0.4 : 0.12),
                     radius: glowing ? 13 : (lifted ? 10 : 3),
                     y: glowing ? 0 : (lifted ? 6 : 2))
-            .overlay(alignment: .topTrailing) { bubble(e, dy: dy, show: dragging && !inTrash) }
+            .overlay(alignment: .topTrailing) { bubble(e, dy: dy, show: dragging) }
             .overlay { if selected { cornerHighlight(shape).allowsHitTesting(false) } }  // 왼쪽 아래 코너 곡선만 흰색
             .overlay { gestureLayer(e, selected: selected) }       // 본문=탭/이동, 아래 손잡이=리사이즈(영역 분리)
             .overlay(alignment: .top) { if deleteBubbleID == e.id { deleteBubble(e) } }   // 꾹 눌렀다 떼면 삭제 말풍선
             .scaleEffect(1)   // 확대 없음(하이라이트/이동 시 블록 크기 그대로)
-            .opacity(dragging && inTrash ? 0.4 : 1)
             .offset(x: leftInset + CGFloat(item.col) * (colW + 4), y: top + dy)
             .zIndex(dragging || resizing || deleteBubbleID == e.id ? 100000 : (selected ? 10000 : Double(item.order)))
             .animation(.snappy(duration: 0.2), value: deleteBubbleID)
             .animation(.snappy(duration: 0.16), value: dragID)
-            .animation(.snappy(duration: 0.16), value: inTrash)
             .animation(.snappy(duration: 0.16), value: selectedID)
     }
 
@@ -326,9 +308,9 @@ struct DayGridView: View {
         if step != lastStep { lastStep = step; Haptics.impact(.light) }
 
         // 위/아래 가장자리 band에 손가락이 들어오면 자동 스크롤. 더 깊이 갈수록 빠르게(당긴 정도 비례).
-        let bottomBand: CGFloat = 165, trashEdge: CGFloat = 54, topBand: CGFloat = 120
-        if bottomGap >= trashEdge && bottomGap < bottomBand {            // 아래 band → 아래로
-            let depth = Double((bottomBand - bottomGap) / (bottomBand - trashEdge))   // 0~1
+        let bottomBand: CGFloat = 165, topBand: CGFloat = 120
+        if bottomGap >= 0 && bottomGap < bottomBand {                    // 아래 band → 아래로(맨 끝까지)
+            let depth = Double((bottomBand - bottomGap) / bottomBand)
             autoScrollInterval = 0.85 - depth * 0.62                     // 느림 0.85s ~ 빠름 0.23s
             startAutoScroll(e, dir: 1)
         } else if topGap >= 0 && topGap < topBand {                      // 위 band → 위로
@@ -338,18 +320,14 @@ struct DayGridView: View {
         } else {
             autoScrolling = false; autoScrollDir = 0
         }
-
-        let nowInTrash = bottomGap < trashEdge                           // 아주 아래(휴지통)에서만 삭제
-        if nowInTrash != inTrash { inTrash = nowInTrash; if nowInTrash { Haptics.impact(.rigid) } }
     }
     private func endMove(_ e: ScheduleEvent, dy: CGFloat) {
         guard dragID == e.id else { return }
         autoScrolling = false; autoScrollDir = 0
         let eff = dy + autoScrollDY
-        if inTrash { EventActions.deleteSingle(e, in: context); Haptics.notify(.warning) }
-        else if dragMinutes(eff) != 0 { commitDrag(e, dy: eff); Haptics.impact(.soft) }
+        if dragMinutes(eff) != 0 { commitDrag(e, dy: eff); Haptics.impact(.soft) }
         else { deleteBubbleID = e.id; Haptics.impact(.medium) }          // 안 움직이고 떼면 → 삭제 말풍선
-        dragID = nil; dragDY = 0; autoScrollDY = 0; inTrash = false; lastStep = 0
+        dragID = nil; dragDY = 0; autoScrollDY = 0; lastStep = 0
     }
 
     private func startAutoScroll(_ e: ScheduleEvent, dir: Int) {
@@ -357,23 +335,23 @@ struct DayGridView: View {
         if !autoScrolling { autoScrolling = true; autoScrollTick(e) }
     }
 
-    /// 일정 위에 뜨는 삭제 말풍선.
+    /// 일정 위에 뜨는 삭제 말풍선(애플 캘린더식 큰 버튼).
     private func deleteBubble(_ e: ScheduleEvent) -> some View {
         VStack(spacing: 0) {
             Button {
                 deleteBubbleID = nil; selectedID = nil
                 EventActions.deleteSingle(e, in: context); Haptics.notify(.warning)
             } label: {
-                Label("삭제", systemImage: "trash")
-                    .font(.caption2.bold()).foregroundStyle(.white)
-                    .padding(.horizontal, 13).padding(.vertical, 7)
-                    .background(.red, in: Capsule())
+                Label(lang.tr("일정 삭제"), systemImage: "trash.fill")
+                    .font(.subheadline.bold()).foregroundStyle(.white)
+                    .padding(.horizontal, 20).padding(.vertical, 12)
+                    .background(.red, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
             .buttonStyle(.plain)
-            DownTriangle().fill(.red).frame(width: 12, height: 6)
+            DownTriangle().fill(.red).frame(width: 18, height: 9)
         }
-        .shadow(color: .black.opacity(0.3), radius: 5, y: 2)
-        .offset(y: -42)
+        .shadow(color: .black.opacity(0.35), radius: 9, y: 3)
+        .offset(y: -54)
         .transition(.scale(scale: 0.6, anchor: .bottom).combined(with: .opacity))
     }
 
