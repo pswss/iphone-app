@@ -27,6 +27,8 @@ struct DayGridView: View {
     @State private var viewportH: CGFloat = 600
     @State private var resizeID: UUID?
     @State private var resizeDY: CGFloat = 0
+    @State private var resizeTopID: UUID?            // 위 끝 잡고 늘리기(시작 시간 변경)
+    @State private var resizeTopDY: CGFloat = 0
     @State private var selectedID: UUID?
     @State private var autoScrollDY: CGFloat = 0          // 드래그 중 자동 스크롤로 밀린 양(일정이 손가락을 따라오게)
     @State private var autoScrolling = false
@@ -159,9 +161,11 @@ struct DayGridView: View {
     // MARK: 일정 블록 (솔리드 무지개 컬러)
     private func eventBlock(_ item: Laid, gridW: CGFloat) -> some View {
         let e = item.event
-        let top = yOffset(for: clamp(e.start))
-        let resizing = resizeID == e.id
-        let h = max(26, yOffset(for: clamp(e.end)) - top + (resizing ? resizeDY : 0))
+        let resizingBottom = resizeID == e.id
+        let resizingTop = resizeTopID == e.id
+        let resizing = resizingBottom || resizingTop
+        let top = yOffset(for: clamp(e.start)) + (resizingTop ? resizeTopDY : 0)         // 위 끝 잡으면 시작이 따라옴
+        let h = max(26, yOffset(for: clamp(e.end)) - top + (resizingBottom ? resizeDY : 0))
         let colW = (gridW - CGFloat(item.cols - 1) * 4) / CGFloat(item.cols)
         let color = EventPalette.color(plan.colorIndex(of: e), of: plan.events.count)
         let dragging = dragID == e.id
@@ -172,8 +176,9 @@ struct DayGridView: View {
         let shape = RoundedRectangle(cornerRadius: 11, style: .continuous)
         // 실시간 표시 시간(5분 스냅): 이동 중엔 시작·끝 둘 다, 리사이즈 중엔 끝만
         let moveMin = dragging ? dragMinutes(dragDY + autoScrollDY) : 0
-        let resizeMin = resizing ? dragMinutes(resizeDY) : 0
-        let dispStart = e.start.addingTimeInterval(moveMin * 60)
+        let resizeMin = resizingBottom ? dragMinutes(resizeDY) : 0
+        let resizeTopMin = resizingTop ? dragMinutes(resizeTopDY) : 0
+        let dispStart = e.start.addingTimeInterval((moveMin + resizeTopMin) * 60)
         let dispEnd = e.end.addingTimeInterval((moveMin + resizeMin) * 60)
 
         return blockContent(e, h: h, start: dispStart, end: dispEnd)
@@ -187,8 +192,8 @@ struct DayGridView: View {
                     y: glowing ? 0 : (lifted ? 6 : 2))
             .overlay(alignment: .topTrailing) { bubble(e, dy: dy, show: dragging) }
             .overlay { if selected { cornerHighlight(shape).allowsHitTesting(false) } }  // 왼쪽 아래 코너 곡선만 흰색
-            .overlay { gestureLayer(e, selected: selected) }       // 본문=탭/이동, 아래 손잡이=리사이즈(영역 분리)
-            .overlay(alignment: .top) { if deleteBubbleID == e.id { deleteBubble(e) } }   // 꾹 눌렀다 떼면 삭제 말풍선
+            .overlay { gestureLayer(e, selected: selected, h: h) }   // 본문=탭/이동, 위·아래 손잡이=리사이즈
+            .overlay(alignment: .top) { if deleteBubbleID == e.id { eventMenu(e) } }   // 꾹 눌렀다 떼면 컨텍스트 메뉴
             .scaleEffect(1)   // 확대 없음(하이라이트/이동 시 블록 크기 그대로)
             .offset(x: leftInset + CGFloat(item.col) * (colW + 4), y: top + dy)
             .zIndex(dragging || resizing || deleteBubbleID == e.id ? 100000 : (selected ? 10000 : Double(item.order)))
@@ -203,8 +208,11 @@ struct DayGridView: View {
     private func cornerHighlight(_ shape: RoundedRectangle) -> some View {
         shape
             .strokeBorder(.white, lineWidth: 2.5)
-            .mask(alignment: .bottomLeading) {
-                Rectangle().frame(width: 18, height: 18)   // 좌하단 코너 곡선 근처만 노출(직선 길이 최소화)
+            .mask {
+                ZStack {   // 좌상단·좌하단 코너 곡선만 노출(위·아래 손잡이 같은 디자인)
+                    Rectangle().frame(width: 18, height: 18).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                    Rectangle().frame(width: 18, height: 18).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                }
             }
     }
 
@@ -212,13 +220,15 @@ struct DayGridView: View {
     /// 위쪽 본문: 탭(하이라이트/수정) + 꾹 눌러 이동.
     /// 아래 손잡이(하이라이트일 때만): 끝 시간만 리사이즈. 영역이 분리돼 손잡이를 당겨도 이동이 끼어들지 않음(시작 시간 고정).
     @ViewBuilder
-    private func gestureLayer(_ e: ScheduleEvent, selected: Bool) -> some View {
+    private func gestureLayer(_ e: ScheduleEvent, selected: Bool, h: CGFloat) -> some View {
         VStack(spacing: 0) {
+            if selected && h > 56 {
+                Color.clear.frame(height: 16).contentShape(Rectangle())   // 위 손잡이 — 시작 시간(종일 짧은 일정 제외)
+                    .highPriorityGesture(resizeTopGesture(e))
+            }
             bodyZone(e, selected: selected)
             if selected {
-                Color.clear                                       // 잡는 영역(아래 strip) — 시각 표시는 코너 곡선이 담당
-                    .frame(height: 20)
-                    .contentShape(Rectangle())
+                Color.clear.frame(height: 16).contentShape(Rectangle())   // 아래 손잡이 — 종료 시간
                     .highPriorityGesture(resizeGesture(e))
             }
         }
@@ -293,9 +303,35 @@ struct DayGridView: View {
         if newEnd >= e.start.addingTimeInterval(300) { e.end = newEnd; try? context.save() }  // 최소 5분
     }
 
+    // MARK: 리사이즈(위 끝 잡고 늘리기) — 세로 드래그로 시작 시간만 변경(종료 고정)
+    private func resizeTopGesture(_ e: ScheduleEvent) -> some Gesture {
+        DragGesture(minimumDistance: 4, coordinateSpace: .named("grid"))
+            .onChanged { v in
+                guard dragID == nil else { return }
+                if resizeTopID != e.id {
+                    guard abs(v.translation.height) > abs(v.translation.width) else { return }
+                    resizeTopID = e.id; lastStep = 0; Haptics.impact(.soft)
+                }
+                if resizeTopID == e.id {
+                    resizeTopDY = v.translation.height
+                    let step = Int(dragMinutes(resizeTopDY))
+                    if step != lastStep { lastStep = step; Haptics.impact(.light) }
+                }
+            }
+            .onEnded { _ in
+                if resizeTopID == e.id { commitResizeTop(e); Haptics.impact(.soft) }
+                resizeTopID = nil; resizeTopDY = 0; lastStep = 0
+            }
+    }
+
+    private func commitResizeTop(_ e: ScheduleEvent) {
+        let newStart = e.start.addingTimeInterval(dragMinutes(resizeTopDY) * 60)
+        if newStart <= e.end.addingTimeInterval(-300) { e.start = newStart; try? context.save() }  // 최소 5분
+    }
+
     // 일정 꾹 눌러 이동 — UIKit long-press(스크롤과 동시 인식). 이동이 시작되면 scrollDisabled로 그동안만 스크롤을 잠근다.
     private func beginMove(_ e: ScheduleEvent) {
-        guard resizeID == nil else { return }
+        guard resizeID == nil, resizeTopID == nil else { return }
         dragID = e.id; selectedID = e.id; lastStep = 0
         autoScrollDY = 0; autoScrolling = false; autoScrollDir = 0
         deleteBubbleID = nil
@@ -335,24 +371,46 @@ struct DayGridView: View {
         if !autoScrolling { autoScrolling = true; autoScrollTick(e) }
     }
 
-    /// 일정 위에 뜨는 삭제 말풍선(애플 캘린더식 큰 버튼).
-    private func deleteBubble(_ e: ScheduleEvent) -> some View {
+    /// 일정 위 컨텍스트 메뉴(애플 캘린더식): 잘라내기 · 복사 · 복제 · 삭제.
+    private func eventMenu(_ e: ScheduleEvent) -> some View {
         VStack(spacing: 0) {
-            Button {
-                deleteBubbleID = nil; selectedID = nil
-                EventActions.deleteSingle(e, in: context); Haptics.notify(.warning)
-            } label: {
-                Label(lang.tr("일정 삭제"), systemImage: "trash.fill")
-                    .font(.subheadline.bold()).foregroundStyle(.white)
-                    .padding(.horizontal, 20).padding(.vertical, 12)
-                    .background(.red, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            HStack(spacing: 0) {
+                menuItem(lang.tr("잘라내기")) { EventClipboard.copy(e); EventActions.deleteSingle(e, in: context); dismissMenu() }
+                menuSep
+                menuItem(lang.tr("복사")) { EventClipboard.copy(e); dismissMenu() }
+                menuSep
+                menuItem(lang.tr("복제")) { duplicate(e); dismissMenu() }
+                menuSep
+                menuItem(lang.tr("삭제"), tint: .red) { EventActions.deleteSingle(e, in: context); Haptics.notify(.warning); dismissMenu() }
             }
-            .buttonStyle(.plain)
-            DownTriangle().fill(.red).frame(width: 18, height: 9)
+            .frame(height: 42)
+            .fixedSize()
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous).strokeBorder(.white.opacity(0.12)))
+            DownTriangle().fill(.regularMaterial).frame(width: 18, height: 9)
         }
-        .shadow(color: .black.opacity(0.35), radius: 9, y: 3)
-        .offset(y: -54)
-        .transition(.scale(scale: 0.6, anchor: .bottom).combined(with: .opacity))
+        .shadow(color: .black.opacity(0.35), radius: 10, y: 4)
+        .offset(y: -56)
+        .transition(.scale(scale: 0.7, anchor: .bottom).combined(with: .opacity))
+    }
+
+    private func menuItem(_ title: String, tint: Color = .primary, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title).font(.subheadline).foregroundStyle(tint)
+                .padding(.horizontal, 15).frame(maxHeight: .infinity)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+    private var menuSep: some View {
+        Rectangle().fill(.primary.opacity(0.15)).frame(width: 0.5).padding(.vertical, 9)
+    }
+    private func dismissMenu() { deleteBubbleID = nil; selectedID = nil }
+    private func duplicate(_ e: ScheduleEvent) {
+        EventActions.create(title: e.title, start: e.start, end: e.end, location: e.location,
+                            reminderMinutes: e.reminderMinutes, reminderMinutes2: e.reminderMinutes2,
+                            recurrence: .none, into: context)
+        Haptics.impact(.soft)
     }
 
     /// 드래그 중 가장자리에 대고 있을 때 그리드를 그 방향으로 스크롤(일정도 같은 양만큼 따라옴). 속도는 autoScrollInterval.
@@ -373,7 +431,13 @@ struct DayGridView: View {
         let mins = Double(y) / Double(hourHeight) * 60
         let snapped = (mins / 30).rounded(.down) * 30
         let date = gridTop.addingTimeInterval(snapped * 60)
-        onAdd(date)
+        if let c = EventClipboard.item {                          // 복사/잘라낸 일정이 있으면 그 자리에 붙여넣기
+            EventActions.create(title: c.title, start: date, end: date.addingTimeInterval(c.duration),
+                                location: c.location, reminderMinutes: c.reminderMinutes,
+                                reminderMinutes2: c.reminderMinutes2, recurrence: .none, into: context)
+        } else {
+            onAdd(date)
+        }
     }
     private func commitDrag(_ e: ScheduleEvent, dy: CGFloat) {
         let mins = dragMinutes(dy)
@@ -421,6 +485,23 @@ struct DayGridView: View {
 }
 
 // MARK: - 꾹 누르기(UIKit) — UIScrollView 스크롤과 "동시 인식". began/changed/ended로 이동까지(애플 캘린더식)
+/// 일정 복사/잘라내기 클립보드(인앱). 빈 곳을 꾹 누르면 그 자리에 붙여넣기.
+struct CopiedEvent {
+    var title: String
+    var duration: TimeInterval
+    var location: String
+    var reminderMinutes: Int
+    var reminderMinutes2: Int
+}
+enum EventClipboard {
+    static var item: CopiedEvent?
+    static func copy(_ e: ScheduleEvent) {
+        item = CopiedEvent(title: e.title, duration: max(300, e.end.timeIntervalSince(e.start)),
+                           location: e.location, reminderMinutes: e.reminderMinutes,
+                           reminderMinutes2: e.reminderMinutes2)
+    }
+}
+
 /// 아래를 가리키는 작은 삼각형(말풍선 꼬리).
 private struct DownTriangle: Shape {
     func path(in r: CGRect) -> Path {
