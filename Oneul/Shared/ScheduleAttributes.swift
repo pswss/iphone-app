@@ -34,6 +34,8 @@ struct ScheduleActivityAttributes: ActivityAttributes {
         /// 다음 일정(없으면 nil).
         var nextTitle: String?
         var nextStart: Date?
+        /// 앱 언어가 영어인지(위젯이 App Group 없이도 앱 설정 따라 한/영 표시).
+        var isEnglish: Bool = false
     }
 
     /// 예: "6월 17일 화요일"

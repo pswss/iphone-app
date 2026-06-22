@@ -76,7 +76,8 @@ struct DayPlan {
             currentTitle: cur?.title,
             currentEnd: cur?.end,
             nextTitle: nxt?.title,
-            nextStart: nxt?.start
+            nextStart: nxt?.start,
+            isEnglish: AppLanguage.shared.isEnglish
         )
     }
 
