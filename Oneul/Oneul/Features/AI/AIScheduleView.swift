@@ -344,7 +344,7 @@ struct AIScheduleView: View {
         let now = Date()
         var d = FetchDescriptor<ScheduleEvent>(
             predicate: #Predicate { $0.start >= now }, sortBy: [SortDescriptor(\.start)])
-        d.fetchLimit = 25
+        d.fetchLimit = 12   // 컨텍스트(글자수) 절약 — 가까운 일정만
         let items = (try? context.fetch(d)) ?? []
         return items.map { ExistingEvent(id: $0.id, title: $0.title, start: $0.start, end: $0.end, location: $0.location) }
     }

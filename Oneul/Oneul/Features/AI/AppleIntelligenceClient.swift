@@ -175,24 +175,33 @@ enum AppleAI {
         }
 
         let isoNow = ISO8601DateFormatter().string(from: now)
-        var prompt = "현재 시각: \(isoNow) (\(TimeZone.current.identifier)).\n"
-        if let last = lastRequest {
-            prompt += "직전 질문: \(last)\n(이번 요청에 '그거/거기/그날/그럼/그때' 같은 지시어가 있으면 직전 질문을 이어서 해석. 직전 질문 자체를 다시 처리하지는 말 것.)\n"
-        }
-        if !existing.isEmpty {
-            prompt += "기존 일정 목록(수정/삭제 대상):\n"
-            for (i, e) in existing.enumerated() {
-                prompt += "[\(i + 1)] \(shortDate(e.start)) \(e.title)\n"
+        func buildPrompt(includeExisting: Bool) -> String {
+            var p = "현재 시각: \(isoNow) (\(TimeZone.current.identifier)).\n"
+            if let last = lastRequest { p += "직전 질문: \(last)\n" }
+            if includeExisting, !existing.isEmpty {
+                p += "기존 일정(수정/삭제 대상):\n"
+                for (i, e) in existing.enumerated() { p += "[\(i + 1)] \(shortDate(e.start)) \(e.title)\n" }
             }
+            p += "\n요청: \(text)"
+            return p
         }
-        prompt += "\n요청: \(text)"
 
-        let session = _primed ?? LanguageModelSession(instructions: instructions)
-        _primed = nil
-        let response = try await session.respond(to: prompt, generating: GenResponse.self)
+        // 컨텍스트(글자수) 초과 등으로 실패하면 기존 일정 목록을 빼고 짧게 한 번 더 시도.
+        let commands: [GenCommand]
+        do {
+            let session = _primed ?? LanguageModelSession(instructions: instructions)
+            _primed = nil
+            commands = try await session.respond(to: buildPrompt(includeExisting: true),
+                                                 generating: GenResponse.self).content.commands
+        } catch {
+            _primed = nil
+            let session = LanguageModelSession(instructions: instructions)
+            commands = try await session.respond(to: buildPrompt(includeExisting: false),
+                                                 generating: GenResponse.self).content.commands
+        }
         prewarm()   // 다음 요청용 세션 미리 데움
 
-        var result = route(response.content.commands, text: text, now: now, existing: existing)
+        var result = route(commands, text: text, now: now, existing: existing)
         result = await resolveLocations(in: result)   // 장소를 실제 존재하는 곳으로 검증(지어내기 방지)
         lastRequest = text
         return result
