@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>오늘 — 타임라인 디자인 개선안</title>
+<style>
+  :root{
+    --bg:#0b0c10; --card:rgba(255,255,255,.06); --stroke:rgba(255,255,255,.10);
+    --txt:#fff; --sub:rgba(255,255,255,.55);
+    --c0:#FF453A; --c1:#FF9F0A; --c2:#FFD60A; --c3:#30D158; --c4:#0A84FF; --c5:#5E5CE6; --c6:#BF5AF2;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 700px at 70% -10%, #1a1c2b 0%, var(--bg) 55%);
+       color:var(--txt);font:15px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Display","Apple SD Gothic Neo",sans-serif;
+       padding:34px 18px 80px;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:430px;margin:0 auto}
+  h1{font-size:22px;font-weight:800;margin:0 0 4px}
+  .lead{color:var(--sub);margin:0 0 26px;font-size:13px}
+  .card{background:var(--card);border:1px solid var(--stroke);border-radius:24px;padding:18px 16px 20px;margin-bottom:18px;
+        backdrop-filter:blur(20px);box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .tag{font-size:11px;font-weight:800;letter-spacing:.4px;color:#0b0c10;background:#fff;border-radius:20px;padding:3px 9px}
+  .name{font-weight:800;font-size:15px}
+  .desc{color:var(--sub);font-size:12px;margin-top:10px}
+  .now{margin-left:auto;font-size:12px;color:var(--sub)}
+  .legend{display:flex;gap:5px;align-items:center;color:var(--sub);font-size:11px;margin-top:14px;flex-wrap:wrap}
+  .dot{width:8px;height:8px;border-radius:3px;display:inline-block}
+
+  /* ---------- A. 글로시 패킹 세그먼트 ---------- */
+  .segbar{display:flex;gap:3px;height:22px;align-items:stretch;position:relative}
+  .seg{flex:1;border-radius:7px;position:relative;overflow:hidden;
+       box-shadow:inset 0 1px 0 rgba(255,255,255,.45), inset 0 -6px 10px rgba(0,0,0,.18)}
+  .seg.past{filter:saturate(.55) brightness(.7)}
+  .seg.cur{box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 0 0 1.5px rgba(255,255,255,.85),0 4px 14px rgba(255,255,255,.25)}
+  .seg::after{content:"";position:absolute;inset:0 0 55% 0;background:linear-gradient(rgba(255,255,255,.35),transparent);border-radius:7px 7px 0 0}
+  .needleA{position:absolute;top:-6px;bottom:-6px;width:2px;background:#fff;border-radius:2px;box-shadow:0 0 8px #fff;transform:translateX(-1px)}
+  .needleA::before{content:"";position:absolute;top:-4px;left:-3px;width:8px;height:8px;border-radius:50%;background:#fff;box-shadow:0 0 10px #fff}
+
+  /* ---------- B. 시간비례 트랙(캘린더식) ---------- */
+  .track{position:relative;height:30px;border-radius:12px;background:
+      repeating-linear-gradient(90deg,rgba(255,255,255,.05) 0 1px,transparent 1px calc(100%/14));
+      background-color:rgba(255,255,255,.04);overflow:hidden}
+  .tb{position:absolute;top:5px;height:20px;border-radius:7px;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.4)}
+  .tb.past{filter:saturate(.5) brightness(.72)}
+  .nowB{position:absolute;top:-3px;bottom:-3px;width:2px;background:#fff;box-shadow:0 0 8px #fff;border-radius:2px}
+  .nowB::after{content:"";position:absolute;top:-4px;left:-3px;width:8px;height:8px;border-radius:50%;background:#fff;box-shadow:0 0 10px #fff}
+
+  /* ---------- C. 점-여정(도트 타임라인) ---------- */
+  .journey{position:relative;height:46px}
+  .line{position:absolute;left:6px;right:6px;top:23px;height:3px;border-radius:3px;background:rgba(255,255,255,.14)}
+  .lineFill{position:absolute;left:6px;top:23px;height:3px;border-radius:3px;background:linear-gradient(90deg,var(--c0),var(--c4));box-shadow:0 0 8px rgba(120,160,255,.5)}
+  .jdot{position:absolute;top:17px;width:15px;height:15px;border-radius:50%;transform:translateX(-50%);
+        border:2.5px solid #11131c;box-shadow:0 1px 4px rgba(0,0,0,.5)}
+  .jdot.cur{width:22px;height:22px;top:13px;border-color:#fff;box-shadow:0 0 12px currentColor}
+  .jlab{position:absolute;top:1px;font-size:9.5px;color:var(--sub);transform:translateX(-50%);white-space:nowrap}
+  .jtime{position:absolute;top:34px;font-size:9.5px;color:var(--sub);transform:translateX(-50%)}
+
+  /* ---------- D. 아우라 그라데이션 ---------- */
+  .aura{position:relative;height:18px;border-radius:10px;overflow:hidden;
+        background:linear-gradient(90deg,var(--c0),var(--c1),var(--c2),var(--c3),var(--c4),var(--c5),var(--c6))}
+  .auraDim{position:absolute;top:0;bottom:0;left:0;background:rgba(8,9,14,.6);backdrop-filter:saturate(.4)}
+  .auraTick{position:absolute;top:50%;width:3px;height:3px;border-radius:50%;background:rgba(255,255,255,.85);transform:translate(-50%,-50%)}
+  .auraNow{position:absolute;top:-5px;bottom:-5px;width:0;transform:translateX(-50%)}
+  .auraNow::after{content:"";position:absolute;top:50%;left:0;width:13px;height:13px;border-radius:50%;background:#fff;box-shadow:0 0 14px #fff;transform:translate(-50%,-50%)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>타임라인 개선안</h1>
+  <p class="lead">같은 하루 데이터로 4가지 시안 · 현재 14:40 진행 중</p>
+  <div id="root"></div>
+</div>
+
+<script>
+const C = ['--c0','--c1','--c2','--c3','--c4','--c5','--c6'].map(v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim());
+// 색은 시간순 빨→보 균등 분배(앱과 동일 규칙)
+function colorOf(i, n){
+  if(n<=7) return C[i%7];
+  const pos=i/(n-1)*6, lo=Math.min(6,Math.floor(pos)), hi=Math.min(6,lo+1), t=pos-lo;
+  const a=hex(C[lo]),b=hex(C[hi]);
+  return `rgb(${a.map((x,k)=>Math.round(x+(b[k]-x)*t)).join(',')})`;
+}
+function hex(h){h=h.replace('#','');return [0,2,4].map(i=>parseInt(h.substr(i,2),16));}
+
+const DAY0=7*60, DAY1=21*60, NOW=14*60+40;
+const EV=[
+  {s:7*60,  e:8*60,    t:'아침 운동'},
+  {s:9*60,  e:12*60,   t:'수업'},
+  {s:12*60, e:13*60,   t:'점심'},
+  {s:14*60, e:15*60+30,t:'팀 회의'},
+  {s:16*60, e:17*60,   t:'스터디'},
+  {s:19*60, e:20*60,   t:'헬스'},
+];
+EV.forEach((v,i)=>{v.c=colorOf(i,EV.length); v.cur=NOW>=v.s&&NOW<v.e; v.past=NOW>=v.e;});
+const pct=m=>(m-DAY0)/(DAY1-DAY0)*100;
+const hhmm=m=>`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+
+// 패킹(시간 비례 아님): 길이 비율로 칸을 붙임 — 현재 앱 방식
+function packed(){
+  const tot=EV.reduce((a,v)=>a+(v.e-v.s),0);
+  let acc=0; return EV.map(v=>{const w=(v.e-v.s)/tot*100; const o={...v,left:acc,w}; acc+=w; return o;});
+}
+function packNowPct(){ // 패킹 좌표에서의 현재 위치
+  const tot=EV.reduce((a,v)=>a+(v.e-v.s),0); let acc=0;
+  for(const v of EV){ const w=(v.e-v.s)/tot; if(NOW<v.s) return acc*100; if(NOW<v.e) return (acc+(NOW-v.s)/(v.e-v.s)*w)*100; acc+=w; }
+  return 100;
+}
+
+function card(tag,name,desc,inner){
+  return `<div class="card"><div class="head"><span class="tag">${tag}</span><span class="name">${name}</span></div>
+    ${inner}<div class="desc">${desc}</div></div>`;
+}
+
+// A. 글로시 패킹 세그먼트
+function A(){
+  const segs=packed().map(v=>`<div class="seg ${v.cur?'cur':''} ${v.past?'past':''}" style="background:${v.c}"></div>`).join('');
+  const n=`<div class="needleA" style="left:${packNowPct()}%"></div>`;
+  return card('A','글로시 패킹','각 일정을 둥근 광택 칸으로 · 지난 칸은 흐리게 · 현재 칸 흰 테두리 + 흰 바늘',
+    `<div class="segbar">${segs}${n}</div>`);
+}
+// B. 시간비례 트랙(캘린더식)
+function B(){
+  const bars=EV.map(v=>`<div class="tb ${v.past?'past':''}" style="left:${pct(v.s)}%;width:${pct(v.e)-pct(v.s)}%;background:${v.c}"></div>`).join('');
+  return card('B','시간비례 트랙','실제 시각 위치에 배치(빈 시간 보임) · 옅은 시간 눈금 · 흰 현재선',
+    `<div class="track">${bars}<div class="nowB" style="left:${pct(NOW)}%"></div></div>`);
+}
+// C. 점-여정
+function C_(){
+  const fill=`<div class="lineFill" style="width:calc(${pct(NOW)}% - 6px)"></div>`;
+  const dots=EV.map(v=>{const x=pct((v.s+v.e)/2);
+    return `<div class="jlab" style="left:${x}%">${v.t}</div>
+            <div class="jdot ${v.cur?'cur':''}" style="left:${x}%;background:${v.c};color:${v.c}"></div>
+            <div class="jtime" style="left:${x}%">${hhmm(v.s)}</div>`;}).join('');
+  return card('C','점-여정','일정마다 색 점 + 잇는 선 · 현재 일정 점 커지고 발광(지하철 노선도 느낌)',
+    `<div class="journey"><div class="line"></div>${fill}${dots}</div>`);
+}
+// D. 아우라 그라데이션
+function D(){
+  const ticks=EV.map(v=>`<div class="auraTick" style="left:${pct(v.s)}%"></div>`).join('');
+  return card('D','아우라 그라데이션','부드러운 무지개 그라데이션 한 줄 · 지난 시간은 어둡게 · 일정 시작점 점 · 현재 발광 도트',
+    `<div class="aura"><div class="auraDim" style="width:${pct(NOW)}%"></div>${ticks}<div class="auraNow" style="left:${pct(NOW)}%"></div></div>`);
+}
+document.getElementById('root').innerHTML = A()+B()+C_()+D();
+</script>
+</body>
+</html>

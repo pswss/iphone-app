@@ -326,9 +326,10 @@ enum AppleAI {
     /// 코드로 파싱한 한국어 날짜·시각을 명령 슬롯에 덮어쓴다(있는 값만).
     private static func applyParsed(_ p: AIKoreanDateTime, to cmd: GenCommand) -> GenCommand {
         var c = cmd
-        if let v = p.relativeDay { c.relativeDay = v; c.weekday = ""; c.weekOffset = 0 }
-        if let v = p.month { c.month = v; c.weekday = "" }
-        if let v = p.day { c.day = v; c.weekday = "" }
+        // 파서가 날짜를 찾았으면 그 값만 남기고 모델의 날짜 필드는 전부 무효화(resolver가 엉뚱한 모델 날짜를 쓰지 않게)
+        if let v = p.relativeDay {
+            c.relativeDay = v; c.weekday = ""; c.weekOffset = 0; c.month = 0; c.day = 0
+        }
         if let v = p.startHour {
             c.startHour = v
             c.startMinute = p.startMinute ?? 0

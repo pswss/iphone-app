@@ -141,42 +141,9 @@ enum AIKoreanDate {
             return r
         }
 
-        // 주차 키워드
-        var weekOffset: Int?
-        if text.contains("다다음주") || text.contains("다다음 주") { weekOffset = 2 }
-        else if text.contains("다음주") || text.contains("다음 주") || text.contains("담주") { weekOffset = 1 }
-        else if text.contains("이번주") || text.contains("이번 주") { weekOffset = 0 }
-
-        // 요일(전체 표기)
-        let wdMap: [(String, Int)] = [("월요일", 2), ("화요일", 3), ("수요일", 4),
-                                      ("목요일", 5), ("금요일", 6), ("토요일", 7), ("일요일", 1)]
-        let weekday = wdMap.first(where: { text.contains($0.0) })?.1
-
-        if let wd = weekday {
-            let todayWd = cal.component(.weekday, from: today)   // 1=일…7=토
-            if let off = weekOffset {
-                // 명시적 주차: 그 주의 해당 요일
-                let mondayOffset = (todayWd + 5) % 7
-                if let monday = cal.date(byAdding: .day, value: -mondayOffset + off * 7, to: today),
-                   let target = cal.date(byAdding: .day, value: (wd + 5) % 7, to: monday) {
-                    r.relativeDay = cal.dateComponents([.day], from: today, to: target).day
-                }
-            } else {
-                // 막연한 요일: 오늘 포함 다가오는 그 요일
-                r.relativeDay = (wd - todayWd + 7) % 7
-            }
-        } else {
-            if text.contains("모레") || text.contains("내일모레") { r.relativeDay = 2 }
-            else if text.contains("글피") { r.relativeDay = 3 }
-            else if text.contains("내일") { r.relativeDay = 1 }
-            else if text.contains("어제") { r.relativeDay = -1 }
-            else if text.contains("오늘") { r.relativeDay = 0 }
-        }
-
-        // 절대 월/일 (요일보다 우선)
-        if let m = text.range(of: #"(\d{1,2})\s*월\s*(\d{1,2})\s*일"#, options: .regularExpression) {
-            let nums = String(text[m]).components(separatedBy: CharacterSet.decimalDigits.inverted).compactMap { Int($0) }
-            if nums.count >= 2 { r.month = nums[0]; r.day = nums[1]; r.relativeDay = nil }
+        // 단일 날짜: 폭넓은 한국어 날짜 해석 → relativeDay(오늘 기준 일수)로 통일
+        if let d = dayFromKeywords(text, today: today, cal: cal) {
+            r.relativeDay = cal.dateComponents([.day], from: today, to: d).day
         }
 
         // 시각(범위가 아니면 단일 시각)
@@ -246,13 +213,45 @@ enum AIKoreanDate {
         return nil
     }
 
-    /// 텍스트 조각에서 날짜 키워드(요일·절대 월일·상대일)를 찾아 그 날(자정)을 반환. 못 찾으면 nil.
+    /// 텍스트 조각에서 한국어 날짜 표현을 폭넓게 해석해 그 날(자정)을 반환. 못 찾으면 nil.
+    /// 지원: 오늘/내일/모레/글피/그글피/어제/그제, N(일·주·달) 후·뒤·전, 한글 일수(사흘·열흘 등),
+    ///       (이번/다음/다다음)주 + 요일, 막연 요일, 주말, 월말·말일, N월 M일, M/D,
+    ///       (이번/다음/다다음) 달 M일, 그냥 "M일"(이번 달; 지났으면 다음 달).
     private static func dayFromKeywords(_ text: String, today: Date, cal: Calendar) -> Date? {
+        func add(_ comp: Calendar.Component, _ v: Int) -> Date? { cal.date(byAdding: comp, value: v, to: today) }
+        func num(_ s: Substring) -> Int { Int(s.filter(\.isNumber)) ?? 0 }
+
+        // 1) N(일/주/달/개월) 후·뒤·전
+        if let r = text.range(of: #"\d{1,2}\s*(일|주|주일|달|개월)\s*(후|뒤|있다가|지나)"#, options: .regularExpression) {
+            let s = text[r]; let n = num(s)
+            if s.contains("주") { return add(.day, n * 7) }
+            if s.contains("달") || s.contains("개월") { return add(.month, n) }
+            return add(.day, n)
+        }
+        if let r = text.range(of: #"\d{1,2}\s*(일|주|주일|달|개월)\s*전"#, options: .regularExpression) {
+            let s = text[r]; let n = num(s)
+            if s.contains("주") { return add(.day, -n * 7) }
+            if s.contains("달") || s.contains("개월") { return add(.month, -n) }
+            return add(.day, -n)
+        }
+        // 한글 일수 + 후/뒤/전
+        let counts: [(String, Int)] = [("열흘", 10), ("아흐레", 9), ("여드레", 8), ("이레", 7),
+                                       ("엿새", 6), ("닷새", 5), ("나흘", 4), ("사흘", 3), ("이틀", 2)]
+        for (w, n) in counts where text.contains(w) {
+            if text.contains("뒤") || text.contains("후") || text.contains("있다가") || text.contains("지나") { return add(.day, n) }
+            if text.contains("전") { return add(.day, -n) }
+        }
+
+        // 2) 주차 + 요일 / 막연 요일 / 주말
         var weekOffset: Int?
         if text.contains("다다음주") || text.contains("다다음 주") { weekOffset = 2 }
-        else if text.contains("다음주") || text.contains("다음 주") || text.contains("담주") { weekOffset = 1 }
-        else if text.contains("이번주") || text.contains("이번 주") { weekOffset = 0 }
+        else if text.contains("다음주") || text.contains("다음 주") || text.contains("담주") || text.contains("담 주") { weekOffset = 1 }
+        else if text.contains("이번주") || text.contains("이번 주") || text.contains("금주") { weekOffset = 0 }
 
+        if text.contains("주말") {   // 다가오는 토요일(+ 주차)
+            let todayWd = cal.component(.weekday, from: today)
+            if let sat = add(.day, (7 - todayWd + 7) % 7) { return cal.date(byAdding: .day, value: (weekOffset ?? 0) * 7, to: sat) }
+        }
         let wdMap: [(String, Int)] = [("월요일", 2), ("화요일", 3), ("수요일", 4),
                                       ("목요일", 5), ("금요일", 6), ("토요일", 7), ("일요일", 1)]
         if let wd = wdMap.first(where: { text.contains($0.0) })?.1 {
@@ -263,16 +262,22 @@ enum AIKoreanDate {
                     return cal.date(byAdding: .day, value: (wd + 5) % 7, to: monday)
                 }
             } else {
-                return cal.date(byAdding: .day, value: (wd - todayWd + 7) % 7, to: today)
+                return add(.day, (wd - todayWd + 7) % 7)   // 다가오는 그 요일
             }
         }
 
+        // 3) 월말 / 말일
+        if text.contains("월말") || text.contains("말일") {
+            let base = (text.contains("다음") || text.contains("담")) ? (add(.month, 1) ?? today) : today
+            if let iv = cal.dateInterval(of: .month, for: base) { return cal.date(byAdding: .day, value: -1, to: iv.end) }
+        }
+
+        // 4) 절대 N월 M일 / M/D (지났으면 내년)
         func absolute(_ m: Int, _ d: Int) -> Date? {
             guard (1...12).contains(m), (1...31).contains(d) else { return nil }
-            var comps = cal.dateComponents([.year], from: today)
-            comps.month = m; comps.day = d
-            guard let date = cal.date(from: comps) else { return nil }
-            if date < today { comps.year = (comps.year ?? 0) + 1; return cal.date(from: comps) }   // 지났으면 내년
+            var c = cal.dateComponents([.year], from: today); c.month = m; c.day = d
+            guard let date = cal.date(from: c) else { return nil }
+            if date < today { c.year = (c.year ?? 0) + 1; return cal.date(from: c) }
             return date
         }
         if let r = text.range(of: #"(\d{1,2})\s*월\s*(\d{1,2})\s*일"#, options: .regularExpression) {
@@ -284,10 +289,35 @@ enum AIKoreanDate {
             if n.count >= 2, let d = absolute(n[0], n[1]) { return d }
         }
 
-        if text.contains("모레") || text.contains("내일모레") { return cal.date(byAdding: .day, value: 2, to: today) }
-        if text.contains("글피") { return cal.date(byAdding: .day, value: 3, to: today) }
-        if text.contains("내일") { return cal.date(byAdding: .day, value: 1, to: today) }
-        if text.contains("어제") { return cal.date(byAdding: .day, value: -1, to: today) }
+        // 5) (이번/다음/다다음) 달 M일 또는 그냥 "M일"(이번 달; 지났으면 다음 달)
+        if let r = text.range(of: #"(\d{1,2})\s*일"#, options: .regularExpression) {
+            let d = num(text[r])
+            if (1...31).contains(d) {
+                var shift = 0
+                if text.contains("다다음 달") || text.contains("다다음달") { shift = 2 }
+                else if text.contains("다음 달") || text.contains("다음달") || text.contains("담달") || text.contains("담 달") { shift = 1 }
+                let base = add(.month, shift) ?? today
+                var c = cal.dateComponents([.year, .month], from: base); c.day = d
+                if let date = cal.date(from: c) {
+                    if shift == 0 && date < today { c.month = (c.month ?? 1) + 1; return cal.date(from: c) }   // 지났으면 다음 달
+                    return date
+                }
+            }
+        }
+
+        // 6) "다음 주" 등(요일 미지정) → 그 주 월요일
+        if let off = weekOffset, off >= 1 {
+            let todayWd = cal.component(.weekday, from: today)
+            return add(.day, -((todayWd + 5) % 7) + off * 7)
+        }
+
+        // 7) 상대일 단어
+        if text.contains("그글피") { return add(.day, 4) }
+        if text.contains("내일모레") || text.contains("모레") { return add(.day, 2) }
+        if text.contains("글피") { return add(.day, 3) }
+        if text.contains("내일") { return add(.day, 1) }
+        if text.contains("그제") || text.contains("그저께") { return add(.day, -2) }
+        if text.contains("어제") { return add(.day, -1) }
         if text.contains("오늘") { return today }
         return nil
     }
