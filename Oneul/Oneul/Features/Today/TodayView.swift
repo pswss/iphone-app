@@ -11,6 +11,7 @@ struct TodayView: View {
     @State private var showingAdd = false
     @State private var addStart: Date?
     @State private var eventsByDay: [Date: [ScheduleEvent]] = [:]
+    @State private var indexVersion = 0                // eventsByDay 재구성 때마다 증가 → DayPager가 최신 인덱스로 갱신
     @State private var timelineProgress: CGFloat = 0   // 0=펼침, 1=완전 접힘 (스크롤에 연속 연동)
     @State private var timelineH: CGFloat = 0          // 타임라인 카드 자연 높이
     @State private var sharedScrollHour: Int?          // 모든 날 grid가 공유하는 세로 스크롤 위치(슬라이드해도 유지)
@@ -20,12 +21,6 @@ struct TodayView: View {
 
     private var plan: DayPlan { dayPlan(for: selectedDay) }
 
-    /// 일정이 추가·삭제·수정되면 값이 바뀌는 토큰 — DayPager가 보이는 페이지를 즉시 갱신하도록.
-    private var eventsToken: Int {
-        var h = Hasher()
-        for e in events { h.combine(e.id); h.combine(e.start); h.combine(e.end); h.combine(e.title); h.combine(e.location) }
-        return h.finalize()
-    }
     private var wide: Bool { hSize == .regular }
     private var isStudent: Bool { userType == "student" }
 
@@ -48,6 +43,7 @@ struct TodayView: View {
             }
         }
         eventsByDay = dict
+        indexVersion &+= 1
     }
 
     var body: some View {
@@ -110,7 +106,7 @@ struct TodayView: View {
             dDayBar.padding(.horizontal, 16)
             CalendarBar(selectedDay: $selectedDay).padding(.horizontal, 16)
             collapsingTimeline.padding(.horizontal, 16)   // 페이저 밖에 고정 — 슬라이드해도 안 생겼다 사라졌다 안 함
-            DayPager(selectedDay: $selectedDay, refreshID: eventsToken) { day in   // UIPageViewController 3페이지 재사용
+            DayPager(selectedDay: $selectedDay, refreshID: indexVersion) { day in   // UIPageViewController 3페이지 재사용
                 gridPage(day)
             }
         }
@@ -301,21 +297,32 @@ struct DayPager<Content: View>: UIViewControllerRepresentable {
 
     func updateUIViewController(_ pvc: UIPageViewController, context: Context) {
         context.coordinator.parent = self
+        let coord = context.coordinator
+        let cal = Calendar.current
         guard let cur = pvc.viewControllers?.first as? Host else { return }
-        if !Calendar.current.isDate(cur.day, inSameDayAs: selectedDay) {
-            guard !context.coordinator.isAnimating else { return }    // 애니메이션 중 재진입 차단(엉뚱한 날 착지 버그의 원인)
-            let cal = Calendar.current
-            let diff = cal.dateComponents([.day], from: cal.startOfDay(for: cur.day),
-                                          to: cal.startOfDay(for: selectedDay)).day ?? 0
-            let forward = selectedDay > cur.day
-            let animated = abs(diff) <= 7                             // 일주일 안은 슬라이드, 그 이상은 즉시
-            context.coordinator.isAnimating = animated
-            pvc.setViewControllers([context.coordinator.host(selectedDay)],
-                                   direction: forward ? .forward : .reverse, animated: animated) { _ in
-                context.coordinator.isAnimating = false
-            }
-        } else {
-            cur.rootView = AnyView(content(cur.day))                  // 데이터/상태 변경 반영(일정 추가·이동 등)
+
+        // 이미 선택일에 정착 → 보이는 페이지 내용만 갱신(일정 추가·이동 등 데이터 반영) + 가드 해제(스턱 방지)
+        if cal.isDate(cur.day, inSameDayAs: selectedDay) {
+            coord.isAnimating = false
+            cur.rootView = AnyView(content(cur.day))
+            return
+        }
+
+        // 다른 날로 점프(클릭) — 애니메이션 중이면 재진입 차단(엉뚱한 날 착지 버그 방지)
+        guard !coord.isAnimating else { return }
+        let diff = cal.dateComponents([.day], from: cal.startOfDay(for: cur.day),
+                                      to: cal.startOfDay(for: selectedDay)).day ?? 0
+        let forward = selectedDay > cur.day
+        let animated = abs(diff) <= 7                                 // 일주일 안은 슬라이드, 그 이상은 즉시
+        coord.isAnimating = animated
+        pvc.setViewControllers([coord.host(selectedDay)],
+                               direction: forward ? .forward : .reverse, animated: animated) { _ in
+            coord.isAnimating = false
+            // 애니메이션 도중 선택일이 또 바뀌었으면 즉시 보정(스턱/드리프트로 엉뚱한 날 머무는 것 방지)
+            guard let now = pvc.viewControllers?.first as? Host,
+                  !cal.isDate(now.day, inSameDayAs: coord.parent.selectedDay) else { return }
+            pvc.setViewControllers([coord.host(coord.parent.selectedDay)],
+                                   direction: coord.parent.selectedDay > now.day ? .forward : .reverse, animated: false)
         }
     }
 

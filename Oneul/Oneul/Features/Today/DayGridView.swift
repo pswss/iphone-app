@@ -210,9 +210,9 @@ struct DayGridView: View {
         shape
             .strokeBorder(.white, lineWidth: 2.5)
             .mask {
-                ZStack {   // 좌상단·좌하단 코너 곡선만 노출(위·아래 손잡이 같은 디자인)
+                ZStack {   // 아래 손잡이=좌하단, 위 손잡이=우상단(반대쪽) 코너 곡선만 노출 — 대각선 배치
                     Rectangle().frame(width: 18, height: 18).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-                    Rectangle().frame(width: 18, height: 18).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    Rectangle().frame(width: 18, height: 18).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                 }
             }
     }
