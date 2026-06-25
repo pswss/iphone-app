@@ -189,18 +189,21 @@ enum AppleAI {
         if let cmds = try? await respondCommands(text: text, now: now, existing: existing, includeExisting: false) {
             return await finish(cmds)
         }
-        // 3) 그래도 크면: 입력을 조각으로 나눠 알맞게 끊어 모델에 먹이고 결과를 합침
+        // 3) 그래도 크면: 입력을 조각으로 나눠 알맞게 끊어 모델에 먹임.
+        //    다음 조각은 직전 조각의 마지막 날짜를 "현재 날짜"로 이어받아 날짜 맥락을 유지(형식 무관).
         var events: [ParsedEvent] = []
         var actions: [AIAction] = []
         var seen = Set<UUID>()
+        var refDate = now
         var buf: [String] = []
         func flush() async {
             guard !buf.isEmpty else { return }
             let chunk = buf.joined(separator: ", "); buf = []
-            guard let cmds = try? await respondCommands(text: chunk, now: now, existing: existing, includeExisting: false) else { return }
-            let r = route(cmds, text: chunk, now: now, existing: existing)
+            guard let cmds = try? await respondCommands(text: chunk, now: refDate, existing: existing, includeExisting: false) else { return }
+            let r = route(cmds, text: chunk, now: refDate, existing: existing)
             for e in r.events where e.targetID == nil || seen.insert(e.targetID!).inserted { events.append(e) }
             actions += r.actions
+            if let last = r.events.filter({ $0.action == .create }).map(\.start).max() { refDate = last }   // 다음 조각 기준일
         }
         for p in AIKoreanDate.segments(text) { buf.append(p); if buf.count >= 6 { await flush() } }   // 6조각씩
         await flush()
