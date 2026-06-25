@@ -297,22 +297,38 @@ struct DayPager<Content: View>: UIViewControllerRepresentable {
 
     func updateUIViewController(_ pvc: UIPageViewController, context: Context) {
         context.coordinator.parent = self
+        let coord = context.coordinator
         let cal = Calendar.current
         guard let cur = pvc.viewControllers?.first as? Host else { return }
+
+        // 같은 날 — 보이는 페이지 내용만 갱신 + 가드 해제(정착)
         if cal.isDate(cur.day, inSameDayAs: selectedDay) {
-            cur.rootView = AnyView(content(cur.day))                  // 같은 날 — 데이터 반영(일정 추가·이동 등)
-        } else {
-            // 다른 날 — 즉시 점프. 멀티데이 .scroll 애니메이션은 완료 콜백이 안 와 그리드가 옛 날짜에 스턱되므로,
-            // 프로그램 이동(클릭 등)은 애니메이션 없이 확실히 착지시킨다(손가락 스와이프는 네이티브 슬라이드 유지).
-            pvc.setViewControllers([context.coordinator.host(selectedDay)],
-                                   direction: selectedDay > cur.day ? .forward : .reverse, animated: false)
+            coord.isAnimating = false
+            cur.rootView = AnyView(content(cur.day))
+            return
         }
+        guard !coord.isAnimating else { return }   // 슬라이드 중 재진입 차단(엉뚱한 날 착지 방지)
+
+        // 다른 날 — 슬라이드 점프(클릭에도 슬라이딩 모션). 멀티데이 .scroll은 완료 콜백이 안 올 수 있어
+        // 타임아웃으로도 반드시 정착·보정시켜 스턱(그리드가 옛 날짜에 멈춤)을 막는다.
+        coord.isAnimating = true
+        func settle() {
+            coord.isAnimating = false
+            guard let now = pvc.viewControllers?.first as? Host,
+                  !cal.isDate(now.day, inSameDayAs: coord.parent.selectedDay) else { return }
+            pvc.setViewControllers([coord.host(coord.parent.selectedDay)],
+                                   direction: coord.parent.selectedDay > now.day ? .forward : .reverse, animated: false)
+        }
+        pvc.setViewControllers([coord.host(selectedDay)],
+                               direction: selectedDay > cur.day ? .forward : .reverse, animated: true) { _ in settle() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { if coord.isAnimating { settle() } }
     }
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
     final class Coordinator: NSObject, UIPageViewControllerDataSource, UIPageViewControllerDelegate {
         var parent: DayPager
+        var isAnimating = false                  // 프로그램 슬라이드 진행 중(재진입 차단)
         init(_ parent: DayPager) { self.parent = parent }
 
         func host(_ day: Date) -> Host { Host(day: day, rootView: AnyView(parent.content(day))) }

@@ -83,6 +83,7 @@ final class AppLanguage {
         "설정": "Settings",
         "급식": "Meals",
         "오늘 타임라인": "Today's Timeline",
+        "타임라인": "Timeline",
         "일정": "Events",
         "일정 없음": "No events",
         "다음 ·": "Next ·",

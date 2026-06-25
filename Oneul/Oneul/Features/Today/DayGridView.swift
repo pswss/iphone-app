@@ -37,6 +37,7 @@ struct DayGridView: View {
     @State private var autoScrollInterval: Double = 0.7   // 당긴 정도에 따라 빨라짐(작을수록 빠름)
     @State private var scrollProxy: ScrollViewProxy?
     @State private var deleteBubbleID: UUID?              // 꾹 누르고 안 움직이고 떼면 뜨는 삭제 말풍선
+    @State private var restored = false                   // 공유 스크롤 위치 복원 완료 전엔 onHour 무시(초기 top이 공유값 덮는 것 방지)
 
     private let firstHour = 0
     private let lastHour = 24
@@ -77,12 +78,15 @@ struct DayGridView: View {
                             .frame(height: gridHeight, alignment: .topLeading)
                         }
                         .scrollDisabled(dragID != nil || resizeID != nil)         // 이동/리사이즈 중에만 스크롤 잠금
-                        .onAppear {   // 공유 위치로 시작(없으면 앵커) — 렌더 직후 적용해야 grid 시작=접힘 기준점이 됨
+                        .onAppear {   // 공유 위치로 복원(없으면 앵커). 복원 끝나기 전엔 onHour 무시 → 초기 top이 공유값을 덮지 않게
                             scrollProxy = proxy
-                            DispatchQueue.main.async { proxy.scrollTo(scrollHour ?? scrollAnchorHour, anchor: .top) }
+                            DispatchQueue.main.async {
+                                proxy.scrollTo(scrollHour ?? scrollAnchorHour, anchor: .top)
+                                restored = true
+                            }
                         }
                         .trackScroll(enabled: onScrollDelta != nil, anchorY: anchorY, hourHeight: hourHeight,
-                                     onDelta: onScrollDelta, onHour: { scrollHour = $0 })   // 보이는 페이지만 공유값·진행률 갱신
+                                     onDelta: onScrollDelta, onHour: { if restored { scrollHour = $0 } })   // 복원 후에만 공유값 갱신
                     }
                 }
                 .coordinateSpace(name: "grid")
