@@ -37,7 +37,6 @@ struct DayGridView: View {
     @State private var autoScrollInterval: Double = 0.7   // 당긴 정도에 따라 빨라짐(작을수록 빠름)
     @State private var scrollProxy: ScrollViewProxy?
     @State private var deleteBubbleID: UUID?              // 꾹 누르고 안 움직이고 떼면 뜨는 삭제 말풍선
-    @State private var restored = false                   // 공유 스크롤 위치 복원 완료 전엔 onHour 무시(초기 top이 공유값 덮는 것 방지)
 
     private let firstHour = 0
     private let lastHour = 24
@@ -65,6 +64,7 @@ struct DayGridView: View {
                                         hourRow(h, width: geo.size.width).id(h)
                                     }
                                 }
+                                .scrollTargetLayout()                    // 시간 행 = 스크롤 위치 타깃(공유 복원용)
                                 Rectangle().fill(.white.opacity(0.12))   // 시간 ↔ 일정 구분선
                                     .frame(width: 1, height: gridHeight).offset(x: leftInset)
                                 LongPressArea(minimumDuration: 0.4,                           // 빈 곳 꾹 → 그 위치에 새 일정(스크롤과 동시)
@@ -77,16 +77,14 @@ struct DayGridView: View {
                             }
                             .frame(height: gridHeight, alignment: .topLeading)
                         }
+                        .scrollPosition(id: $scrollHour, anchor: .top)            // 모든 날이 공유하는 위치 — 레이아웃 타이밍 무관 동기 복원
                         .scrollDisabled(dragID != nil || resizeID != nil)         // 이동/리사이즈 중에만 스크롤 잠금
-                        .onAppear {   // 공유 위치로 복원(없으면 앵커). 복원 끝나기 전엔 onHour 무시 → 초기 top이 공유값을 덮지 않게
+                        .onAppear {
                             scrollProxy = proxy
-                            DispatchQueue.main.async {
-                                proxy.scrollTo(scrollHour ?? scrollAnchorHour, anchor: .top)
-                                restored = true
-                            }
+                            if scrollHour == nil { scrollHour = scrollAnchorHour }   // 첫 진입 기준 위치
                         }
                         .trackScroll(enabled: onScrollDelta != nil, anchorY: anchorY, hourHeight: hourHeight,
-                                     onDelta: onScrollDelta, onHour: { if restored { scrollHour = $0 } })   // 복원 후에만 공유값 갱신
+                                     onDelta: onScrollDelta, onHour: { _ in })       // 접힘 진행률만 추적; 위치는 scrollPosition가 공유
                     }
                 }
                 .coordinateSpace(name: "grid")

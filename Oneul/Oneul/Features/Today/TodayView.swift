@@ -60,7 +60,10 @@ struct TodayView: View {
         .sheet(item: $editing, onDismiss: syncLiveActivity) { event in
             EventEditorView(event: event, day: selectedDay)
         }
-        .onAppear { seedIfRequested(); rebuildIndex(); syncLiveActivity() }
+        .onAppear {
+            seedIfRequested(); rebuildIndex(); syncLiveActivity()
+            if sharedScrollHour == nil { sharedScrollHour = max(0, Calendar.current.component(.hour, from: Date()) - 1) }
+        }
         .onChange(of: events) { _, _ in rebuildIndex(); syncLiveActivity() }
     }
 
@@ -309,19 +312,33 @@ struct DayPager<Content: View>: UIViewControllerRepresentable {
         }
         guard !coord.isAnimating else { return }   // 슬라이드 중 재진입 차단(엉뚱한 날 착지 방지)
 
-        // 다른 날 — 슬라이드 점프(클릭에도 슬라이딩 모션). 멀티데이 .scroll은 완료 콜백이 안 올 수 있어
-        // 타임아웃으로도 반드시 정착·보정시켜 스턱(그리드가 옛 날짜에 멈춤)을 막는다.
+        // 다른 날 — 스냅샷 기반 수동 슬라이드: 목표로 즉시 전환(확실히 착지)한 뒤 옛 화면 스냅샷을
+        // 진행 방향으로 밀어내 슬라이드처럼 보이게 한다. UIPageViewController .scroll의 멀티데이 애니메이션
+        // 불발/콜백 누락 문제를 회피 — 클릭으로 며칠을 건너뛰어도 항상 슬라이드되고 정확히 착지.
+        let forward = selectedDay > cur.day
+        let container = pvc.view
+        let w = container?.bounds.width ?? 0
+        let snap = w > 0 ? container?.snapshotView(afterScreenUpdates: false) : nil
         coord.isAnimating = true
-        func settle() {
-            coord.isAnimating = false
-            guard let now = pvc.viewControllers?.first as? Host,
-                  !cal.isDate(now.day, inSameDayAs: coord.parent.selectedDay) else { return }
-            pvc.setViewControllers([coord.host(coord.parent.selectedDay)],
-                                   direction: coord.parent.selectedDay > now.day ? .forward : .reverse, animated: false)
-        }
         pvc.setViewControllers([coord.host(selectedDay)],
-                               direction: selectedDay > cur.day ? .forward : .reverse, animated: true) { _ in settle() }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { if coord.isAnimating { settle() } }
+                               direction: forward ? .forward : .reverse, animated: false)
+        func finishJump() {
+            coord.isAnimating = false
+            guard let nowH = pvc.viewControllers?.first as? Host,
+                  !cal.isDate(nowH.day, inSameDayAs: coord.parent.selectedDay) else { return }
+            pvc.setViewControllers([coord.host(coord.parent.selectedDay)],
+                                   direction: coord.parent.selectedDay > nowH.day ? .forward : .reverse, animated: false)
+        }
+        guard let snap, let container else { finishJump(); return }
+        snap.isUserInteractionEnabled = false
+        snap.frame = container.bounds
+        container.addSubview(snap)
+        UIView.animate(withDuration: 0.3, delay: 0, options: [.curveEaseInOut]) {
+            snap.frame = container.bounds.offsetBy(dx: forward ? -w : w, dy: 0)   // 옛 화면을 진행 방향으로 밀어냄
+        } completion: { _ in
+            snap.removeFromSuperview()
+            finishJump()
+        }
     }
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
