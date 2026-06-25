@@ -198,12 +198,22 @@ enum AppleAI {
         var buf: [String] = []
         func flush() async {
             guard !buf.isEmpty else { return }
-            let chunk = buf.joined(separator: ", "); buf = []
+            let chunkSegs = buf; buf = []
+            let chunk = chunkSegs.joined(separator: ", ")
             guard let cmds = try? await respondCommands(text: chunk, now: refDate, existing: existing, includeExisting: false) else { return }
             let r = route(cmds, text: chunk, now: refDate, existing: existing)
             for e in r.events where e.targetID == nil || seen.insert(e.targetID!).inserted { events.append(e) }
             actions += r.actions
-            if let last = r.events.filter({ $0.action == .create }).map(\.start).max() { refDate = last }   // 다음 조각 기준일
+            // 다음 조각 기준일 = 이 조각에서 마지막으로 언급된 날짜(머리글 포함). 고정 base로 계산해 누적 오류 방지.
+            let cal = Calendar.current
+            let base = cal.startOfDay(for: refDate)
+            var newRef = refDate
+            for s in chunkSegs {
+                if let off = AIKoreanDate.parse(s, now: refDate).relativeDay {
+                    newRef = cal.date(byAdding: .day, value: off, to: base) ?? newRef
+                }
+            }
+            refDate = newRef
         }
         for p in AIKoreanDate.segments(text) { buf.append(p); if buf.count >= 6 { await flush() } }   // 6조각씩
         await flush()
@@ -212,7 +222,8 @@ enum AppleAI {
     }
 
     private static func prompt(text: String, now: Date, existing: [ExistingEvent], includeExisting: Bool) -> String {
-        var p = "현재 시각: \(ISO8601DateFormatter().string(from: now)) (\(TimeZone.current.identifier)).\n"
+        let iso = ISO8601DateFormatter(); iso.timeZone = .current   // 로컬 시간대(모델이 UTC 어제로 안 밀리게)
+        var p = "현재 시각: \(iso.string(from: now)) (\(TimeZone.current.identifier)).\n"
         if let last = lastRequest { p += "직전 질문: \(last)\n" }
         if includeExisting, !existing.isEmpty {
             p += "기존 일정(수정/삭제 대상):\n"
@@ -269,14 +280,40 @@ enum AppleAI {
             return AIResult(events: [multi], actions: [])
         }
 
-        // 한국어 날짜·시각을 코드로 직접 파싱해 슬롯 보정(작은 모델 오류 교정).
-        // 문장을 쉼표·'그리고'로 쪼갠 조각 수가 명령 수와 같으면 명령마다, 아니면 단일 명령만.
+        // 한국어 날짜·시각을 코드로 직접 파싱해 슬롯 보정(작은 모델 오류 교정) + 날짜 머리글 이어받기.
+        // 날짜만 있고 시각 없는 조각("7월 1일")은 머리글로 보고 날짜만 갱신하며 건너뜀.
+        // 날짜 없는 일정 조각은 직전 날짜를 상속 → 큰 일정표에서도 기준 날짜가 유지된다.
         var cmds = commands
         let segs = AIKoreanDate.segments(text)
-        if cmds.count >= 1 && segs.count == cmds.count {
-            for i in cmds.indices { cmds[i] = applyParsed(AIKoreanDate.parse(segs[i], now: now), to: cmds[i]) }
+        func inherit(_ i: Int, _ rd: Int) {
+            cmds[i].relativeDay = rd; cmds[i].weekday = ""; cmds[i].weekOffset = 0; cmds[i].month = 0; cmds[i].day = 0
+        }
+        if cmds.count == 1 && segs.count <= 1 {
+            cmds[0] = applyParsed(AIKoreanDate.parse(text, now: now), to: cmds[0])
+        } else if segs.count == cmds.count {
+            // 머리글 없음: 1:1 보정 + 날짜 이어받기
+            var carry: Int?
+            for i in cmds.indices {
+                let p = AIKoreanDate.parse(segs[i], now: now)
+                if let rd = p.relativeDay { carry = rd }
+                cmds[i] = applyParsed(p, to: cmds[i])
+                if p.relativeDay == nil, let rd = carry { inherit(i, rd) }
+            }
         } else if cmds.count == 1 {
             cmds[0] = applyParsed(AIKoreanDate.parse(text, now: now), to: cmds[0])
+        } else {
+            // 조각 수 ≠ 명령 수(날짜 머리글 등이 섞임): 머리글은 건너뛰고 이벤트만 순서대로 매칭 + 이어받기
+            var carry: Int?
+            var ci = 0
+            for s in segs {
+                let p = AIKoreanDate.parse(s, now: now)
+                if let rd = p.relativeDay { carry = rd }
+                if p.relativeDay != nil && p.startHour == nil { continue }   // 날짜만 있는 머리글
+                guard ci < cmds.count else { break }
+                cmds[ci] = applyParsed(p, to: cmds[ci])
+                if p.relativeDay == nil, let rd = carry { inherit(ci, rd) }
+                ci += 1
+            }
         }
 
         for c in cmds {
