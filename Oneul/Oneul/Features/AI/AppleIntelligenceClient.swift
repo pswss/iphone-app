@@ -174,37 +174,59 @@ enum AppleAI {
             }
         }
 
-        let isoNow = ISO8601DateFormatter().string(from: now)
-        func buildPrompt(includeExisting: Bool) -> String {
-            var p = "현재 시각: \(isoNow) (\(TimeZone.current.identifier)).\n"
-            if let last = lastRequest { p += "직전 질문: \(last)\n" }
-            if includeExisting, !existing.isEmpty {
-                p += "기존 일정(수정/삭제 대상):\n"
-                for (i, e) in existing.enumerated() { p += "[\(i + 1)] \(shortDate(e.start)) \(e.title)\n" }
-            }
-            p += "\n요청: \(text)"
-            return p
+        func finish(_ cmds: [GenCommand]) async -> AIResult {
+            var result = route(cmds, text: text, now: now, existing: existing)
+            result = await resolveLocations(in: result)   // 장소를 실제 존재하는 곳으로 검증(지어내기 방지)
+            lastRequest = text
+            return result
         }
 
-        // 컨텍스트(글자수) 초과 등으로 실패하면 기존 일정 목록을 빼고 짧게 한 번 더 시도.
-        let commands: [GenCommand]
-        do {
-            let session = _primed ?? LanguageModelSession(instructions: instructions)
-            _primed = nil
-            commands = try await session.respond(to: buildPrompt(includeExisting: true),
-                                                 generating: GenResponse.self).content.commands
-        } catch {
-            _primed = nil
-            let session = LanguageModelSession(instructions: instructions)
-            commands = try await session.respond(to: buildPrompt(includeExisting: false),
-                                                 generating: GenResponse.self).content.commands
+        // 1) 평소: 기존 일정 포함 한 번에
+        if let cmds = try? await respondCommands(text: text, now: now, existing: existing, includeExisting: true) {
+            return await finish(cmds)
         }
-        prewarm()   // 다음 요청용 세션 미리 데움
-
-        var result = route(commands, text: text, now: now, existing: existing)
-        result = await resolveLocations(in: result)   // 장소를 실제 존재하는 곳으로 검증(지어내기 방지)
+        // 2) 컨텍스트(글자수) 초과 → 기존 일정 목록 빼고 한 번에
+        if let cmds = try? await respondCommands(text: text, now: now, existing: existing, includeExisting: false) {
+            return await finish(cmds)
+        }
+        // 3) 그래도 크면: 입력을 조각으로 나눠 알맞게 끊어 모델에 먹이고 결과를 합침
+        var events: [ParsedEvent] = []
+        var actions: [AIAction] = []
+        var seen = Set<UUID>()
+        var buf: [String] = []
+        func flush() async {
+            guard !buf.isEmpty else { return }
+            let chunk = buf.joined(separator: ", "); buf = []
+            guard let cmds = try? await respondCommands(text: chunk, now: now, existing: existing, includeExisting: false) else { return }
+            let r = route(cmds, text: chunk, now: now, existing: existing)
+            for e in r.events where e.targetID == nil || seen.insert(e.targetID!).inserted { events.append(e) }
+            actions += r.actions
+        }
+        for p in AIKoreanDate.segments(text) { buf.append(p); if buf.count >= 6 { await flush() } }   // 6조각씩
+        await flush()
         lastRequest = text
-        return result
+        return await resolveLocations(in: AIResult(events: events, actions: actions))
+    }
+
+    private static func prompt(text: String, now: Date, existing: [ExistingEvent], includeExisting: Bool) -> String {
+        var p = "현재 시각: \(ISO8601DateFormatter().string(from: now)) (\(TimeZone.current.identifier)).\n"
+        if let last = lastRequest { p += "직전 질문: \(last)\n" }
+        if includeExisting, !existing.isEmpty {
+            p += "기존 일정(수정/삭제 대상):\n"
+            for (i, e) in existing.enumerated() { p += "[\(i + 1)] \(shortDate(e.start)) \(e.title)\n" }
+        }
+        p += "\n요청: \(text)"
+        return p
+    }
+
+    /// 모델 1회 호출.
+    private static func respondCommands(text: String, now: Date, existing: [ExistingEvent], includeExisting: Bool) async throws -> [GenCommand] {
+        let session = _primed ?? LanguageModelSession(instructions: instructions)
+        _primed = nil
+        let cmds = try await session.respond(to: prompt(text: text, now: now, existing: existing, includeExisting: includeExisting),
+                                             generating: GenResponse.self).content.commands
+        prewarm()
+        return cmds
     }
 
     /// create/update 이벤트의 장소를 MapKit으로 검증 — 실제 장소면 그 이름, 없으면 비움.

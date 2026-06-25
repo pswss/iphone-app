@@ -332,4 +332,5 @@ enum AIKoreanDate {
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
     }
+
 }
