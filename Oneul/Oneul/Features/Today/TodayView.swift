@@ -297,32 +297,15 @@ struct DayPager<Content: View>: UIViewControllerRepresentable {
 
     func updateUIViewController(_ pvc: UIPageViewController, context: Context) {
         context.coordinator.parent = self
-        let coord = context.coordinator
         let cal = Calendar.current
         guard let cur = pvc.viewControllers?.first as? Host else { return }
-
-        // 이미 선택일에 정착 → 보이는 페이지 내용만 갱신(일정 추가·이동 등 데이터 반영) + 가드 해제(스턱 방지)
         if cal.isDate(cur.day, inSameDayAs: selectedDay) {
-            coord.isAnimating = false
-            cur.rootView = AnyView(content(cur.day))
-            return
-        }
-
-        // 다른 날로 점프(클릭) — 애니메이션 중이면 재진입 차단(엉뚱한 날 착지 버그 방지)
-        guard !coord.isAnimating else { return }
-        let diff = cal.dateComponents([.day], from: cal.startOfDay(for: cur.day),
-                                      to: cal.startOfDay(for: selectedDay)).day ?? 0
-        let forward = selectedDay > cur.day
-        let animated = abs(diff) <= 7                                 // 일주일 안은 슬라이드, 그 이상은 즉시
-        coord.isAnimating = animated
-        pvc.setViewControllers([coord.host(selectedDay)],
-                               direction: forward ? .forward : .reverse, animated: animated) { _ in
-            coord.isAnimating = false
-            // 애니메이션 도중 선택일이 또 바뀌었으면 즉시 보정(스턱/드리프트로 엉뚱한 날 머무는 것 방지)
-            guard let now = pvc.viewControllers?.first as? Host,
-                  !cal.isDate(now.day, inSameDayAs: coord.parent.selectedDay) else { return }
-            pvc.setViewControllers([coord.host(coord.parent.selectedDay)],
-                                   direction: coord.parent.selectedDay > now.day ? .forward : .reverse, animated: false)
+            cur.rootView = AnyView(content(cur.day))                  // 같은 날 — 데이터 반영(일정 추가·이동 등)
+        } else {
+            // 다른 날 — 즉시 점프. 멀티데이 .scroll 애니메이션은 완료 콜백이 안 와 그리드가 옛 날짜에 스턱되므로,
+            // 프로그램 이동(클릭 등)은 애니메이션 없이 확실히 착지시킨다(손가락 스와이프는 네이티브 슬라이드 유지).
+            pvc.setViewControllers([context.coordinator.host(selectedDay)],
+                                   direction: selectedDay > cur.day ? .forward : .reverse, animated: false)
         }
     }
 
@@ -330,7 +313,6 @@ struct DayPager<Content: View>: UIViewControllerRepresentable {
 
     final class Coordinator: NSObject, UIPageViewControllerDataSource, UIPageViewControllerDelegate {
         var parent: DayPager
-        var isAnimating = false                  // 프로그램 슬라이드 진행 중(재진입 차단용)
         init(_ parent: DayPager) { self.parent = parent }
 
         func host(_ day: Date) -> Host { Host(day: day, rootView: AnyView(parent.content(day))) }
