@@ -37,6 +37,7 @@ struct DayGridView: View {
     @State private var autoScrollInterval: Double = 0.7   // 당긴 정도에 따라 빨라짐(작을수록 빠름)
     @State private var scrollProxy: ScrollViewProxy?
     @State private var deleteBubbleID: UUID?              // 꾹 누르고 안 움직이고 떼면 뜨는 삭제 말풍선
+    @State private var menuW: CGFloat = 280               // 컨텍스트 메뉴 실측 폭(화면 밖으로 안 나가게 클램프용)
 
     private let firstHour = 0
     private let lastHour = 24
@@ -196,7 +197,15 @@ struct DayGridView: View {
             .overlay(alignment: .topTrailing) { bubble(e, dy: dy, show: dragging) }
             .overlay { if selected { cornerHighlight(shape).allowsHitTesting(false) } }  // 왼쪽 아래 코너 곡선만 흰색
             .overlay { gestureLayer(e, selected: selected, h: h) }   // 본문=탭/이동, 위·아래 손잡이=리사이즈
-            .overlay(alignment: .top) { if deleteBubbleID == e.id { eventMenu(e) } }   // 꾹 눌렀다 떼면 컨텍스트 메뉴
+            .overlay(alignment: .top) {   // 꾹 눌렀다 떼면 컨텍스트 메뉴 — 화면 밖으로 안 나가게 가로 클램프
+                if deleteBubbleID == e.id {
+                    let blockCenter = leftInset + CGFloat(item.col) * (colW + colGap) + colW / 2
+                    let contentW = leftInset + gridW + 8
+                    let half = menuW / 2
+                    let desired = min(max(blockCenter, half + 6), contentW - half - 6)
+                    eventMenu(e, shift: desired - blockCenter)
+                }
+            }
             .scaleEffect(1)   // 확대 없음(하이라이트/이동 시 블록 크기 그대로)
             .offset(x: leftInset + CGFloat(item.col) * (colW + colGap), y: top + dy)
             .zIndex(dragging || resizing || deleteBubbleID == e.id ? 100000 : (selected ? 10000 : Double(item.order)))
@@ -374,27 +383,47 @@ struct DayGridView: View {
         if !autoScrolling { autoScrolling = true; autoScrollTick(e) }
     }
 
-    /// 일정 위 컨텍스트 메뉴(애플 캘린더식): 잘라내기 · 복사 · 복제 · 삭제.
-    private func eventMenu(_ e: ScheduleEvent) -> some View {
+    /// 일정 위 컨텍스트 메뉴(애플 캘린더식). 라벨은 기기(시스템) 언어. shift만큼 가로로 밀어 화면 안에 두고, 꼬리는 일정 위에 유지.
+    private func eventMenu(_ e: ScheduleEvent, shift: CGFloat) -> some View {
         VStack(spacing: 0) {
             HStack(spacing: 0) {
-                menuItem(lang.tr("잘라내기")) { EventClipboard.copy(e); EventActions.deleteSingle(e, in: context); dismissMenu() }
+                menuItem(deviceTerm("잘라내기", "Cut", "カット", "剪切", "剪下", "Cortar", "Couper", "Ausschneiden")) {
+                    EventClipboard.copy(e); EventActions.deleteSingle(e, in: context); dismissMenu() }
                 menuSep
-                menuItem(lang.tr("복사")) { EventClipboard.copy(e); dismissMenu() }
+                menuItem(deviceTerm("복사", "Copy", "コピー", "拷贝", "拷貝", "Copiar", "Copier", "Kopieren")) {
+                    EventClipboard.copy(e); dismissMenu() }
                 menuSep
-                menuItem(lang.tr("복제")) { duplicate(e); dismissMenu() }
+                menuItem(deviceTerm("복제", "Duplicate", "複製", "复制", "複製", "Duplicar", "Dupliquer", "Duplizieren")) {
+                    duplicate(e); dismissMenu() }
                 menuSep
-                menuItem(lang.tr("삭제"), tint: .red) { EventActions.deleteSingle(e, in: context); Haptics.notify(.warning); dismissMenu() }
+                menuItem(deviceTerm("삭제", "Delete", "削除", "删除", "刪除", "Eliminar", "Supprimer", "Löschen"), tint: .red) {
+                    EventActions.deleteSingle(e, in: context); Haptics.notify(.warning); dismissMenu() }
             }
             .frame(height: 42)
             .fixedSize()
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous).strokeBorder(.white.opacity(0.12)))
+            .background(GeometryReader { g in Color.clear.onAppear { menuW = g.size.width } })   // 실측 폭 → 클램프
             DownTriangle().fill(.regularMaterial).frame(width: 18, height: 9)
+                .offset(x: -shift)                                   // 메뉴는 밀려도 꼬리는 일정 위를 가리킴
         }
         .shadow(color: .black.opacity(0.35), radius: 10, y: 4)
-        .offset(y: -56)
+        .offset(x: shift, y: -56)
         .transition(.scale(scale: 0.7, anchor: .bottom).combined(with: .opacity))
+    }
+
+    /// 기기(시스템) 언어 기준 표준 편집 용어(앱 언어 토글과 무관). 미지원 언어는 영어로.
+    private func deviceTerm(_ ko: String, _ en: String, _ ja: String, _ zhHans: String, _ zhHant: String,
+                            _ es: String, _ fr: String, _ de: String) -> String {
+        switch Locale.current.language.languageCode?.identifier {
+        case "ko": return ko
+        case "ja": return ja
+        case "zh": return Locale.current.language.script?.identifier == "Hant" ? zhHant : zhHans
+        case "es": return es
+        case "fr": return fr
+        case "de": return de
+        default: return en
+        }
     }
 
     private func menuItem(_ title: String, tint: Color = .primary, _ action: @escaping () -> Void) -> some View {
