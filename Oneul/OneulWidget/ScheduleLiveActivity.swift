@@ -5,16 +5,6 @@ import ActivityKit
 /// 앱 언어(state.isEnglish)에 따라 한/영. 위젯은 App Group 없이도 ContentState로 언어를 전달받는다.
 func L(_ ko: String, _ en: String, _ english: Bool) -> String { english ? en : ko }
 
-/// 남은 시간 거친 표기(초 없음): 1시간 이상 → "n시간", 미만 → "n분", 1분 미만 → "< 1분".
-func remainingLabel(to target: Date, english: Bool) -> String {
-    let secs = target.timeIntervalSince(Date())
-    if secs <= 0 { return english ? "soon" : "곧" }
-    let mins = Int(secs) / 60
-    if mins < 1 { return english ? "< 1 min" : "< 1분" }
-    if mins < 60 { return english ? "\(mins) min" : "\(mins)분" }
-    return english ? "\(Int(secs) / 3600) hr" : "\(Int(secs) / 3600)시간"
-}
-
 struct ScheduleLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: ScheduleActivityAttributes.self) { context in
@@ -76,17 +66,23 @@ struct ScheduleLiveActivity: Widget {
         return L("다음", "Next", s.isEnglish) + " · \(title) \(f.string(from: start))"
     }
 
-    // 진행 중이면 '진행 중', 아니면 다음 일정까지 남은 시간(초 없음).
+    // 진행 중이면 끝까지, 아니면 다음 일정까지 — 자동으로 흐르는 카운트다운(앱 안 열어도 갱신).
     @ViewBuilder
     private func countdownText(_ s: ScheduleActivityAttributes.ContentState) -> some View {
-        if s.currentTitle != nil {
-            Text(L("진행 중", "Now", s.isEnglish))
+        if s.currentTitle != nil, let end = s.currentEnd, end > .now {
+            liveTimer(to: end)
         } else if let start = s.nextStart, start > .now {
-            Text(remainingLabel(to: start, english: s.isEnglish))
+            liveTimer(to: start)
         } else {
             Text(L("오늘 끝", "Done", s.isEnglish))
         }
     }
+}
+
+/// 시스템이 1초마다 자동 갱신하는 카운트다운 텍스트(콘텐츠 푸시 없이 흐름).
+@ViewBuilder
+func liveTimer(to date: Date) -> some View {
+    Text(timerInterval: min(Date(), date)...date, countsDown: true).monospacedDigit()
 }
 
 /// 잠금화면에 뜨는 카드 본문.
@@ -115,15 +111,21 @@ struct LockScreenView: View {
 
     @ViewBuilder
     private var countdown: some View {
-        if state.currentTitle != nil {
-            Text(L("진행 중", "Now", en))
-                .font(.caption).bold().foregroundStyle(.white)
+        if state.currentTitle != nil, let end = state.currentEnd, end > .now {
+            countLabel(L("끝까지 ", "ends in ", en), to: end)
         } else if let start = state.nextStart, start > .now {
-            Text(L("다음까지 ", "in ", en) + remainingLabel(to: start, english: en))
-                .font(.caption).bold().foregroundStyle(.white)
+            countLabel(L("다음까지 ", "in ", en), to: start)
         } else {
             Text(L("오늘 끝", "Done", en)).font(.caption).bold().foregroundStyle(.white.opacity(0.7))
         }
+    }
+
+    private func countLabel(_ prefix: String, to date: Date) -> some View {
+        HStack(spacing: 2) {
+            Text(prefix)
+            liveTimer(to: date)
+        }
+        .font(.caption).bold().foregroundStyle(.white)
     }
 
     private func timeString(_ date: Date) -> String {

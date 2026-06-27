@@ -14,6 +14,15 @@ final class LiveActivityController {
     func refresh(plan: DayPlan, dayLabel: String) {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
 
+        // 이미 떠 있는 Activity 재연결 — 앱 재실행/백그라운드 작업은 새 프로세스라 메모리 참조(activity)가 nil이라
+        // 매번 새로 만들어 '중복'이 생겼다. 살아있는 것을 다시 잡고, 2개 이상이면 하나만 남기고 정리한다.
+        let running = Activity<ScheduleActivityAttributes>.activities
+        if activity == nil { activity = running.first }
+        if running.count > 1 {
+            let keepID = activity?.id
+            Task { for a in running where a.id != keepID { await a.end(nil, dismissalPolicy: .immediate) } }
+        }
+
         // 오늘 일정이 없으면 진행 중인 Activity 종료.
         guard !plan.isEmpty else {
             Task { await end() }
