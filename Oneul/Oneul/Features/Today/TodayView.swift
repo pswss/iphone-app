@@ -267,19 +267,25 @@ struct TodayView: View {
     }
 
     private func syncLiveActivity() {
-        let todayPlan = DayPlan(events: events, day: .now)
-        LiveActivityController.shared.refresh(plan: todayPlan, dayLabel: todayLabel())
+        // 오늘이 비어도 가장 가까운(다가오는) 일정 있는 날을 띄움 → 일정이 미래여도 Live Activity가 보임.
+        let shown = DayPlan.upcoming(events: events)
+        if let shown {
+            LiveActivityController.shared.refresh(plan: shown.plan, dayLabel: dayLabel(for: shown.day))
+        } else {
+            Task { await LiveActivityController.shared.end() }
+        }
         NotificationManager.shared.reschedule(for: events)   // 전체 일정(가까운 알림 + 시험 전날)
         #if canImport(WatchConnectivity)
-        WatchSync.shared.send(todayPlan.watchPayload(dayLabel: todayLabel()))   // 애플워치로 오늘 일정 전송
+        let wp = (shown?.plan ?? DayPlan(events: events, day: .now))
+        WatchSync.shared.send(wp.watchPayload(dayLabel: dayLabel(for: shown?.day ?? .now)))
         #endif
     }
 
-    private func todayLabel() -> String {
+    private func dayLabel(for day: Date) -> String {
         let f = DateFormatter()
         f.locale = Locale(identifier: "ko_KR")
         f.dateFormat = "M월 d일 EEEE"
-        return f.string(from: .now)
+        return f.string(from: day)
     }
 }
 

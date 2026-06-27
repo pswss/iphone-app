@@ -26,20 +26,26 @@ enum BackgroundRefresh {
         Task { @MainActor in
             let context = ModelContext(container)
             let events = (try? context.fetch(FetchDescriptor<ScheduleEvent>())) ?? []
-            let plan = DayPlan(events: events, day: .now)
-            LiveActivityController.shared.refresh(plan: plan, dayLabel: label())
+            // 가장 가까운 일정 있는 날(오늘 비어도 미래 일정 표시) — 포그라운드와 동일 로직, BGTask가 미래 LA를 끄지 않게.
+            let shown = DayPlan.upcoming(events: events)
+            if let shown {
+                LiveActivityController.shared.refresh(plan: shown.plan, dayLabel: label(for: shown.day))
+            } else {
+                await LiveActivityController.shared.end()
+            }
             #if canImport(WatchConnectivity)
-            WatchSync.shared.send(plan.watchPayload(dayLabel: label()))
+            let wp = shown?.plan ?? DayPlan(events: events, day: .now)
+            WatchSync.shared.send(wp.watchPayload(dayLabel: label(for: shown?.day ?? .now)))
             #endif
             task.setTaskCompleted(success: true)
         }
         task.expirationHandler = { task.setTaskCompleted(success: false) }
     }
 
-    private static func label() -> String {
+    private static func label(for day: Date) -> String {
         let f = DateFormatter()
         f.locale = Locale(identifier: "ko_KR")
         f.dateFormat = "M월 d일 EEEE"
-        return f.string(from: .now)
+        return f.string(from: day)
     }
 }

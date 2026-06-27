@@ -33,6 +33,18 @@ struct DayPlan {
 
     var isEmpty: Bool { events.isEmpty }
 
+    /// 오늘부터 가장 가까운, 일정이 있는 날의 플랜(없으면 nil).
+    /// Live Activity가 오늘이 비어도 다가오는 일정을 보여주도록.
+    static func upcoming(events: [ScheduleEvent], within days: Int = 14,
+                         now: Date = .now, calendar: Calendar = .current) -> (plan: DayPlan, day: Date)? {
+        for off in 0..<days {
+            guard let d = calendar.date(byAdding: .day, value: off, to: now) else { continue }
+            let p = DayPlan(events: events, day: d)
+            if !p.isEmpty { return (p, d) }
+        }
+        return nil
+    }
+
     /// 그날 하루 안에서 시작·종료하는 일정 (무지개 바 패킹 대상).
     var singleDayEvents: [ScheduleEvent] { events.filter { !$0.isMultiDay() } }
     /// 이틀 이상 걸치는 일정 (바 상단 흰 글로우 밴드 대상).

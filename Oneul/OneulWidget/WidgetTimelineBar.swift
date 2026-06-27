@@ -27,26 +27,27 @@ struct WidgetTimelineBar: View {
                         .frame(height: height)
                         .frame(maxHeight: .infinity, alignment: .center)
 
+                    // 무지개 일정 칸(스케줄 개요)
                     ForEach(Array(single.enumerated()), id: \.element.id) { idx, seg in
                         let slot = layout.slots[idx]
-                        let isCurrent = now >= seg.start && now < seg.end
-                        let isPast = now >= seg.end
-
                         RoundedRectangle(cornerRadius: 3, style: .continuous)
                             .fill(EventPalette.color(seg.colorIndex, of: state.segments.count))
                             .frame(width: max(2, slot.width * w - 1.5), height: height)
-                            .opacity(isPast ? 0.3 : (isCurrent ? 1 : 0.55))
+                            .opacity(0.5)
                             .offset(x: slot.left * w + 0.75)
                             .frame(maxHeight: .infinity, alignment: .center)
                     }
 
-                    if !single.isEmpty {
-                        let px = frac * w
-                        Capsule()
-                            .fill(.white)
-                            .frame(width: 2, height: height + 8)
-                            .shadow(color: .white.opacity(0.8), radius: 3)
-                            .offset(x: px - 1)
+                    // 흐르는 진행(무료, 푸시 없이 시스템이 자동 갱신): 일정마다 빌트인 타이머 진행바.
+                    // 그 일정 시간 동안만 흰 진행이 차오르고, 사이 공백 시간엔 멈췄다가 다음 일정 시작에 재개된다.
+                    ForEach(Array(single.enumerated()), id: \.element.id) { idx, seg in
+                        let slot = layout.slots[idx]
+                        ProgressView(timerInterval: seg.start...seg.end, countsDown: false)
+                            .labelsHidden()
+                            .progressViewStyle(.linear)
+                            .tint(.white)
+                            .frame(width: max(2, slot.width * w - 1.5))
+                            .offset(x: slot.left * w + 0.75)
                             .frame(maxHeight: .infinity, alignment: .center)
                     }
                 }
