@@ -31,11 +31,11 @@ struct AIScheduleView: View {
                 GeometryReader { geo in
                     ScrollView {
                         VStack(alignment: .leading, spacing: 14) {
-                            Text("Works through Apple Intelligence")   // 지칭적 표기(영어 고정, 아이콘 없음)
-                                .font(.caption2).foregroundStyle(.secondary)
-                                .frame(maxWidth: .infinity, alignment: .center)
                             inputCard
                             generateButton
+                            Text("Works through Apple Intelligence")   // 지칭적 표기(영어 고정) — 전송 버튼 아래
+                                .font(.caption2).foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .center)
                             if let errorMessage {
                                 Text(errorMessage)
                                     .font(.footnote).foregroundStyle(.red)

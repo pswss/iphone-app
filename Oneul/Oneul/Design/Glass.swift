@@ -17,8 +17,7 @@ struct GlassCard: ViewModifier {
                 shape.strokeBorder(.white.opacity(0.25), lineWidth: 1)
             )
             .clipShape(shape)
-            .shadow(color: .black.opacity(0.10), radius: 5, x: 0, y: 2)    // 가까운 약한 그림자
-            .shadow(color: .black.opacity(0.10), radius: 22, x: 0, y: 12)   // 먼 부드러운 그림자(자연스러운 깊이)
+            .shadow(color: .black.opacity(0.06), radius: 10, x: 0, y: 4)   // 은은한 그림자 1개(라이트 배경에서 회색 후광 안 생기게)
     }
 
     private var shape: RoundedRectangle {

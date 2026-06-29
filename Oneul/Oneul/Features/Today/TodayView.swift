@@ -170,7 +170,7 @@ struct TodayView: View {
                     scrollHour: active ? $sharedScrollHour : .constant(sharedScrollHour),   // 보이는 페이지만 공유값에 쓰기(옆 페이지가 자정으로 덮는 것 방지)
                     onScrollDelta: active ? { delta in
                         guard timelineH > 0 else { return }
-                        timelineProgress = min(1, max(0, delta / timelineH))   // 스크롤한 만큼 1:1로 접힘(타임라인 높이만큼 스크롤하면 완전히 접힘)
+                        timelineProgress = min(1, max(0, delta / 150))   // 150pt 스크롤로 상단이 완전히 접힘(스냅)
                     } : nil)
         .padding(.horizontal, 16)
     }

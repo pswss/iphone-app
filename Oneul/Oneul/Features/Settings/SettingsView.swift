@@ -12,31 +12,28 @@ struct SettingsView: View {
         NavigationStack {
             ZStack {
                 AppBackground()
-                VStack(spacing: 0) {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 16) {
-                            sectionTitle(lang.tr("언어"))
-                            languageCard
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        sectionTitle(lang.tr("언어"))
+                        languageCard
 
-                            sectionTitle(lang.tr("사용자 유형"))
-                            userTypeCard
+                        sectionTitle(lang.tr("사용자 유형"))
+                        userTypeCard
 
-                            sectionTitle(lang.tr("외형"))
-                            appearanceCard
+                        sectionTitle(lang.tr("외형"))
+                        appearanceCard
 
-                            sectionTitle(lang.tr("개인정보"))
-                            privacyCard
-                        }
-                        .padding(16)
-                        .frame(maxWidth: 640)
-                        .frame(maxWidth: .infinity)
+                        sectionTitle(lang.tr("개인정보"))
+                        privacyCard
+
+                        Text(lang.tr("학사일정·급식·시간표: 나이스(NEIS) 교육정보 개방 포털 (교육부)"))   // 출처(그냥 글자)
+                            .font(.caption2).foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.top, 6)
                     }
-                    // 출처(그냥 글자) — 화면 맨 아래 고정 푸터
-                    Text(lang.tr("학사일정·급식·시간표: 나이스(NEIS) 교육정보 개방 포털 (교육부)"))
-                        .font(.caption2).foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 8)
+                    .padding(16)
+                    .frame(maxWidth: 640)
+                    .frame(maxWidth: .infinity)
                 }
             }
             .navigationTitle(lang.tr("설정"))
