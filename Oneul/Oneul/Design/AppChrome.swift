@@ -143,7 +143,8 @@ final class AppLanguage {
         "라이트": "Light",
         "다크": "Dark",
         "‘시스템’은 기기 설정(다크/라이트)을 따릅니다.": "'System' follows your device setting.",
-        // 개인정보
+        // 개인정보 · AI
+        "AI 비서는 Apple Intelligence로 기기에서 동작합니다": "The AI assistant works on-device through Apple Intelligence",
         "개인정보": "Privacy",
         "개인정보 처리방침": "Privacy Policy",
         "모든 데이터 초기화": "Reset all data",

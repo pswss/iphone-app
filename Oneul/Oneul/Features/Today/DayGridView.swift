@@ -85,7 +85,7 @@ struct DayGridView: View {
                             scrollProxy = proxy
                             if scrollHour == nil { scrollHour = scrollAnchorHour }   // 첫 진입 기준 위치
                         }
-                        .trackScroll(enabled: onScrollDelta != nil, anchorY: anchorY, hourHeight: hourHeight,
+                        .trackScroll(enabled: onScrollDelta != nil, hourHeight: hourHeight,
                                      onDelta: onScrollDelta, onHour: { _ in })       // 접힘 진행률만 추적; 위치는 scrollPosition가 공유
                     }
                 }
@@ -603,11 +603,11 @@ private struct LongPressArea: UIViewRepresentable {
 // MARK: - 스크롤 진행량 추적(앵커 대비) — 타임라인 연속 접기. iOS 18+에서만, 그 이하는 그대로
 private extension View {
     @ViewBuilder
-    func trackScroll(enabled: Bool, anchorY: CGFloat, hourHeight: CGFloat,
+    func trackScroll(enabled: Bool, hourHeight: CGFloat,
                      onDelta: ((CGFloat) -> Void)?, onHour: @escaping (Int) -> Void) -> some View {
         if #available(iOS 18, *), enabled {
             self.onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { _, y in
-                onDelta?(y - anchorY)                  // 진행률(앵커 절대 위치 대비)
+                onDelta?(y)                            // 그리드 절대 스크롤량(최상단=0) → 접힘 진행률 계산
                 onHour(Int((y / hourHeight).rounded()))  // 공유 스크롤 위치(보이는 페이지만)
             }
         } else {

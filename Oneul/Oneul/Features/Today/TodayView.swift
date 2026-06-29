@@ -181,9 +181,9 @@ struct TodayView: View {
         let active = Calendar.current.isDate(d, inSameDayAs: selectedDay)
         return grid(p, d,
                     scrollHour: active ? $sharedScrollHour : .constant(sharedScrollHour),   // 보이는 페이지만 공유값에 쓰기(옆 페이지가 자정으로 덮는 것 방지)
-                    onScrollDelta: active ? { delta in
-                        // delta = 그리드 스크롤량(앵커=현재 시각 기준). 데드존 22 지나야 접히기 시작, 253pt에 걸쳐 완전히 접힘.
-                        timelineProgress = min(1, max(0, (delta - 22) / 253))
+                    onScrollDelta: active ? { y in
+                        // y = 그리드 절대 스크롤량(최상단=0). 데드존 22 지나야 접히기 시작, 253pt에 걸쳐 완전히 접힘.
+                        timelineProgress = min(1, max(0, (y - 22) / 253))
                     } : nil)
         .padding(.horizontal, 16)
     }
