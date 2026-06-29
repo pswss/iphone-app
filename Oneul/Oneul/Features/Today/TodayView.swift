@@ -12,9 +12,8 @@ struct TodayView: View {
     @State private var addStart: Date?
     @State private var eventsByDay: [Date: [ScheduleEvent]] = [:]
     @State private var indexVersion = 0                // eventsByDay 재구성 때마다 증가 → DayPager가 최신 인덱스로 갱신
-    @State private var timelineProgress: CGFloat = 0   // 0=펼침, 1=완전 접힘 (스크롤에 연속 연동)
-    @State private var timelineH: CGFloat = 0          // 접히는 상단(헤더+D-Day+캘린더+타임라인) 자연 높이
-    @State private var lastScrollSignal: CGFloat = 0   // 직전 스크롤 신호 — 방향(증감)으로 접힘/펼침 판단
+    @State private var timelineProgress: CGFloat = 0   // 상단 접힘 진행률 0~1 (그리드 스크롤 위치 기반)
+    @State private var rowH: [Int: CGFloat] = [:]      // 접히는 위젯 4개 자연 높이(index→height)
     @State private var sharedScrollHour: Int?          // 모든 날 grid가 공유하는 세로 스크롤 위치(슬라이드해도 유지)
     private let lang = AppLanguage.shared
     @AppStorage("userType") private var userType = "general"
@@ -116,25 +115,20 @@ struct TodayView: View {
     // MARK: 아이폰(세로) — 손가락 좌우 스와이프로 날짜 이동(애플 캘린더식)
     private var narrowContent: some View {
         VStack(spacing: 0) {
-            // 접힌 상태에서 위에 남는 월·연 제목 — 스크롤할수록 나타남
+            // 맨 위에선 숨고(progress 0), 접힐수록 나타나는 월·연 제목
             compactMonthTitle
                 .frame(height: compactTitleH * timelineProgress)
                 .opacity(Double(timelineProgress))
                 .clipped()
 
-            // 헤더+D-Day+캘린더+타임라인 묶음 — 통째로 위로 미끄러져 올라감(hide on scroll)
-            collapsingChrome
-                .offset(y: -timelineH * timelineProgress)
-                .frame(height: timelineH > 0 ? max(0, timelineH * (1 - timelineProgress)) : nil, alignment: .top)
-                .clippedIf(timelineProgress > 0.001)   // 펼친 상태(progress 0)에선 클립 안 함 → 카드 그림자 안 잘림
-                .padding(.bottom, 12 * (1 - timelineProgress))   // 그리드와의 간격도 같이 접힘
+            collapsingChrome   // 헤더·D-Day·캘린더·타임라인이 아래→위 순으로 하나씩 계단식 접힘
 
             DayPager(selectedDay: $selectedDay, refreshID: gridToken) { day in   // UIPageViewController 3페이지 재사용
                 gridPage(day)
             }
         }
         .padding(.top, 8)
-        .onPreferenceChange(TimelineHeightKey.self) { if $0 > 0 { timelineH = $0 } }
+        .onPreferenceChange(RowHeightKey.self) { rowH.merge($0) { _, n in n } }
     }
 
     private let compactTitleH: CGFloat = 34
@@ -146,21 +140,39 @@ struct TodayView: View {
             .frame(maxWidth: .infinity)
     }
 
-    // 접히는 상단 묶음(헤더+D-Day+캘린더+타임라인) — 자연 높이를 재서(TimelineHeightKey) 바깥 frame이 접고,
-    // offset으로 위로 미끄러뜨린다(hide on scroll). 그리드 스크롤량(timelineProgress)에 연속 연동.
+    // 접히는 상단 묶음 — 각 위젯이 자기 차례(order)에 맞춰 개별로 접힌다(계단식, 아래→위).
     private var collapsingChrome: some View {
-        VStack(spacing: 12) {
-            header
-            dDayBar
-            CalendarBar(selectedDay: $selectedDay)
-            timelineCard(plan, live: Calendar.current.isDateInToday(selectedDay))
-                .fixedSize(horizontal: false, vertical: true)
+        VStack(spacing: 0) {
+            chromeRow(index: 0, order: 3) { header }
+            chromeRow(index: 1, order: 2) { dDayBar }
+            chromeRow(index: 2, order: 1) { CalendarBar(selectedDay: $selectedDay) }
+            chromeRow(index: 3, order: 0) { timelineCard(plan, live: Calendar.current.isDateInToday(selectedDay)) }
         }
         .padding(.horizontal, 16)
-        .fixedSize(horizontal: false, vertical: true)
-        .background(GeometryReader { g in
-            Color.clear.preference(key: TimelineHeightKey.self, value: g.size.height)
-        })
+    }
+
+    // 위젯 한 줄 — 자연 높이를 재서(RowHeightKey) 로컬 진행률(lp)만큼 접고 위로 살짝 미끄러뜨림.
+    // 펼친 상태(lp 0)에선 클립 안 함 → 카드 그림자 안 잘림.
+    private func chromeRow<V: View>(index: Int, order: Int, @ViewBuilder _ content: () -> V) -> some View {
+        let lp = rowProgress(order: order)
+        let h = rowH[index] ?? 0
+        return content()
+            .fixedSize(horizontal: false, vertical: true)
+            .background(GeometryReader { g in
+                Color.clear.preference(key: RowHeightKey.self, value: [index: g.size.height])
+            })
+            .frame(height: h > 0 ? max(0, h * (1 - lp)) : nil, alignment: .top)
+            .opacity(Double(1 - lp))
+            .offset(y: h > 0 ? -h * lp * 0.3 : 0)
+            .clippedIf(lp > 0.001)
+            .padding(.bottom, 12 * (1 - lp))   // 위젯 간 간격도 같이 접힘
+    }
+
+    // 계단식: 전체 진행률에서 위젯 차례(order)만큼 늦게 시작 (stagger 0.08, 위젯 4개).
+    private func rowProgress(order: Int) -> CGFloat {
+        let s: CGFloat = 0.08
+        let w = max(0.0001, 1 - 3 * s)
+        return min(1, max(0, (timelineProgress - CGFloat(order) * s) / w))
     }
 
     // 페이지 = 그리드만 (타임라인은 고정)
@@ -169,11 +181,9 @@ struct TodayView: View {
         let active = Calendar.current.isDate(d, inSameDayAs: selectedDay)
         return grid(p, d,
                     scrollHour: active ? $sharedScrollHour : .constant(sharedScrollHour),   // 보이는 페이지만 공유값에 쓰기(옆 페이지가 자정으로 덮는 것 방지)
-                    onScrollDelta: active ? { signal in
-                        let dy = signal - lastScrollSignal
-                        lastScrollSignal = signal
-                        guard timelineH > 0, abs(dy) < 120 else { return }   // 페이지 전환·초기 점프 무시
-                        timelineProgress = min(1, max(0, timelineProgress + dy / 130))   // 아래로=접힘, 위로=펼침(위치 무관)
+                    onScrollDelta: active ? { delta in
+                        // delta = 그리드 스크롤량(앵커=현재 시각 기준). 데드존 22 지나야 접히기 시작, 253pt에 걸쳐 완전히 접힘.
+                        timelineProgress = min(1, max(0, (delta - 22) / 253))
                     } : nil)
         .padding(.horizontal, 16)
     }
@@ -424,9 +434,11 @@ struct DayPager<Content: View>: UIViewControllerRepresentable {
     }
 }
 
-private struct TimelineHeightKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
+private struct RowHeightKey: PreferenceKey {
+    static var defaultValue: [Int: CGFloat] = [:]
+    static func reduce(value: inout [Int: CGFloat], nextValue: () -> [Int: CGFloat]) {
+        value.merge(nextValue()) { _, n in n }
+    }
 }
 
 private extension View {
