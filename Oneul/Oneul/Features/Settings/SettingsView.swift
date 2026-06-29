@@ -19,9 +19,6 @@ struct SettingsView: View {
 
                         sectionTitle(lang.tr("외형"))
                         appearanceCard
-
-                        sectionTitle(lang.tr("정보"))
-                        infoCard
                     }
                     .padding(16)
                     .frame(maxWidth: 640)
@@ -88,17 +85,6 @@ struct SettingsView: View {
         .glassCard(cornerRadius: 22)
     }
 
-    // MARK: 정보 (데이터 출처 표기)
-    private var infoCard: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(lang.tr("데이터 출처")).font(.subheadline).bold()
-            Text(lang.tr("학사일정·급식·시간표: 나이스(NEIS) 교육정보 개방 포털 (교육부)"))
-                .font(.caption2).foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .glassCard(cornerRadius: 22)
-    }
 }
 
 #Preview { SettingsView() }
