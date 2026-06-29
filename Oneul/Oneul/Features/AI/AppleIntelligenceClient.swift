@@ -14,7 +14,7 @@ struct AppleIntelligenceClient: ScheduleAI {
         }
         #endif
         throw AppleIntelligenceUnavailable(
-            reason: "이 기기에서는 AI를 쓸 수 없어요.")
+            reason: "이 기기에서는 Apple Intelligence를 쓸 수 없어요.")
     }
 
     /// 첫 응답 지연을 줄이기 위해 모델 세션을 미리 데움.
@@ -30,7 +30,7 @@ struct AppleIntelligenceClient: ScheduleAI {
             return AppleAI.availability()
         }
         #endif
-        return .failed("iOS 26 이상 + AI 지원 기기 필요")
+        return .failed("iOS 26 이상 + Apple Intelligence 지원 기기 필요")
     }
 }
 
@@ -158,7 +158,7 @@ enum AppleAI {
     static func generate(from text: String, now: Date, existing: [ExistingEvent]) async throws -> AIResult {
         guard case .available = SystemLanguageModel.default.availability else {
             throw AppleIntelligenceUnavailable(
-                reason: "AI를 사용할 수 없어요 (설정에서 켜야 할 수 있어요).")
+                reason: "Apple Intelligence를 사용할 수 없어요 (설정에서 켜야 할 수 있어요).")
         }
 
         // "아니 그거 말고" 류 후속 → 모델 호출 없이 직전 삭제 맥락에서 다른 후보 제시
@@ -483,7 +483,7 @@ enum AppleAI {
     ) -> String {
         switch reason {
         case .deviceNotEligible: return "지원하지 않는 기기예요."
-        case .appleIntelligenceNotEnabled: return "설정에서 AI를 켜주세요."
+        case .appleIntelligenceNotEnabled: return "설정에서 Apple Intelligence를 켜주세요."
         case .modelNotReady: return "모델 준비 중이에요. 잠시 후 다시 시도하세요."
         @unknown default: return "사용할 수 없어요."
         }

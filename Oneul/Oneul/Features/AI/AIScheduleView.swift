@@ -31,6 +31,12 @@ struct AIScheduleView: View {
                 GeometryReader { geo in
                     ScrollView {
                         VStack(alignment: .leading, spacing: 14) {
+                            HStack(spacing: 5) {   // 지칭적 표기(안전): 이 기능이 Apple Intelligence로 작동함을 설명
+                                Image(systemName: "sparkles").font(.system(size: 11, weight: .semibold))
+                                Text(lang.tr("Apple Intelligence를 통해 작동합니다"))
+                            }
+                            .font(.caption2).foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .center)
                             inputCard
                             generateButton
                             if let errorMessage {
@@ -54,7 +60,7 @@ struct AIScheduleView: View {
                     .scrollDismissesKeyboard(.interactively)
                 }
             }
-            .navigationTitle("AI")
+            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .task { AppleIntelligenceClient.prewarm() }
             .onChange(of: speech.transcript) { _, t in if !t.isEmpty { inputText = t } }

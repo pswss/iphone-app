@@ -6,7 +6,7 @@ enum AIProvider: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
     var needsKey: Bool { false }
-    var displayName: String { "AI" }
+    var displayName: String { "Apple Intelligence" }
     var keychainAccount: String { "apikey-\(rawValue)" }
 
     /// 클라이언트 생성. (애플 인텔리전스는 키 불필요)
