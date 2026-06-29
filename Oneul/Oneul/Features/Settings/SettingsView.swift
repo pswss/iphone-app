@@ -19,6 +19,11 @@ struct SettingsView: View {
 
                         sectionTitle(lang.tr("외형"))
                         appearanceCard
+
+                        Text(lang.tr("학사일정·급식·시간표: 나이스(NEIS) 교육정보 개방 포털 (교육부)"))   // 출처(그냥 글자)
+                            .font(.caption2).foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.top, 6)
                     }
                     .padding(16)
                     .frame(maxWidth: 640)

@@ -40,10 +40,6 @@ struct SchoolSetupView: View {
                     if !message.isEmpty {
                         Text(message).font(.footnote).foregroundStyle(.secondary).padding(.horizontal, 4)
                     }
-                    Text(lang.tr("학사일정·급식·시간표: 나이스(NEIS) 교육정보 개방 포털 (교육부)"))   // 출처 표기(그냥 글자)
-                        .font(.caption2).foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.top, 8)
                 }
                 .padding(16)
                 .frame(maxWidth: 640)
