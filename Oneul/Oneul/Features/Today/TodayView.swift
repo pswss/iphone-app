@@ -114,11 +114,20 @@ struct TodayView: View {
 
     // MARK: 아이폰(세로) — 손가락 좌우 스와이프로 날짜 이동(애플 캘린더식)
     private var narrowContent: some View {
-        VStack(spacing: 12) {
-            header.padding(.horizontal, 16)
-            dDayBar.padding(.horizontal, 16)
-            CalendarBar(selectedDay: $selectedDay).padding(.horizontal, 16)
-            collapsingTimeline.padding(.horizontal, 16)   // 페이저 밖에 고정 — 슬라이드해도 안 생겼다 사라졌다 안 함
+        VStack(spacing: 0) {
+            // 접힌 상태에서 위에 남는 월·연 제목 — 스크롤할수록 나타남
+            compactMonthTitle
+                .frame(height: compactTitleH * timelineProgress)
+                .opacity(Double(timelineProgress))
+                .clipped()
+
+            // 헤더+D-Day+캘린더+타임라인 묶음 — 통째로 위로 미끄러져 올라감(hide on scroll)
+            collapsingChrome
+                .offset(y: -timelineH * timelineProgress)
+                .frame(height: timelineH > 0 ? max(0, timelineH * (1 - timelineProgress)) : nil, alignment: .top)
+                .clipped()
+                .padding(.bottom, 12 * (1 - timelineProgress))   // 그리드와의 간격도 같이 접힘
+
             DayPager(selectedDay: $selectedDay, refreshID: gridToken) { day in   // UIPageViewController 3페이지 재사용
                 gridPage(day)
             }
@@ -127,16 +136,30 @@ struct TodayView: View {
         .onPreferenceChange(TimelineHeightKey.self) { if $0 > 0 { timelineH = $0 } }
     }
 
-    // 고정 타임라인(페이저 밖) — 선택일 기준, 보이는 그리드의 스크롤량에 따라 연속 접힘
-    private var collapsingTimeline: some View {
-        timelineCard(plan, live: Calendar.current.isDateInToday(selectedDay))
-            .fixedSize(horizontal: false, vertical: true)
-            .background(GeometryReader { g in
-                Color.clear.preference(key: TimelineHeightKey.self, value: g.size.height)
-            })
-            .frame(height: timelineH > 0 ? max(0, timelineH * (1 - timelineProgress)) : nil, alignment: .top)
-            .clippedIf(timelineProgress > 0.001)
-            .opacity(Double(max(0, 1 - timelineProgress * 1.7)))   // 빨리 페이드 → 잘린 경계가 안 보이게
+    private let compactTitleH: CGFloat = 34
+
+    // 접힌 상태에서 남는 제목(월·연) — 헤더 날짜와 같은 기기 로케일
+    private var compactMonthTitle: some View {
+        Text(selectedDay, format: .dateTime.year().month(.wide))
+            .font(.headline).bold()
+            .frame(maxWidth: .infinity)
+    }
+
+    // 접히는 상단 묶음(헤더+D-Day+캘린더+타임라인) — 자연 높이를 재서(TimelineHeightKey) 바깥 frame이 접고,
+    // offset으로 위로 미끄러뜨린다(hide on scroll). 그리드 스크롤량(timelineProgress)에 연속 연동.
+    private var collapsingChrome: some View {
+        VStack(spacing: 12) {
+            header
+            dDayBar
+            CalendarBar(selectedDay: $selectedDay)
+            timelineCard(plan, live: Calendar.current.isDateInToday(selectedDay))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 16)
+        .fixedSize(horizontal: false, vertical: true)
+        .background(GeometryReader { g in
+            Color.clear.preference(key: TimelineHeightKey.self, value: g.size.height)
+        })
     }
 
     // 페이지 = 그리드만 (타임라인은 고정)

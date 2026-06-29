@@ -79,6 +79,7 @@ struct DayGridView: View {
                             .frame(height: gridHeight, alignment: .topLeading)
                         }
                         .scrollPosition(id: $scrollHour, anchor: .top)            // 모든 날이 공유하는 위치 — 레이아웃 타이밍 무관 동기 복원
+                        .scrollBounceBehavior(.always)                            // 내용이 짧아도 위/아래 오버스크롤 바운스
                         .scrollDisabled(dragID != nil || resizeID != nil)         // 이동/리사이즈 중에만 스크롤 잠금
                         .onAppear {
                             scrollProxy = proxy
