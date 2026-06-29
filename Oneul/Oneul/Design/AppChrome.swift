@@ -90,6 +90,9 @@ final class AppLanguage {
         "정보": "About",
         "데이터 출처": "Data Source",
         "학사일정·급식·시간표: 나이스(NEIS) 교육정보 개방 포털 (교육부)": "Academic calendar, meals & timetable: NEIS Education Information Open Portal (Korea Ministry of Education)",
+        "NEIS API 키": "NEIS API Key",
+        "발급받은 키 붙여넣기": "Paste your key",
+        "무료 키 발급받기 (open.neis.go.kr)": "Get a free key (open.neis.go.kr)",
         "일정": "Events",
         "일정 없음": "No events",
         "다음 ·": "Next ·",
@@ -189,7 +192,7 @@ final class AppLanguage {
             "Register your school first in\nSettings → Student → School",
         // AI
         "수정": "Edit",
-        "Apple Intelligence · 온디바이스 (키 불필요)": "Apple Intelligence · on-device (no key)",
+        "AI · 온디바이스 (키 불필요)": "AI · on-device (no key)",
         "AI 비서": "AI Assistant",
         "실행": "Run",
         "실행 중…": "Running…",

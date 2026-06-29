@@ -54,7 +54,7 @@ struct AIScheduleView: View {
                     .scrollDismissesKeyboard(.interactively)
                 }
             }
-            .navigationTitle("Apple Intelligence")
+            .navigationTitle("AI")
             .navigationBarTitleDisplayMode(.inline)
             .task { AppleIntelligenceClient.prewarm() }
             .onChange(of: speech.transcript) { _, t in if !t.isEmpty { inputText = t } }
@@ -429,7 +429,7 @@ private struct AIReplyCard: View {
                 Image(systemName: "sparkles")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(headerGradient)
-                Text("Apple Intelligence")
+                Text("AI")
                     .font(.system(.caption, design: .rounded).weight(.semibold))
                     .tracking(0.3)
                     .foregroundStyle(.secondary)

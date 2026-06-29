@@ -3,6 +3,7 @@ import SwiftUI
 struct SettingsView: View {
     @AppStorage("appearance") private var appearanceRaw = Appearance.system.rawValue
     @AppStorage("userType") private var userType = "general"
+    @AppStorage("neisApiKey") private var neisKey = ""   // 사용자별 NEIS 키(배포 시 키 미포함)
     @Bindable private var lang = AppLanguage.shared
 
     var body: some View {
@@ -57,6 +58,17 @@ struct SettingsView: View {
                     .contentShape(Rectangle())
                 }
                 .tint(.primary)
+
+                Divider().opacity(0.3)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(lang.tr("NEIS API 키")).font(.subheadline)
+                    SecureField(lang.tr("발급받은 키 붙여넣기"), text: $neisKey)
+                        .textFieldStyle(.roundedBorder)
+                        .autocorrectionDisabled().textInputAutocapitalization(.never)
+                    Link(lang.tr("무료 키 발급받기 (open.neis.go.kr)"),
+                         destination: URL(string: "https://open.neis.go.kr")!)
+                        .font(.caption2)
+                }
             }
         }
         .padding(14)
