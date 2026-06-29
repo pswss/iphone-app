@@ -13,7 +13,8 @@ struct TodayView: View {
     @State private var eventsByDay: [Date: [ScheduleEvent]] = [:]
     @State private var indexVersion = 0                // eventsByDay 재구성 때마다 증가 → DayPager가 최신 인덱스로 갱신
     @State private var timelineProgress: CGFloat = 0   // 0=펼침, 1=완전 접힘 (스크롤에 연속 연동)
-    @State private var timelineH: CGFloat = 0          // 타임라인 카드 자연 높이
+    @State private var timelineH: CGFloat = 0          // 접히는 상단(헤더+D-Day+캘린더+타임라인) 자연 높이
+    @State private var lastScrollSignal: CGFloat = 0   // 직전 스크롤 신호 — 방향(증감)으로 접힘/펼침 판단
     @State private var sharedScrollHour: Int?          // 모든 날 grid가 공유하는 세로 스크롤 위치(슬라이드해도 유지)
     private let lang = AppLanguage.shared
     @AppStorage("userType") private var userType = "general"
@@ -125,7 +126,7 @@ struct TodayView: View {
             collapsingChrome
                 .offset(y: -timelineH * timelineProgress)
                 .frame(height: timelineH > 0 ? max(0, timelineH * (1 - timelineProgress)) : nil, alignment: .top)
-                .clipped()
+                .clippedIf(timelineProgress > 0.001)   // 펼친 상태(progress 0)에선 클립 안 함 → 카드 그림자 안 잘림
                 .padding(.bottom, 12 * (1 - timelineProgress))   // 그리드와의 간격도 같이 접힘
 
             DayPager(selectedDay: $selectedDay, refreshID: gridToken) { day in   // UIPageViewController 3페이지 재사용
@@ -168,9 +169,11 @@ struct TodayView: View {
         let active = Calendar.current.isDate(d, inSameDayAs: selectedDay)
         return grid(p, d,
                     scrollHour: active ? $sharedScrollHour : .constant(sharedScrollHour),   // 보이는 페이지만 공유값에 쓰기(옆 페이지가 자정으로 덮는 것 방지)
-                    onScrollDelta: active ? { delta in
-                        guard timelineH > 0 else { return }
-                        timelineProgress = min(1, max(0, delta / 150))   // 150pt 스크롤로 상단이 완전히 접힘(스냅)
+                    onScrollDelta: active ? { signal in
+                        let dy = signal - lastScrollSignal
+                        lastScrollSignal = signal
+                        guard timelineH > 0, abs(dy) < 120 else { return }   // 페이지 전환·초기 점프 무시
+                        timelineProgress = min(1, max(0, timelineProgress + dy / 130))   // 아래로=접힘, 위로=펼침(위치 무관)
                     } : nil)
         .padding(.horizontal, 16)
     }
