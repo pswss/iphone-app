@@ -28,37 +28,35 @@ extension Color {
 struct AppBackground: View {
     @Environment(\.colorScheme) private var scheme
 
+    // blur(90) 4개 대신 iOS 18+ MeshGradient(GPU 네이티브) — 색 배치 동일, 화면 진입 렉 제거.
     var body: some View {
-        ZStack {
-            (scheme == .dark ? Color.black : Color(white: 0.94))
-            // 부드러운 멀티 그라데이션 (mesh 느낌)
-            ForEach(blobs.indices, id: \.self) { i in
-                Circle()
-                    .fill(blobs[i].color)
-                    .frame(width: blobs[i].size, height: blobs[i].size)
-                    .blur(radius: 90)
-                    .offset(x: blobs[i].x, y: blobs[i].y)
-            }
-        }
+        MeshGradient(
+            width: 3, height: 3,
+            points: [
+                [0, 0], [0.5, 0], [1, 0],
+                [0, 0.5], [0.5, 0.5], [1, 0.5],
+                [0, 1], [0.5, 1], [1, 1]
+            ],
+            colors: meshColors
+        )
         .ignoresSafeArea()
     }
 
-    private struct Blob { let color: Color; let size: CGFloat; let x: CGFloat; let y: CGFloat }
-
-    private var blobs: [Blob] {
+    // 모서리=기존 blob 색(TL·TR·BL·BR), 가운데·변=베이스. 기존 배치 그대로.
+    private var meshColors: [Color] {
         if scheme == .dark {
+            let base = Color.black
             return [
-                .init(color: Color(red: 0.11, green: 0.16, blue: 0.40).opacity(0.9), size: 360, x: -120, y: -260),
-                .init(color: Color(red: 0.04, green: 0.17, blue: 0.32).opacity(0.9), size: 320, x: 150, y: -300),
-                .init(color: Color(red: 0.16, green: 0.08, blue: 0.31).opacity(0.9), size: 380, x: 120, y: 320),
-                .init(color: Color(red: 0.05, green: 0.23, blue: 0.27).opacity(0.9), size: 320, x: -150, y: 300)
+                Color(red: 0.11, green: 0.16, blue: 0.40), base, Color(red: 0.04, green: 0.17, blue: 0.32),
+                base, Color(red: 0.03, green: 0.05, blue: 0.13), base,
+                Color(red: 0.05, green: 0.23, blue: 0.27), base, Color(red: 0.16, green: 0.08, blue: 0.31)
             ]
         } else {
+            let base = Color(white: 0.96)
             return [
-                .init(color: Color(red: 1.0, green: 0.85, blue: 0.91), size: 360, x: -120, y: -260),
-                .init(color: Color(red: 0.80, green: 0.90, blue: 1.0), size: 320, x: 150, y: -300),
-                .init(color: Color(red: 1.0, green: 0.90, blue: 0.76), size: 380, x: 120, y: 320),
-                .init(color: Color(red: 0.84, green: 0.96, blue: 0.89), size: 320, x: -150, y: 300)
+                Color(red: 1.0, green: 0.85, blue: 0.91), base, Color(red: 0.80, green: 0.90, blue: 1.0),
+                base, base, base,
+                Color(red: 0.84, green: 0.96, blue: 0.89), base, Color(red: 1.0, green: 0.90, blue: 0.76)
             ]
         }
     }

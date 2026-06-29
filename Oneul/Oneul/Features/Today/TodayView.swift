@@ -85,6 +85,16 @@ struct TodayView: View {
         return s
     }
 
+    /// DayPager가 보이는 페이지를 다시 그려야 하는 신호 — 그리드에 "값으로" 들어가는 것들(일정=indexVersion,
+    /// 미리보기=showingAdd/addStart)만 모음. 스크롤(timelineProgress)은 여기 없으니 스크롤 중엔 재생성 안 함 → 떨림 방지.
+    private var gridToken: Int {
+        var h = Hasher()
+        h.combine(indexVersion)
+        h.combine(showingAdd)
+        h.combine(addStart)
+        return h.finalize()
+    }
+
     // 우하단 리퀴드 글래스 + 버튼 (새 일정)
     private var addButton: some View {
         Button {
@@ -109,7 +119,7 @@ struct TodayView: View {
             dDayBar.padding(.horizontal, 16)
             CalendarBar(selectedDay: $selectedDay).padding(.horizontal, 16)
             collapsingTimeline.padding(.horizontal, 16)   // 페이저 밖에 고정 — 슬라이드해도 안 생겼다 사라졌다 안 함
-            DayPager(selectedDay: $selectedDay, refreshID: indexVersion) { day in   // UIPageViewController 3페이지 재사용
+            DayPager(selectedDay: $selectedDay, refreshID: gridToken) { day in   // UIPageViewController 3페이지 재사용
                 gridPage(day)
             }
         }
@@ -310,10 +320,14 @@ struct DayPager<Content: View>: UIViewControllerRepresentable {
         let cal = Calendar.current
         guard let cur = pvc.viewControllers?.first as? Host else { return }
 
-        // 같은 날 — 보이는 페이지 내용만 갱신 + 가드 해제(정착)
+        // 같은 날 — 가드 해제(정착) + 데이터(refreshID)가 실제 바뀌었을 때만 그리드 재생성.
+        // 매 body 갱신마다(스크롤 등) 재생성하면 스크롤 중인 ScrollView가 매번 새로 만들어져 떨림/렉 발생.
         if cal.isDate(cur.day, inSameDayAs: selectedDay) {
             coord.isAnimating = false
-            cur.rootView = AnyView(content(cur.day))
+            if coord.lastRefreshID != refreshID {
+                coord.lastRefreshID = refreshID
+                cur.rootView = AnyView(content(cur.day))
+            }
             return
         }
         guard !coord.isAnimating else { return }   // 슬라이드 중 재진입 차단(엉뚱한 날 착지 방지)
@@ -352,6 +366,7 @@ struct DayPager<Content: View>: UIViewControllerRepresentable {
     final class Coordinator: NSObject, UIPageViewControllerDataSource, UIPageViewControllerDelegate {
         var parent: DayPager
         var isAnimating = false                  // 프로그램 슬라이드 진행 중(재진입 차단)
+        var lastRefreshID: Int?                  // 마지막으로 그린 refreshID — 같으면 그리드 재생성 생략(스크롤 떨림 방지)
         init(_ parent: DayPager) { self.parent = parent }
 
         func host(_ day: Date) -> Host { Host(day: day, rootView: AnyView(parent.content(day))) }
