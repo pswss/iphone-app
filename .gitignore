@@ -20,3 +20,7 @@ DerivedData/
 # 디버그 스크린샷 (작업용)
 Oneul/shot-*.png
 Oneul/screenshot-*.png
+
+# Cloudflare wrangler 로컬 캐시(계정 정보 — 커밋 금지)
+.wrangler/
+proxy/.wrangler/
