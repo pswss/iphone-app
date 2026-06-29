@@ -190,7 +190,6 @@ final class AppLanguage {
         // AI
         "수정": "Edit",
         "Apple Intelligence · 온디바이스 (키 불필요)": "Apple Intelligence · on-device (no key)",
-        "Apple Intelligence를 통해 작동합니다": "Works through Apple Intelligence",
         "AI 비서": "AI Assistant",
         "실행": "Run",
         "실행 중…": "Running…",

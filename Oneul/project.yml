@@ -38,7 +38,7 @@ targets:
     info:
       path: Generated/Oneul-Info.plist
       properties:
-        CFBundleDisplayName: 하루
+        CFBundleDisplayName: Oneul
         NSSupportsLiveActivities: true
         ITSAppUsesNonExemptEncryption: false
         UIBackgroundModes:
@@ -75,7 +75,7 @@ targets:
     info:
       path: Generated/OneulWidget-Info.plist
       properties:
-        CFBundleDisplayName: 하루 위젯
+        CFBundleDisplayName: Oneul Widget
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
 
@@ -92,6 +92,6 @@ targets:
     info:
       path: Generated/OneulWatch-Info.plist
       properties:
-        CFBundleDisplayName: 하루
+        CFBundleDisplayName: Oneul
         WKApplication: true
         WKCompanionAppBundleIdentifier: com.oneul.app
