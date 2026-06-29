@@ -143,8 +143,8 @@ final class AppLanguage {
         "라이트": "Light",
         "다크": "Dark",
         "‘시스템’은 기기 설정(다크/라이트)을 따릅니다.": "'System' follows your device setting.",
-        // 개인정보 · AI
-        "AI 비서는 Apple Intelligence로 기기에서 동작합니다": "The AI assistant works on-device through Apple Intelligence",
+        // 개인정보 · AI/출처
+        "AI: Apple Intelligence(온디바이스) · 학사일정·급식·시간표: 나이스(NEIS) 교육정보 개방 포털(교육부)": "AI: Apple Intelligence (on-device) · Academic calendar, meals & timetable: NEIS Education Information Open Portal (Korea Ministry of Education)",
         "개인정보": "Privacy",
         "개인정보 처리방침": "Privacy Policy",
         "모든 데이터 초기화": "Reset all data",

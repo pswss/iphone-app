@@ -26,14 +26,11 @@ struct SettingsView: View {
                         sectionTitle(lang.tr("개인정보"))
                         privacyCard
 
-                        Text(lang.tr("AI 비서는 Apple Intelligence로 기기에서 동작합니다"))   // 그냥 글자
+                        Text(lang.tr("AI: Apple Intelligence(온디바이스) · 학사일정·급식·시간표: 나이스(NEIS) 교육정보 개방 포털(교육부)"))   // AI·출처 합친 그냥 글자
                             .font(.caption2).foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
                             .frame(maxWidth: .infinity, alignment: .center)
                             .padding(.top, 6)
-                        Text(lang.tr("학사일정·급식·시간표: 나이스(NEIS) 교육정보 개방 포털 (교육부)"))   // 출처(그냥 글자)
-                            .font(.caption2).foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .padding(.top, 3)
                     }
                     .padding(16)
                     .frame(maxWidth: 640)

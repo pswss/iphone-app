@@ -33,10 +33,6 @@ struct AIScheduleView: View {
                         VStack(alignment: .leading, spacing: 14) {
                             inputCard
                             generateButton
-                            Text("Works through Apple Intelligence")   // 지칭적 표기(영어 고정) — 전송 버튼 아래, 왼쪽 정렬
-                                .font(.caption2).foregroundStyle(.secondary)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, 4)
                             if let errorMessage {
                                 Text(errorMessage)
                                     .font(.footnote).foregroundStyle(.red)
