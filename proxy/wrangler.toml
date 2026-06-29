@@ -1,0 +1,6 @@
+name = "oneul-neis-proxy"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+
+# NEIS 키는 코드/이 파일에 넣지 말 것. 아래 명령으로 서버 시크릿에만 저장:
+#   wrangler secret put NEIS_KEY
