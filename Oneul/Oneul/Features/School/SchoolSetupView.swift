@@ -249,8 +249,8 @@ struct MealCard: View {
     private var school: School? {
         code.isEmpty ? nil : School(office: office, code: code, name: name, kind: kind, address: "")
     }
-    private var dayKey: String {
-        let f = DateFormatter(); f.dateFormat = "yyyyMMdd"; return f.string(from: day)
+    private var dayKey: Int {   // task(id:)용 — DateFormatter 생성(느림) 없이 하루 단위 키
+        Int(Calendar.current.startOfDay(for: day).timeIntervalSinceReferenceDate)
     }
 
     var body: some View {
