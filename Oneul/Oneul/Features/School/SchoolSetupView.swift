@@ -79,7 +79,7 @@ struct SchoolSetupView: View {
     }
 
     private var resultsCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        LazyVStack(alignment: .leading, spacing: 8) {   // 보이는 행만 렌더(50개 비-lazy 렌더로 인한 타이핑/검색 렉 제거)
             Text(lang.tr("검색 결과")).font(.caption).bold().foregroundStyle(.secondary)
             ForEach(results) { s in
                 Button { pick(s) } label: {

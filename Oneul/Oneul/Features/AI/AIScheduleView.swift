@@ -25,9 +25,9 @@ struct AIScheduleView: View {
         NavigationStack {
             ZStack {
                 AppBackground()
-                AIThinkingGlow()                                  // AI 처리 중 배경이 천천히 일렁임
-                    .opacity(isLoading ? 1 : 0)
-                    .animation(.easeInOut(duration: 0.6), value: isLoading)
+                if isLoading {                                    // 처리 중일 때만 렌더(무거운 blur 4개를 idle엔 안 그림 → 진입 렉↓)
+                    AIThinkingGlow().transition(.opacity)
+                }
                 GeometryReader { geo in
                     ScrollView {
                         VStack(alignment: .leading, spacing: 14) {
@@ -57,6 +57,7 @@ struct AIScheduleView: View {
                     .scrollDismissesKeyboard(.interactively)
                 }
             }
+            .animation(.easeInOut(duration: 0.45), value: isLoading)   // 글로우 페이드 인/아웃
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .task { AppleIntelligenceClient.prewarm() }
