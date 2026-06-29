@@ -143,6 +143,13 @@ final class AppLanguage {
         "라이트": "Light",
         "다크": "Dark",
         "‘시스템’은 기기 설정(다크/라이트)을 따릅니다.": "'System' follows your device setting.",
+        // 개인정보
+        "개인정보": "Privacy",
+        "개인정보 처리방침": "Privacy Policy",
+        "모든 데이터 초기화": "Reset all data",
+        "정말 모든 데이터를 지울까요?": "Erase all data?",
+        "이 기기의 모든 일정·학교 설정이 삭제됩니다. 되돌릴 수 없어요.": "All events and school settings on this device will be deleted. This can't be undone.",
+        "초기화": "Reset",
         "AI API 키": "AI API Keys",
         "연결 확인": "Test",
         "연결됨": "Connected",

@@ -30,6 +30,7 @@
 		770DBDF8A2340C77EBA48398 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16EF8C9737267FC333CC19EC /* NotificationManager.swift */; };
 		78A750E85B9DF3E94FD5F04F /* Glass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A201BB565E9308A6DAAEAB4 /* Glass.swift */; };
 		811D809B7A894889A5E6B9F4 /* AppChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9F7A51A479EF765DCADE7CC /* AppChrome.swift */; };
+		836FC0C29FA313E0CD43F7EC /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = D6485A918A22F530881FA7E2 /* PrivacyInfo.xcprivacy */; };
 		8697B4FE3A5541D083495D75 /* OneulApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ACE8189A99207C779416B4D /* OneulApp.swift */; };
 		87A755AE1D706C14FC969AB7 /* TimelineBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28D1C0B69DAE7EC2BFA4E7A8 /* TimelineBar.swift */; };
 		8C727C52A59118C9F354FE41 /* OneulWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15E10C76F7BC3F0106E55F39 /* OneulWidgetBundle.swift */; };
@@ -147,6 +148,7 @@
 		C9F7A51A479EF765DCADE7CC /* AppChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppChrome.swift; sourceTree = "<group>"; };
 		D2A4018B36A49D3884C07100 /* AICommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AICommand.swift; sourceTree = "<group>"; };
 		D5057FFD3739CA0A9C50D19B /* EventEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventEditorView.swift; sourceTree = "<group>"; };
+		D6485A918A22F530881FA7E2 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		DCFBCDB0ECA3D2AB171BE319 /* WatchStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchStore.swift; sourceTree = "<group>"; };
 		E6AED8BA9142551D4DADE991 /* ScheduleLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleLiveActivity.swift; sourceTree = "<group>"; };
 		E9779CF0E668CEF123968ACE /* PlaceSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceSearch.swift; sourceTree = "<group>"; };
@@ -280,6 +282,7 @@
 				220D8BB0B3D177353EBEEA32 /* Resources */,
 				851AD1BD3E095A8D0AADFF84 /* Watch */,
 				5ACE8189A99207C779416B4D /* OneulApp.swift */,
+				D6485A918A22F530881FA7E2 /* PrivacyInfo.xcprivacy */,
 				4945B28361CA4844CD0BE2A0 /* RootView.swift */,
 			);
 			path = Oneul;
@@ -460,6 +463,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F54DF9FCFD510AE0BFE27C1F /* Assets.xcassets in Resources */,
+				836FC0C29FA313E0CD43F7EC /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
