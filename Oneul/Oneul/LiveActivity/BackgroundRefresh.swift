@@ -17,7 +17,9 @@ enum BackgroundRefresh {
 
     static func schedule() {
         let request = BGAppRefreshTaskRequest(identifier: taskID)
-        request.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60)   // 최소 15분 뒤
+        // 최소 60초 뒤로 요청(가능한 한 자주). 단 BGAppRefreshTask는 iOS가 실제 실행 시점을 정하므로
+        // 1분 보장은 아니고 보통 수십 분~시간 간격으로 스로틀된다.
+        request.earliestBeginDate = Date(timeIntervalSinceNow: 60)
         try? BGTaskScheduler.shared.submit(request)
     }
 
