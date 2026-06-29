@@ -190,8 +190,7 @@ struct PrivacyPolicyView: View {
                 ("Student features (NEIS)", "When you use student features, the school name, grade and class you enter are sent to the Ministry of Education's NEIS open data portal (via a relay server) to fetch your timetable, meals and academic calendar. No name, contact or other identifying information is sent. Only the results are saved on your device."),
                 ("No tracking", "The app contains no third-party analytics or advertising SDKs and does not track you."),
                 ("Permissions", "Location (when setting an event place), microphone and speech recognition (when adding events by voice) are used only while you use those features, and are processed on-device."),
-                ("Deleting your data", "You can permanently erase all data on this device at any time from Settings → Reset all data."),
-                ("Contact", "Questions: set your support email here before release.")
+                ("Deleting your data", "You can permanently erase all data on this device at any time from Settings → Reset all data.")
             ]
         } else {
             return [
@@ -201,8 +200,7 @@ struct PrivacyPolicyView: View {
                 ("학생 기능 (NEIS)", "학생 기능을 쓸 때, 입력한 학교명·학년·반이 시간표·급식·학사일정 조회를 위해 교육부 「나이스(NEIS) 교육정보 개방 포털」(중계 서버 경유)로 전송됩니다. 이름·연락처 등 개인 식별정보는 전송하지 않으며, 조회 결과만 기기에 저장됩니다."),
                 ("추적 안 함", "제3자 분석·광고 SDK가 없으며 사용자를 추적하지 않습니다."),
                 ("권한", "위치(일정 장소 지정 시), 마이크·음성 인식(음성으로 일정 입력 시)은 해당 기능을 쓸 때만 사용되며 기기에서 처리됩니다."),
-                ("데이터 삭제", "설정 → 모든 데이터 초기화에서 이 기기의 모든 데이터를 언제든 영구 삭제할 수 있습니다."),
-                ("문의", "문의: 배포 전 지원 이메일을 여기에 넣으세요.")
+                ("데이터 삭제", "설정 → 모든 데이터 초기화에서 이 기기의 모든 데이터를 언제든 영구 삭제할 수 있습니다.")
             ]
         }
     }
