@@ -86,12 +86,15 @@ struct TodayView: View {
     }
 
     /// DayPager가 보이는 페이지를 다시 그려야 하는 신호 — 그리드에 "값으로" 들어가는 것들(일정=indexVersion,
-    /// 미리보기=showingAdd/addStart)만 모음. 스크롤(timelineProgress)은 여기 없으니 스크롤 중엔 재생성 안 함 → 떨림 방지.
+    /// 미리보기=showingAdd/addStart, 선택일=active 재계산용)만 모음. 스크롤(timelineProgress)은 여기 없으니
+    /// 스크롤 중엔 재생성 안 함(떨림 방지). 날짜가 바뀌면(슬라이드·클릭 등 모든 경로) 한 번 재생성돼 새 페이지가
+    /// active=true로 다시 그려지고 onScrollDelta가 살아남 → 접힘 모션이 계속 동작.
     private var gridToken: Int {
         var h = Hasher()
         h.combine(indexVersion)
         h.combine(showingAdd)
         h.combine(addStart)
+        h.combine(Calendar.current.startOfDay(for: selectedDay))
         return h.finalize()
     }
 
