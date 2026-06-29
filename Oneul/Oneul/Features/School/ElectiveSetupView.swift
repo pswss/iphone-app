@@ -16,7 +16,6 @@ struct ElectiveSetupView: View {
     @State private var loading = true
     @State private var g = TimetableImporter.GradeTimetable()
     @State private var checked: Set<String> = []
-    @State private var commonOverride: Set<String> = []   // 사용자가 '선택 아님'으로 뺀 과목
     @State private var reviewing = false
     @State private var picks: [String: String] = [:]   // "wd-p" → 선택 교시 배정 과목
     @State private var importing = false
@@ -66,10 +65,7 @@ struct ElectiveSetupView: View {
         } else {
             Text(lang.tr("본인이 듣는 선택과목을 모두 체크하세요. 공통 과목은 자동으로 들어가요."))
                 .font(.caption).foregroundStyle(.secondary).padding(.horizontal, 4)
-            Text(lang.tr("필수/공통 과목이 잘못 보이면 길게 눌러 빼세요."))
-                .font(.caption2).foregroundStyle(.secondary).padding(.horizontal, 4)
             checklist
-            overrideFooter
             makeButton(title: lang.tr("다음")) { startReview() }
         }
     }
@@ -77,22 +73,9 @@ struct ElectiveSetupView: View {
     private var checklist: some View {
         VStack(spacing: 8) {
             ForEach(g.electives, id: \.self) { sub in
-                ElectiveRow(sub: sub, on: checked.contains(sub),
-                            toggle: { toggle(sub) }, markCommon: { markCommon(sub) })
+                ElectiveRow(sub: sub, on: checked.contains(sub)) { toggle(sub) }
                     .equatable()   // on이 바뀐 항목만 다시 그림(토글 렉↓)
             }
-        }
-    }
-
-    @ViewBuilder private var overrideFooter: some View {
-        if !commonOverride.isEmpty {
-            Button {
-                restoreOverrides()
-            } label: {
-                Text(String(format: lang.tr("제외한 과목 %d개 · 되돌리기"), commonOverride.count))
-                    .font(.caption).foregroundStyle(Color.appAccentText)
-            }
-            .buttonStyle(.plain).padding(.horizontal, 4)
         }
     }
 
@@ -149,25 +132,6 @@ struct ElectiveSetupView: View {
         if checked.contains(s) { checked.remove(s) } else { checked.insert(s) }
         Haptics.impact(.light)
     }
-    /// '선택과목 아님' — 공통으로 빼고 즉시 목록에서 제거(영구 저장). 자동갱신·다음 진입에도 유지.
-    private func markCommon(_ s: String) {
-        commonOverride.insert(s)
-        checked.remove(s)
-        persistOverride()
-        g.electiveSet.remove(s)
-        g.electives.removeAll { $0 == s }
-        g.offered = g.offered.mapValues { $0.subtracting([s]) }.filter { !$0.value.isEmpty }
-        Haptics.impact(.medium)
-    }
-    private func persistOverride() {
-        UserDefaults.standard.set(Array(commonOverride), forKey: "ttCommonOverride")
-    }
-    private func restoreOverrides() {
-        commonOverride.removeAll()
-        UserDefaults.standard.set([String](), forKey: "ttCommonOverride")
-        Haptics.impact(.light)
-        Task { await load() }   // 재분석 → 뺐던 과목 전체 복원
-    }
     private func weekdayName(_ wd: Int) -> String {
         let ko = ["", "일", "월", "화", "수", "목", "금", "토"]
         let en = ["", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
@@ -177,8 +141,6 @@ struct ElectiveSetupView: View {
 
     // MARK: 동작
     private func load() async {
-        loading = true
-        commonOverride = TimetableSetup.load()?.commonOverride ?? []   // 저장된 제외 목록 시드
         g = await TimetableImporter.analyzeGrade(school: school, grade: grade, classNm: classNm)
         checked = Set(g.classTT.map { $0.subject }.filter { g.electiveSet.contains($0) })
         loading = false
@@ -214,7 +176,7 @@ struct ElectiveSetupView: View {
         do {
             let r = try await TimetableImporter.importSelections(
                 school: school, grade: grade, selections: selections, into: context)
-            TimetableSetup.save(grade: grade, classNm: classNm, electives: checked, commonOverride: commonOverride)
+            TimetableSetup.save(grade: grade, classNm: classNm, electives: checked)
             message = String(format: lang.tr("시간표를 추가했어요 (수업 %d개). 새 학사일정·다음 학기는 자동으로 갱신돼요."), r.timetable)
             try? await Task.sleep(nanoseconds: 800_000_000)
             dismiss()
@@ -229,7 +191,6 @@ private struct ElectiveRow: View, Equatable {
     let sub: String
     let on: Bool
     var toggle: () -> Void
-    var markCommon: () -> Void
 
     static func == (l: ElectiveRow, r: ElectiveRow) -> Bool { l.sub == r.sub && l.on == r.on }
 
@@ -252,10 +213,5 @@ private struct ElectiveRow: View, Equatable {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .contextMenu {
-            Button { markCommon() } label: {
-                Label(AppLanguage.shared.tr("선택과목 아님 — 빼기"), systemImage: "minus.circle")
-            }
-        }
     }
 }
