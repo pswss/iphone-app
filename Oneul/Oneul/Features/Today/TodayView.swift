@@ -270,7 +270,7 @@ struct TodayView: View {
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                TimelineBar(plan: p, height: wide ? 26 : 16, live: live)
+                TimelineBar(plan: p, height: wide ? 32 : 24, live: live)
                 Text(currentLine(p))
                     .font(.subheadline).bold()
             }
