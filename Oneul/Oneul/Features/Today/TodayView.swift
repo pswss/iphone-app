@@ -240,8 +240,7 @@ struct TodayView: View {
                                 .background(item.days <= 7 ? Color.red : Color.appAccent, in: Capsule())
                         }
                         .padding(.horizontal, 11).padding(.vertical, 7)
-                        .background(.ultraThinMaterial, in: Capsule())
-                        .overlay(Capsule().strokeBorder(.white.opacity(0.12)))
+                        .glassEffect(.regular, in: Capsule())   // D-Day 칩을 진짜 유리 캡슐로
                     }
                 }
             }

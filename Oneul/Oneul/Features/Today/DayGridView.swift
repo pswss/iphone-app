@@ -402,8 +402,7 @@ struct DayGridView: View {
             }
             .frame(height: 42)
             .fixedSize()
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous).strokeBorder(.white.opacity(0.12)))
+            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 13, style: .continuous))   // 커스텀 메뉴를 진짜 유리로(시스템 메뉴와 통일)
             .background(GeometryReader { g in Color.clear.onAppear { menuW = g.size.width } })   // 실측 폭 → 클램프
             DownTriangle().fill(.regularMaterial).frame(width: 18, height: 9)
                 .offset(x: -shift)                                   // 메뉴는 밀려도 꼬리는 일정 위를 가리킴
