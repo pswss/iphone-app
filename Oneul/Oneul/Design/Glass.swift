@@ -12,12 +12,8 @@ struct GlassCard: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .background(.ultraThinMaterial, in: shape)
-            .overlay(
-                shape.strokeBorder(.white.opacity(0.25), lineWidth: 1)
-            )
-            .clipShape(shape)
-            .shadow(color: .black.opacity(0.06), radius: 10, x: 0, y: 4)   // 은은한 그림자 1개(라이트 배경에서 회색 후광 안 생기게)
+            .glassEffect(.regular, in: shape)   // iOS 26 진짜 Liquid Glass(굴절·렌즈·하이라이트) — ultraThinMaterial 대체
+            .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)   // 유리가 깊이를 주므로 그림자는 아주 은은하게
     }
 
     private var shape: RoundedRectangle {
@@ -39,12 +35,8 @@ struct AccentButtonStyle: ButtonStyle {
             .foregroundStyle(Color.appOnAccent)
             .padding(.vertical, 13)
             .frame(maxWidth: .infinity)
-            .background(Color.appAccent, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .strokeBorder(.white.opacity(0.25), lineWidth: 1)
-            )
-            .opacity(configuration.isPressed ? 0.7 : 1)
-            .shadow(color: .black.opacity(0.25), radius: 10, y: 6)
+            .glassEffect(.regular.tint(Color.appAccent).interactive(),   // 틴트 Liquid Glass(프로미넌트 CTA)
+                         in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .opacity(configuration.isPressed ? 0.9 : 1)
     }
 }
