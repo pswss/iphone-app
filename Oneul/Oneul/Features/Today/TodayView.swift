@@ -264,7 +264,7 @@ struct TodayView: View {
                 }
             }
 
-            Spacer(minLength: 14)                       // 위쪽 채움 → 바가 가운데로
+            Spacer(minLength: 9)                      // 위쪽 채움 → 바가 가운데로
 
             if p.isEmpty {
                 Text(lang.tr("일정 없음"))
@@ -272,14 +272,14 @@ struct TodayView: View {
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                TimelineBar(plan: p, height: wide ? 32 : 22, live: live)   // 커진 카드에 맞춰 바도 두껍게
-                Spacer(minLength: 14)                   // 아래쪽 채움 → 상태 글자가 맨 아래에 붙음
+                TimelineBar(plan: p, height: wide ? 26 : 19, live: live)   // 원래보다 살짝만 두껍게
+                Spacer(minLength: 9)                  // 아래쪽 채움 → 상태 글자가 맨 아래에 붙음
                 Text(currentLine(p))
                     .font(.subheadline).bold()
             }
         }
-        .frame(maxWidth: .infinity, minHeight: wide ? 156 : 128, alignment: .leading)   // 위젯 높이 확보(Spacer가 위/아래로 밈)
-        .padding(16)
+        .frame(maxWidth: .infinity, minHeight: wide ? 112 : 92, alignment: .leading)   // 적당한 위젯 높이
+        .padding(14)
         .glassCard(cornerRadius: 22)
     }
 
