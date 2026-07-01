@@ -249,8 +249,8 @@ struct TodayView: View {
 
     // MARK: 타임라인 카드
     private func timelineCard(_ p: DayPlan, live: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {                                    // 제목 — 맨 위에 붙음
                 Text(live ? lang.tr("오늘 타임라인")
                           : selectedDay.formatted(.dateTime.month().day().locale(lang.locale)) + " " + lang.tr("타임라인"))
                     .font(.subheadline).bold()
@@ -264,18 +264,22 @@ struct TodayView: View {
                 }
             }
 
+            Spacer(minLength: 14)                       // 위쪽 채움 → 바가 가운데로
+
             if p.isEmpty {
                 Text(lang.tr("일정 없음"))
                     .font(.subheadline).bold()
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                TimelineBar(plan: p, height: wide ? 26 : 16, live: live)
+                TimelineBar(plan: p, height: wide ? 32 : 22, live: live)   // 커진 카드에 맞춰 바도 두껍게
+                Spacer(minLength: 14)                   // 아래쪽 채움 → 상태 글자가 맨 아래에 붙음
                 Text(currentLine(p))
                     .font(.subheadline).bold()
             }
         }
-        .padding(.horizontal, 16).padding(.vertical, 24)   // 카드(위젯) 높이 키움
+        .frame(maxWidth: .infinity, minHeight: wide ? 156 : 128, alignment: .leading)   // 위젯 높이 확보(Spacer가 위/아래로 밈)
+        .padding(16)
         .glassCard(cornerRadius: 22)
     }
 
