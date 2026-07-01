@@ -249,7 +249,7 @@ struct TodayView: View {
 
     // MARK: 타임라인 카드
     private func timelineCard(_ p: DayPlan, live: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 18) {
             HStack {
                 Text(live ? lang.tr("오늘 타임라인")
                           : selectedDay.formatted(.dateTime.month().day().locale(lang.locale)) + " " + lang.tr("타임라인"))
@@ -270,12 +270,12 @@ struct TodayView: View {
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                TimelineBar(plan: p, height: wide ? 32 : 24, live: live)
+                TimelineBar(plan: p, height: wide ? 26 : 16, live: live)
                 Text(currentLine(p))
                     .font(.subheadline).bold()
             }
         }
-        .padding(14)
+        .padding(.horizontal, 16).padding(.vertical, 24)   // 카드(위젯) 높이 키움
         .glassCard(cornerRadius: 22)
     }
 
