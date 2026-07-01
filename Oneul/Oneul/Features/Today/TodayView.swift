@@ -279,7 +279,7 @@ struct TodayView: View {
             }
         }
         .frame(maxWidth: .infinity, minHeight: wide ? 112 : 92, alignment: .leading)   // 적당한 위젯 높이
-        .padding(14)
+        .padding(.horizontal, 14).padding(.vertical, 9)   // 여백만 줄임
         .glassCard(cornerRadius: 22)
     }
 
