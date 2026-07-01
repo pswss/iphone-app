@@ -137,7 +137,7 @@ struct EventEditorView: View {
                     Label(lang.tr("일정 삭제"), systemImage: "trash")
                         .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 13)
                 }
-                .tint(.red).glassCard(cornerRadius: 18)
+                .tint(.red).glassCard(cornerRadius: 22)
             } else {
                 // 반복 일정: 옵션(이 일정만 / 이후 모두). 취소 없이 다시 눌러 접기.
                 if showDeleteOptions {
@@ -146,7 +146,7 @@ struct EventEditorView: View {
                             Text(choice.label).font(.headline)
                                 .frame(maxWidth: .infinity).padding(.vertical, 12)
                         }
-                        .tint(.red).glassCard(cornerRadius: 16)
+                        .tint(.red).glassCard(cornerRadius: 22)
                         .transition(.opacity.combined(with: .move(edge: .bottom)))
                     }
                 }
@@ -156,7 +156,7 @@ struct EventEditorView: View {
                     Label(lang.tr("일정 삭제"), systemImage: "trash")
                         .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 13)
                 }
-                .tint(.red).glassCard(cornerRadius: 18)
+                .tint(.red).glassCard(cornerRadius: 22)
             }
         }
         .padding(.top, 8)
@@ -180,7 +180,7 @@ struct EventEditorView: View {
             content()
         }
         .padding(.horizontal, 14).padding(.vertical, 12)
-        .glassCard(cornerRadius: 18)
+        .glassCard(cornerRadius: 22)
     }
 
     private var weekdaySelector: some View {
@@ -200,7 +200,7 @@ struct EventEditorView: View {
             }
         }
         .padding(8)
-        .glassCard(cornerRadius: 18)
+        .glassCard(cornerRadius: 22)
     }
 
     private func weekdaySymbol(_ wd: Int) -> String {

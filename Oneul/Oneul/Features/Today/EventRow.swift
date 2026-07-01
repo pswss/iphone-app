@@ -37,7 +37,7 @@ struct EventRow: View {
             }
         }
         .padding(12)
-        .glassCard(cornerRadius: 18)
+        .glassCard(cornerRadius: 22)
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .strokeBorder(Color.appAccent, lineWidth: isCurrent ? 1.5 : 0)

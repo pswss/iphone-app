@@ -84,7 +84,7 @@ struct AIScheduleView: View {
             .padding(.vertical, 14)
             .padding(.trailing, 40)   // 마이크 버튼 자리
             .frame(maxWidth: .infinity, minHeight: 180, alignment: .topLeading)
-            .glassCard(cornerRadius: 20)
+            .glassCard(cornerRadius: 22)
             .overlay(alignment: .bottomTrailing) { micButton }
     }
 
@@ -180,7 +180,7 @@ struct AIScheduleView: View {
                         }
                     }
                     .padding(12)
-                    .glassCard(cornerRadius: 18)
+                    .glassCard(cornerRadius: 22)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -209,7 +209,7 @@ struct AIScheduleView: View {
                         Spacer()
                         Image(systemName: "trash").font(.caption).foregroundStyle(.red)
                     }
-                    .padding(12).glassCard(cornerRadius: 18).contentShape(Rectangle())
+                    .padding(12).glassCard(cornerRadius: 22).contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }
@@ -538,6 +538,6 @@ private struct AIResultEditView: View {
             content()
         }
         .padding(.horizontal, 14).padding(.vertical, 12)
-        .glassCard(cornerRadius: 18)
+        .glassCard(cornerRadius: 22)
     }
 }

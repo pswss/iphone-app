@@ -276,7 +276,7 @@ struct TodayView: View {
             }
         }
         .padding(14)
-        .glassCard(cornerRadius: 24)
+        .glassCard(cornerRadius: 22)
     }
 
     private func currentLine(_ p: DayPlan) -> String {

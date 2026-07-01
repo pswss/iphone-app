@@ -165,8 +165,8 @@ struct SchoolSetupView: View {
                 Text(lang.tr("시간표 가져오기"))
                     .font(.headline).foregroundStyle(Color.appOnAccent)
                     .frame(maxWidth: .infinity).padding(.vertical, 13)
-                    .glassEffect(.regular.tint(Color.appAccent).interactive(),   // 틴트 유리(AccentButtonStyle과 통일)
-                                 in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .background(Color.appAccent, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(.white.opacity(0.22), lineWidth: 1))
             }
         }
         .padding(14)

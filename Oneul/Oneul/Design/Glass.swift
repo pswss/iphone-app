@@ -8,7 +8,7 @@ import SwiftUI
 /// content.glassEffect(.regular, in: .rect(cornerRadius: cornerRadius))
 /// ```
 struct GlassCard: ViewModifier {
-    var cornerRadius: CGFloat = 24
+    var cornerRadius: CGFloat = 22
 
     func body(content: Content) -> some View {
         content
@@ -22,7 +22,7 @@ struct GlassCard: ViewModifier {
 }
 
 extension View {
-    func glassCard(cornerRadius: CGFloat = 24) -> some View {
+    func glassCard(cornerRadius: CGFloat = 22) -> some View {
         modifier(GlassCard(cornerRadius: cornerRadius))
     }
 }
@@ -35,8 +35,9 @@ struct AccentButtonStyle: ButtonStyle {
             .foregroundStyle(Color.appOnAccent)
             .padding(.vertical, 13)
             .frame(maxWidth: .infinity)
-            .glassEffect(.regular.tint(Color.appAccent).interactive(),   // 틴트 Liquid Glass(프로미넌트 CTA)
-                         in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .opacity(configuration.isPressed ? 0.9 : 1)
+            .background(Color.appAccent, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(.white.opacity(0.22), lineWidth: 1))
+            .opacity(configuration.isPressed ? 0.7 : 1)
+            .shadow(color: .black.opacity(0.18), radius: 8, y: 4)
     }
 }
