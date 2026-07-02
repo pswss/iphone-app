@@ -13,6 +13,7 @@
 		1CDAAB28C96E1D2652437EC6 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6CDAF136B89C9CD70A564B1 /* AppConfig.swift */; };
 		27289D8F1B5A2E06AF20D96E /* AICommon.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B0BDB1D75C0BC7A988A590 /* AICommon.swift */; };
 		2C9D3F62B28E3A1A227366B1 /* Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C8478ADD1C15960DDC8879E /* Persistence.swift */; };
+		31E7F27CAE898F1B83FD07B9 /* ScheduleAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 334A2A6B08661B685EF25A76 /* ScheduleAttributes.swift */; };
 		33F2D826536E8CB3514BCF4E /* ScheduleAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 334A2A6B08661B685EF25A76 /* ScheduleAttributes.swift */; };
 		351F425C79906C834932EEA0 /* EventRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7570E900508DF43B3D91D84 /* EventRow.swift */; };
 		44E99C13B7D22A3854B5AA07 /* ScheduleLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6AED8BA9142551D4DADE991 /* ScheduleLiveActivity.swift */; };
@@ -28,11 +29,15 @@
 		66DEC831D54E1054389D3688 /* ScheduleAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 334A2A6B08661B685EF25A76 /* ScheduleAttributes.swift */; };
 		75309A16D28C87AA17064433 /* AIScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A7DA356E9BE16433ED03A34 /* AIScheduleView.swift */; };
 		770DBDF8A2340C77EBA48398 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16EF8C9737267FC333CC19EC /* NotificationManager.swift */; };
+		783155D7C75754F18D43303F /* OneulWatchWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 2FE5158FB2F93365DDD57FEC /* OneulWatchWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		78A750E85B9DF3E94FD5F04F /* Glass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A201BB565E9308A6DAAEAB4 /* Glass.swift */; };
 		811D809B7A894889A5E6B9F4 /* AppChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9F7A51A479EF765DCADE7CC /* AppChrome.swift */; };
+		81425BC87030795CAF808266 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6CDAF136B89C9CD70A564B1 /* AppConfig.swift */; };
+		8342AD3F05FD1D798CC7C741 /* EventPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B86C494CBB8B41E58CDC3E /* EventPalette.swift */; };
 		836FC0C29FA313E0CD43F7EC /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = D6485A918A22F530881FA7E2 /* PrivacyInfo.xcprivacy */; };
 		8697B4FE3A5541D083495D75 /* OneulApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ACE8189A99207C779416B4D /* OneulApp.swift */; };
 		87A755AE1D706C14FC969AB7 /* TimelineBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28D1C0B69DAE7EC2BFA4E7A8 /* TimelineBar.swift */; };
+		8B72B9B6D654345B9E3D61D8 /* WatchPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = B120768A33C004DCF2F45013 /* WatchPayload.swift */; };
 		8C727C52A59118C9F354FE41 /* OneulWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15E10C76F7BC3F0106E55F39 /* OneulWidgetBundle.swift */; };
 		8D8728FC5A77B9D0A65A3EE2 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4945B28361CA4844CD0BE2A0 /* RootView.swift */; };
 		94288FF630F4E04FD1FB58B6 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6CDAF136B89C9CD70A564B1 /* AppConfig.swift */; };
@@ -44,6 +49,7 @@
 		B53B622954D5D8FBD25C5F54 /* CalendarBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C645C9FB29A1DD74C886502 /* CalendarBar.swift */; };
 		B8492275D42152776351D3CB /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6CDAF136B89C9CD70A564B1 /* AppConfig.swift */; };
 		C3C8A27FED06E8DF5FDE3D86 /* DayGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6455A65474E956EDA02D3D48 /* DayGridView.swift */; };
+		C7C38B6B6BC68050E3B00126 /* OneulWatchWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3253AE34D7106C8DA64A07E2 /* OneulWatchWidgetBundle.swift */; };
 		CBC2A029F08197D2257C32A3 /* LiveActivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14B607682CCEA115B95212B8 /* LiveActivityController.swift */; };
 		CCB5BAF3023A1F25BC6696D7 /* PlaceSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9779CF0E668CEF123968ACE /* PlaceSearch.swift */; };
 		D0A38FC10823361801D6E040 /* ScheduleEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9845203CDC1D337EDEB41376 /* ScheduleEvent.swift */; };
@@ -71,6 +77,13 @@
 			remoteGlobalIDString = D05D06124A978171A4BB5D30;
 			remoteInfo = OneulWidget;
 		};
+		CD0327BF8D8931CE2BA02978 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 27639F42328FCAFAF86BBE08 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0D7CB3DCAA6025042701BE28;
+			remoteInfo = OneulWatchWidget;
+		};
 		DA452E881A50F0512C7E3539 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 27639F42328FCAFAF86BBE08 /* Project object */;
@@ -90,6 +103,17 @@
 				0F506EF0648DD738B3180989 /* OneulWatch.app in Embed Watch Content */,
 			);
 			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		44BEBFA81447A0E7ACB570A9 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				783155D7C75754F18D43303F /* OneulWatchWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		87B6C599469245354E540141 /* Embed Foundation Extensions */ = {
@@ -119,7 +143,9 @@
 		28D1C0B69DAE7EC2BFA4E7A8 /* TimelineBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineBar.swift; sourceTree = "<group>"; };
 		2ACF06EA2A9B63E4872D0D82 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		2BA16226B30D84045A77F03B /* OneulWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OneulWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		2FE5158FB2F93365DDD57FEC /* OneulWatchWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = OneulWatchWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		306B6C9EB3EE7319C5856947 /* OneulWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OneulWatchApp.swift; sourceTree = "<group>"; };
+		3253AE34D7106C8DA64A07E2 /* OneulWatchWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OneulWatchWidgetBundle.swift; sourceTree = "<group>"; };
 		334A2A6B08661B685EF25A76 /* ScheduleAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleAttributes.swift; sourceTree = "<group>"; };
 		4945B28361CA4844CD0BE2A0 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		4F7FC0B293541145B57F17CD /* OneulWidget.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = OneulWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -161,6 +187,7 @@
 			children = (
 				B7A2963EFB5FCD75DBB7FA8D /* Oneul */,
 				47ABD67BC7245533CB09183F /* OneulWatch */,
+				EF3C0E8DC6FB483CD420E6C2 /* OneulWatchWidget */,
 				EE14A0A543BE0CDB0F652206 /* OneulWidget */,
 				E254DEA67DD54F22935C7584 /* Shared */,
 				EA64B18BE3BC1A32D1C9E67C /* Products */,
@@ -337,6 +364,7 @@
 			children = (
 				07F49EA0A79B8606A3CA0B76 /* Oneul.app */,
 				2BA16226B30D84045A77F03B /* OneulWatch.app */,
+				2FE5158FB2F93365DDD57FEC /* OneulWatchWidget.appex */,
 				4F7FC0B293541145B57F17CD /* OneulWidget.appex */,
 			);
 			name = Products;
@@ -353,9 +381,34 @@
 			path = OneulWidget;
 			sourceTree = "<group>";
 		};
+		EF3C0E8DC6FB483CD420E6C2 /* OneulWatchWidget */ = {
+			isa = PBXGroup;
+			children = (
+				3253AE34D7106C8DA64A07E2 /* OneulWatchWidgetBundle.swift */,
+			);
+			path = OneulWatchWidget;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		0D7CB3DCAA6025042701BE28 /* OneulWatchWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 788B534CC92A0FA0CAEB1F28 /* Build configuration list for PBXNativeTarget "OneulWatchWidget" */;
+			buildPhases = (
+				FB1730DDA5DF26AC1951028E /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = OneulWatchWidget;
+			packageProductDependencies = (
+			);
+			productName = OneulWatchWidget;
+			productReference = 2FE5158FB2F93365DDD57FEC /* OneulWatchWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		55AD186002AC235EE2017970 /* Oneul */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 156EA80D7046CB422FDA5A2F /* Build configuration list for PBXNativeTarget "Oneul" */;
@@ -383,10 +436,12 @@
 			buildConfigurationList = 950332E0D4C525B4E02159B7 /* Build configuration list for PBXNativeTarget "OneulWatch" */;
 			buildPhases = (
 				1EC9965F4E5DCF0C6B8ECDC0 /* Sources */,
+				44BEBFA81447A0E7ACB570A9 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				F64046FFD5DBD63D90C99D9A /* PBXTargetDependency */,
 			);
 			name = OneulWatch;
 			packageProductDependencies = (
@@ -422,16 +477,20 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					0D7CB3DCAA6025042701BE28 = {
+						DevelopmentTeam = W9W4CM597R;
+						ProvisioningStyle = Automatic;
+					};
 					55AD186002AC235EE2017970 = {
-						DevelopmentTeam = 8ZU657QBXU;
+						DevelopmentTeam = W9W4CM597R;
 						ProvisioningStyle = Automatic;
 					};
 					791E2C062FDA3FD3E93D19EB = {
-						DevelopmentTeam = 8ZU657QBXU;
+						DevelopmentTeam = W9W4CM597R;
 						ProvisioningStyle = Automatic;
 					};
 					D05D06124A978171A4BB5D30 = {
-						DevelopmentTeam = 8ZU657QBXU;
+						DevelopmentTeam = W9W4CM597R;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -452,6 +511,7 @@
 			targets = (
 				55AD186002AC235EE2017970 /* Oneul */,
 				791E2C062FDA3FD3E93D19EB /* OneulWatch */,
+				0D7CB3DCAA6025042701BE28 /* OneulWatchWidget */,
 				D05D06124A978171A4BB5D30 /* OneulWidget */,
 			);
 		};
@@ -548,6 +608,18 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		FB1730DDA5DF26AC1951028E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				81425BC87030795CAF808266 /* AppConfig.swift in Sources */,
+				8342AD3F05FD1D798CC7C741 /* EventPalette.swift in Sources */,
+				C7C38B6B6BC68050E3B00126 /* OneulWatchWidgetBundle.swift in Sources */,
+				31E7F27CAE898F1B83FD07B9 /* ScheduleAttributes.swift in Sources */,
+				8B72B9B6D654345B9E3D61D8 /* WatchPayload.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -561,6 +633,11 @@
 			target = 791E2C062FDA3FD3E93D19EB /* OneulWatch */;
 			targetProxy = DA452E881A50F0512C7E3539 /* PBXContainerItemProxy */;
 		};
+		F64046FFD5DBD63D90C99D9A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0D7CB3DCAA6025042701BE28 /* OneulWatchWidget */;
+			targetProxy = CD0327BF8D8931CE2BA02978 /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
@@ -568,6 +645,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = OneulWatch.entitlements;
 				INFOPLIST_FILE = "Generated/OneulWatch-Info.plist";
 				PRODUCT_BUNDLE_IDENTIFIER = com.oneul.app.watchkitapp;
 				SDKROOT = watchos;
@@ -599,6 +677,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = OneulWatch.entitlements;
 				INFOPLIST_FILE = "Generated/OneulWatch-Info.plist";
 				PRODUCT_BUNDLE_IDENTIFIER = com.oneul.app.watchkitapp;
 				SDKROOT = watchos;
@@ -606,6 +685,23 @@
 				TARGETED_DEVICE_FAMILY = 4;
 			};
 			name = Release;
+		};
+		531EE901D7DE0AB569A0EE66 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = OneulWatchWidget.entitlements;
+				INFOPLIST_FILE = "Generated/OneulWatchWidget-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.oneul.app.watchkitapp.widget;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = 4;
+			};
+			name = Debug;
 		};
 		79E8C5F9A5D9FFF0CD9E1361 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -644,7 +740,7 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = 8ZU657QBXU;
+				DEVELOPMENT_TEAM = W9W4CM597R;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -713,7 +809,7 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = 8ZU657QBXU;
+				DEVELOPMENT_TEAM = W9W4CM597R;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -735,6 +831,23 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				WATCHOS_DEPLOYMENT_TARGET = 11.0;
+			};
+			name = Release;
+		};
+		936B139F2800F590533A9668 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = OneulWatchWidget.entitlements;
+				INFOPLIST_FILE = "Generated/OneulWatchWidget-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.oneul.app.watchkitapp.widget;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = 4;
 			};
 			name = Release;
 		};
@@ -806,6 +919,15 @@
 			buildConfigurations = (
 				1E8E2C2C67A9AEAC65DA846B /* Debug */,
 				B838E156A543D534F3688961 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		788B534CC92A0FA0CAEB1F28 /* Build configuration list for PBXNativeTarget "OneulWatchWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				531EE901D7DE0AB569A0EE66 /* Debug */,
+				936B139F2800F590533A9668 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

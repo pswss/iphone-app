@@ -85,13 +85,51 @@ targets:
     sources:
       - OneulWatch
       - Shared
+    dependencies:
+      - target: OneulWatchWidget
+        embed: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.oneul.app.watchkitapp
         TARGETED_DEVICE_FAMILY: "4"
+        CODE_SIGN_ENTITLEMENTS: OneulWatch.entitlements
     info:
       path: Generated/OneulWatch-Info.plist
       properties:
         CFBundleDisplayName: Oneul
         WKApplication: true
         WKCompanionAppBundleIdentifier: com.oneul.app
+
+  OneulWatchWidget:
+    type: app-extension
+    platform: watchOS
+    sources:
+      - OneulWatchWidget
+      - Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.oneul.app.watchkitapp.widget
+        TARGETED_DEVICE_FAMILY: "4"
+        CODE_SIGN_ENTITLEMENTS: OneulWatchWidget.entitlements
+    info:
+      path: Generated/OneulWatchWidget-Info.plist
+      properties:
+        CFBundleDisplayName: Oneul
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+
+schemes:
+  Oneul:
+    build:
+      targets:
+        Oneul: all
+    run:
+      config: Debug
+    archive:
+      config: Release
+  OneulWatch:
+    build:
+      targets:
+        OneulWatch: all
+    run:
+      config: Debug
