@@ -6,6 +6,7 @@ struct OneulWidgetBundle: WidgetBundle {
     var body: some Widget {
         ScheduleLiveActivity()
         OneulHomeWidget()
+        OneulLockWidget()
     }
 }
 
@@ -120,5 +121,81 @@ struct HomeWidgetView: View {
         } else {
             Text(L("끝", "Done", s.isEnglish)).font(.caption2).bold().foregroundStyle(.white.opacity(0.6))
         }
+    }
+}
+
+// MARK: - 잠금화면 / StandBy 위젯 (accessory)
+
+struct OneulLockWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "OneulLockWidget", provider: HomeProvider()) { entry in
+            LockAccessoryView(entry: entry)
+                .containerBackground(for: .widget) { Color.clear }
+        }
+        .configurationDisplayName("오늘 일정 (잠금화면)")
+        .description("잠금화면·StandBy에 현재/다음 일정을 표시합니다.")
+        .supportedFamilies([.accessoryRectangular, .accessoryInline, .accessoryCircular])
+    }
+}
+
+struct LockAccessoryView: View {
+    var entry: HomeEntry
+    @Environment(\.widgetFamily) private var family
+    private var snap: HomeSnapshot? { entry.snapshot }
+    private var en: Bool { snap?.isEnglish ?? false }
+
+    var body: some View {
+        switch family {
+        case .accessoryInline:
+            Label(inlineText, systemImage: "calendar")
+
+        case .accessoryCircular:
+            Gauge(value: progress) {
+                Image(systemName: "calendar")
+            } currentValueLabel: {
+                Text("\(Int(progress * 100))")
+            }
+            .gaugeStyle(.accessoryCircularCapacity)
+
+        default:   // accessoryRectangular
+            VStack(alignment: .leading, spacing: 1) {
+                Text(snap?.dayLabel ?? L("오늘", "Today", en))
+                    .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                Text(statusText).font(.caption).bold().lineLimit(1)
+                if let n = nextText { Text(n).font(.caption2).lineLimit(1) }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    /// 하루 일정 진행률(0…1) — 무지개 바 바늘과 동일한 packed 기준.
+    private var progress: Double {
+        guard let snap else { return 0 }
+        let single = snap.segments.filter { !$0.isMultiDay }
+        return PackedLayout(intervals: single.map { (start: $0.start, end: $0.end) }).fraction(at: Date())
+    }
+
+    private var inlineText: String {
+        guard let snap, !snap.segments.isEmpty else { return L("일정 없음", "No events", en) }
+        if let cur = snap.currentTitle { return L("현재", "Now", en) + " · " + cur }
+        if let title = snap.nextTitle, let start = snap.nextStart {
+            return L("다음", "Next", en) + " · \(title) " + remainingLabel(to: start, english: en)
+        }
+        return L("오늘 일정 종료", "All done", en)
+    }
+
+    private var statusText: String {
+        guard let snap, !snap.segments.isEmpty else { return L("오늘 일정 없음", "No events", en) }
+        if let cur = snap.currentTitle { return L("현재", "Now", en) + " · " + cur }
+        if snap.nextTitle != nil { return L("대기 중", "Waiting", en) }
+        return L("오늘 일정 종료", "All done", en)
+    }
+
+    private var nextText: String? {
+        guard let title = snap?.nextTitle, let start = snap?.nextStart else { return nil }
+        let f = DateFormatter()
+        f.locale = Locale(identifier: en ? "en_US" : "ko_KR")
+        f.dateFormat = "a h:mm"
+        return L("다음", "Next", en) + " · \(title) \(f.string(from: start))"
     }
 }
