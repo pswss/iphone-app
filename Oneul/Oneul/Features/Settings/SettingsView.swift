@@ -7,6 +7,7 @@ struct SettingsView: View {
     @AppStorage("userType") private var userType = "general"
     @Bindable private var lang = AppLanguage.shared
     @State private var showResetConfirm = false
+    @State private var laResult: String?                                     // 실시간 활동 시작 결과(팝업)
     @Query(sort: \ScheduleEvent.start) private var events: [ScheduleEvent]   // 실시간 활동 수동 시작용
 
     var body: some View {
@@ -48,6 +49,12 @@ struct SettingsView: View {
                 Button(lang.tr("취소"), role: .cancel) {}
             } message: {
                 Text(lang.tr("이 기기의 모든 일정·학교 설정이 삭제됩니다. 되돌릴 수 없어요."))
+            }
+            .alert(lang.tr("실시간 활동"),
+                   isPresented: Binding(get: { laResult != nil }, set: { if !$0 { laResult = nil } })) {
+                Button(lang.tr("확인"), role: .cancel) {}
+            } message: {
+                Text(laResult ?? "")
             }
         }
     }
@@ -109,6 +116,7 @@ struct SettingsView: View {
                 LiveActivityController.shared.refresh(
                     plan: up?.plan ?? DayPlan(events: [], day: .now),
                     dayLabel: laLabel(up?.day ?? .now))
+                laResult = LiveActivityController.shared.status + "\n\n(다가오는 일정 수: \(events.filter { $0.end >= Date() }.count)개)"
                 Haptics.impact(.light)
             } label: {
                 HStack {
