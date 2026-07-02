@@ -76,13 +76,13 @@ struct ScheduleLiveActivity: Widget {
         return L("다음", "Next", s.isEnglish) + " · \(title) \(f.string(from: start))"
     }
 
-    // 진행 중이면 '진행 중', 아니면 다음 일정까지 남은 시간(초 없음).
+    // 진행 중이면 끝까지, 대기 중이면 다음 일정까지 — 잠금화면에서 초 단위로 스스로 줄어드는 실시간 타이머(푸시 불필요).
     @ViewBuilder
     private func countdownText(_ s: ScheduleActivityAttributes.ContentState) -> some View {
-        if s.currentTitle != nil {
-            Text(L("진행 중", "Now", s.isEnglish))
+        if let end = s.currentEnd, s.currentTitle != nil, end > .now {
+            Text(timerInterval: Date()...end, countsDown: true).monospacedDigit()
         } else if let start = s.nextStart, start > .now {
-            Text(remainingLabel(to: start, english: s.isEnglish))
+            Text(timerInterval: Date()...start, countsDown: true).monospacedDigit()
         } else {
             Text(L("오늘 끝", "Done", s.isEnglish))
         }
@@ -104,6 +104,13 @@ struct LockScreenView: View {
                 countdown
             }
             WidgetTimelineBar(state: state)
+            if let seg = state.segments.first(where: { $0.start <= Date() && Date() < $0.end }) {
+                ProgressView(timerInterval: seg.start...seg.end, countsDown: false) {
+                    EmptyView()
+                } currentValueLabel: { EmptyView() }
+                    .progressViewStyle(.linear)
+                    .tint(.white)                        // 진행 중 일정이 채워지는 실시간 바(배민식)
+            }
             Text(L("현재", "Now", en) + " · " + (state.currentTitle ?? L("진행 중인 일정 없음", "No active event", en)))
                 .font(.subheadline).bold().foregroundStyle(.white)
             if let title = state.nextTitle, let start = state.nextStart {
@@ -115,15 +122,23 @@ struct LockScreenView: View {
 
     @ViewBuilder
     private var countdown: some View {
-        if state.currentTitle != nil {
-            Text(L("진행 중", "Now", en))
-                .font(.caption).bold().foregroundStyle(.white)
+        if let end = state.currentEnd, state.currentTitle != nil, end > .now {
+            liveTimer(L("남은 ", "ends in ", en), to: end)
         } else if let start = state.nextStart, start > .now {
-            Text(L("다음까지 ", "in ", en) + remainingLabel(to: start, english: en))
-                .font(.caption).bold().foregroundStyle(.white)
+            liveTimer(L("다음까지 ", "in ", en), to: start)
         } else {
             Text(L("오늘 끝", "Done", en)).font(.caption).bold().foregroundStyle(.white.opacity(0.7))
         }
+    }
+
+    /// 라벨 + 스스로 줄어드는 실시간 카운트다운(초 단위).
+    private func liveTimer(_ label: String, to target: Date) -> some View {
+        HStack(spacing: 3) {
+            Text(label)
+            Text(timerInterval: Date()...target, countsDown: true).monospacedDigit()
+        }
+        .font(.caption).bold().foregroundStyle(.white)
+        .fixedSize()
     }
 
     private func timeString(_ date: Date) -> String {
