@@ -111,7 +111,7 @@ struct HomeSnapshot: Codable {
 
 /// 앱↔위젯 공유 저장소(App Group). 앱이 오늘 스냅샷을 쓰고 홈 위젯이 읽는다.
 enum SharedStore {
-    static let appGroup = "group.com.oneul.app"
+    static let appGroup = AppConfig.appGroupID
     private static let todayKey = "homeSnapshot.v1"
     private static var defaults: UserDefaults? { UserDefaults(suiteName: appGroup) }
 

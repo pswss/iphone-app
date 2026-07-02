@@ -13,7 +13,7 @@ settings:
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_VERSION: "5.0"
     CODE_SIGN_STYLE: Automatic
-    DEVELOPMENT_TEAM: 8ZU657QBXU   # 사용자의 Personal Team (재생성 시 유지)
+    DEVELOPMENT_TEAM: W9W4CM597R   # Dayeon Pyo 유료팀(2026-07-02 전환). 무료팀 8ZU657QBXU 아님 — App Group·CloudKit·푸시 서명용
     ENABLE_PREVIEWS: YES
     TARGETED_DEVICE_FAMILY: "1,2"   # iPhone + iPad
 

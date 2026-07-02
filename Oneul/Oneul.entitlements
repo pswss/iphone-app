@@ -6,6 +6,13 @@
 	<array>
 		<string>group.com.oneul.app</string>
 	</array>
-	<!-- CloudKit(iCloud)은 CloudKit 동기화 구현 시 Xcode Signing & Capabilities에서 추가. -->
+	<key>com.apple.developer.icloud-container-identifiers</key>
+	<array>
+		<string>iCloud.com.oneul.app</string>
+	</array>
+	<key>com.apple.developer.icloud-services</key>
+	<array>
+		<string>CloudKit</string>
+	</array>
 </dict>
 </plist>
