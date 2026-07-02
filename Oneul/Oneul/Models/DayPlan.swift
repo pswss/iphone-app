@@ -106,6 +106,15 @@ struct DayPlan {
             currentTitle: cur?.title, currentEnd: cur?.end,
             nextTitle: nxt?.title, nextStart: nxt?.start, updatedAt: now)
     }
+
+    /// 홈 화면 위젯으로 넘길 오늘 스냅샷(App Group 공유). contentState()와 같은 값을 ActivityKit 비의존 형태로.
+    func homeSnapshot(dayLabel: String, at now: Date = .now) -> HomeSnapshot {
+        let s = contentState(at: now)
+        return HomeSnapshot(
+            dayLabel: dayLabel, dayStart: s.dayStart, dayEnd: s.dayEnd, segments: s.segments,
+            currentTitle: s.currentTitle, currentEnd: s.currentEnd,
+            nextTitle: s.nextTitle, nextStart: s.nextStart, isEnglish: s.isEnglish, updatedAt: now)
+    }
 }
 
 // MARK: - 공휴일 (양력 + 음력 설날/추석/부처님오신날)

@@ -91,3 +91,37 @@ struct PackedLayout {
         return !intervals.contains { now >= $0.start && now < $0.end }
     }
 }
+
+// MARK: - 홈 화면 위젯 (App Group 공유)
+
+/// 홈 위젯이 읽는 오늘(또는 다가오는) 하루 스냅샷. ContentState와 같은 정보지만 ActivityKit 비의존이라
+/// 어느 타깃에서든 인코딩/디코딩된다.
+struct HomeSnapshot: Codable {
+    var dayLabel: String
+    var dayStart: Date
+    var dayEnd: Date
+    var segments: [EventSnapshot]
+    var currentTitle: String?
+    var currentEnd: Date?
+    var nextTitle: String?
+    var nextStart: Date?
+    var isEnglish: Bool = false
+    var updatedAt: Date = .init()
+}
+
+/// 앱↔위젯 공유 저장소(App Group). 앱이 오늘 스냅샷을 쓰고 홈 위젯이 읽는다.
+enum SharedStore {
+    static let appGroup = "group.com.oneul.app"
+    private static let todayKey = "homeSnapshot.v1"
+    private static var defaults: UserDefaults? { UserDefaults(suiteName: appGroup) }
+
+    static func writeToday(_ snapshot: HomeSnapshot) {
+        guard let d = defaults, let data = try? JSONEncoder().encode(snapshot) else { return }
+        d.set(data, forKey: todayKey)
+    }
+
+    static func readToday() -> HomeSnapshot? {
+        guard let d = defaults, let data = d.data(forKey: todayKey) else { return nil }
+        return try? JSONDecoder().decode(HomeSnapshot.self, from: data)
+    }
+}

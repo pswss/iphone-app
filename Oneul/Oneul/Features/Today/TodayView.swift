@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import UIKit
+import WidgetKit
 
 struct TodayView: View {
     @Environment(\.modelContext) private var context
@@ -327,6 +328,11 @@ struct TodayView: View {
         let wp = (shown?.plan ?? DayPlan(events: events, day: .now))
         WatchSync.shared.send(wp.watchPayload(dayLabel: dayLabel(for: shown?.day ?? .now)))
         #endif
+
+        // 홈 화면 위젯 갱신(App Group 공유) — 오늘이 비면 다가오는 날, 그것도 없으면 빈 스냅샷.
+        let homePlan = shown?.plan ?? DayPlan(events: events, day: .now)
+        SharedStore.writeToday(homePlan.homeSnapshot(dayLabel: dayLabel(for: shown?.day ?? .now)))
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     private func dayLabel(for day: Date) -> String {

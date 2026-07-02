@@ -2,8 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- 무료 계정에서도 바로 실행되도록 iCloud / App Groups 를 비워 둡니다.
-	     유료 개발자 계정이 생기면 Xcode의 Signing & Capabilities 탭에서
-	     'iCloud(CloudKit)'와 'App Groups(group.com.oneul.app)'를 다시 추가하면 동기화가 켜집니다. -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.oneul.app</string>
+	</array>
+	<!-- CloudKit(iCloud)은 CloudKit 동기화 구현 시 Xcode Signing & Capabilities에서 추가. -->
 </dict>
 </plist>

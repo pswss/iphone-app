@@ -2,6 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- 무료 계정 호환을 위해 App Groups 를 비워 둡니다. -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.oneul.app</string>
+	</array>
 </dict>
 </plist>
