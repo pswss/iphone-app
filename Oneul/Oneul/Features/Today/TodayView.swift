@@ -16,6 +16,7 @@ struct TodayView: View {
     @State private var timelineProgress: CGFloat = 0   // 상단 접힘 진행률 0~1 (그리드 스크롤 위치 기반)
     @State private var rowH: [Int: CGFloat] = [:]      // 접히는 위젯 4개 자연 높이(index→height)
     @State private var sharedScrollHour: Int?          // 모든 날 grid가 공유하는 세로 스크롤 위치(슬라이드해도 유지)
+    @State private var gridInteracting = false         // 일정 드래그/리사이즈 중 → 좌우 날짜 스와이프 잠금
     private let lang = AppLanguage.shared
     @AppStorage("userType") private var userType = "general"
     @Environment(\.horizontalSizeClass) private var hSize
@@ -76,7 +77,8 @@ struct TodayView: View {
                     onAdd: { addStart = $0; showingAdd = true },
                     onScrollDelta: onScrollDelta,
                     previewStart: previewFor(d),
-                    scrollHour: scrollHour)
+                    scrollHour: scrollHour,
+                    onInteractingChange: { gridInteracting = $0 })
     }
 
     /// 새 일정 추가 시트가 떠 있고 그 시작 시각이 이 날짜면 미리보기 블록 표시.
@@ -127,7 +129,7 @@ struct TodayView: View {
 
             collapsingChrome   // 헤더·D-Day·캘린더·타임라인이 아래→위 순으로 하나씩 계단식 접힘
 
-            DayPager(selectedDay: $selectedDay, refreshID: gridToken) { day in   // UIPageViewController 3페이지 재사용
+            DayPager(selectedDay: $selectedDay, refreshID: gridToken, swipeDisabled: gridInteracting) { day in   // UIPageViewController 3페이지 재사용
                 gridPage(day)
             }
         }
@@ -347,6 +349,7 @@ struct TodayView: View {
 struct DayPager<Content: View>: UIViewControllerRepresentable {
     @Binding var selectedDay: Date
     var refreshID: Int = 0                       // 일정 변경 시 값이 바뀌어 updateUIViewController를 강제 → 보이는 페이지 갱신
+    var swipeDisabled: Bool = false              // 일정 드래그/리사이즈 중엔 좌우 페이지 스와이프 잠금
     @ViewBuilder var content: (Date) -> Content
 
     func makeUIViewController(context: Context) -> UIPageViewController {
@@ -360,6 +363,8 @@ struct DayPager<Content: View>: UIViewControllerRepresentable {
 
     func updateUIViewController(_ pvc: UIPageViewController, context: Context) {
         context.coordinator.parent = self
+        // 일정 드래그/리사이즈 중엔 내부 스크롤뷰(좌우 페이지 스와이프) 잠금 — 세로 드래그와 충돌 방지
+        pvc.view.subviews.compactMap { $0 as? UIScrollView }.forEach { $0.isScrollEnabled = !swipeDisabled }
         let coord = context.coordinator
         let cal = Calendar.current
         guard let cur = pvc.viewControllers?.first as? Host else { return }

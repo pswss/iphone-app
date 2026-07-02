@@ -272,6 +272,9 @@ struct AIScheduleView: View {
             } else {
                 inputText = ""   // 처리됨(미리보기는 results로, 답변은 reply로)
             }
+        } catch is AIContentBlocked {
+            // 자극적/민감 표현으로 모델이 막은 경우 — 빨간 에러 대신 순화 안내 답변
+            reply = lang.tr("그 표현은 도와드리기 어려워요. 일정 내용을 부드럽게 바꿔서 다시 말해 주세요.")
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -342,10 +345,10 @@ struct AIScheduleView: View {
 
     /// 수정/삭제 대상이 될 다가오는 일정(최대 25개).
     private func fetchUpcoming() -> [ExistingEvent] {
-        let now = Date()
+        let start = Calendar.current.startOfDay(for: Date())   // 오늘 0시부터 → 오늘 이미 지난 일정도 삭제/수정 대상
         var d = FetchDescriptor<ScheduleEvent>(
-            predicate: #Predicate { $0.start >= now }, sortBy: [SortDescriptor(\.start)])
-        d.fetchLimit = 12   // 컨텍스트(글자수) 절약 — 가까운 일정만
+            predicate: #Predicate { $0.start >= start }, sortBy: [SortDescriptor(\.start)])
+        d.fetchLimit = 15   // 컨텍스트 절약 vs 삭제 커버리지 균형
         let items = (try? context.fetch(d)) ?? []
         return items.map { ExistingEvent(id: $0.id, title: $0.title, start: $0.start, end: $0.end, location: $0.location) }
     }

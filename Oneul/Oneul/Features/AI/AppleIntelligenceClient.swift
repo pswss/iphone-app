@@ -39,6 +39,9 @@ struct AppleIntelligenceUnavailable: LocalizedError {
     var errorDescription: String? { reason }
 }
 
+/// 모델 가드레일이 입력을 차단(자극적/민감 표현)한 경우 — 뷰에서 순화 안내 답변으로 처리.
+struct AIContentBlocked: Error {}
+
 #if canImport(FoundationModels)
 @available(iOS 26, *)
 enum AppleAI {
@@ -181,10 +184,12 @@ enum AppleAI {
             return result
         }
 
-        // 1) 평소: 기존 일정 포함 한 번에
-        if let cmds = try? await respondCommands(text: text, now: now, existing: existing, includeExisting: true) {
-            return await finish(cmds)
-        }
+        // 1) 평소: 기존 일정 포함 한 번에. 가드레일(자극적/민감 내용) 차단은 폴백해도 소용없으니 즉시 안내로.
+        do {
+            return await finish(try await respondCommands(text: text, now: now, existing: existing, includeExisting: true))
+        } catch let e as LanguageModelSession.GenerationError {
+            if case .guardrailViolation = e { throw AIContentBlocked() }
+        } catch { }
         // 2) 컨텍스트(글자수) 초과 → 기존 일정 목록 빼고 한 번에
         if let cmds = try? await respondCommands(text: text, now: now, existing: existing, includeExisting: false) {
             return await finish(cmds)

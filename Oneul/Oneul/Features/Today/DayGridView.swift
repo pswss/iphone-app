@@ -14,6 +14,7 @@ struct DayGridView: View {
     var onScrollDelta: ((CGFloat) -> Void)? = nil    // 앵커 대비 스크롤 진행량 — 타임라인 연속 접기/펼치기
     var previewStart: Date? = nil                    // 탭으로 추가 중인 새 일정 미리보기(1시간)
     @Binding var scrollHour: Int?                    // 모든 날이 공유하는 세로 스크롤 위치(애플 캘린더식)
+    var onInteractingChange: ((Bool) -> Void)? = nil // 일정 드래그/리사이즈 중 알림 → 페이저 좌우 스와이프 잠금
 
     @Environment(\.modelContext) private var context
     private let lang = AppLanguage.shared
@@ -298,6 +299,7 @@ struct DayGridView: View {
                     // 세로가 우세할 때만 리사이즈 — 가로 스와이프(날짜 넘김)는 통과
                     guard abs(v.translation.height) > abs(v.translation.width) else { return }
                     resizeID = e.id; lastStep = 0; Haptics.impact(.soft)
+                    onInteractingChange?(true)
                 }
                 if resizeID == e.id {
                     resizeDY = v.translation.height
@@ -308,6 +310,7 @@ struct DayGridView: View {
             .onEnded { _ in
                 if resizeID == e.id { commitResize(e); Haptics.impact(.soft) }
                 resizeID = nil; resizeDY = 0; lastStep = 0
+                onInteractingChange?(false)
             }
     }
 
@@ -324,6 +327,7 @@ struct DayGridView: View {
                 if resizeTopID != e.id {
                     guard abs(v.translation.height) > abs(v.translation.width) else { return }
                     resizeTopID = e.id; lastStep = 0; Haptics.impact(.soft)
+                    onInteractingChange?(true)
                 }
                 if resizeTopID == e.id {
                     resizeTopDY = v.translation.height
@@ -334,6 +338,7 @@ struct DayGridView: View {
             .onEnded { _ in
                 if resizeTopID == e.id { commitResizeTop(e); Haptics.impact(.soft) }
                 resizeTopID = nil; resizeTopDY = 0; lastStep = 0
+                onInteractingChange?(false)
             }
     }
 
@@ -348,6 +353,7 @@ struct DayGridView: View {
         dragID = e.id; selectedID = e.id; lastStep = 0
         autoScrollDY = 0; autoScrolling = false; autoScrollDir = 0
         deleteBubbleID = nil
+        onInteractingChange?(true)
         Haptics.impact(.medium)
     }
     private func changeMove(_ e: ScheduleEvent, dy: CGFloat, topGap: CGFloat, bottomGap: CGFloat) {
@@ -377,6 +383,7 @@ struct DayGridView: View {
         if dragMinutes(eff) != 0 { commitDrag(e, dy: eff); Haptics.impact(.soft) }
         else { deleteBubbleID = e.id; Haptics.impact(.medium) }          // 안 움직이고 떼면 → 삭제 말풍선
         dragID = nil; dragDY = 0; autoScrollDY = 0; lastStep = 0
+        onInteractingChange?(false)
     }
 
     private func startAutoScroll(_ e: ScheduleEvent, dir: Int) {
