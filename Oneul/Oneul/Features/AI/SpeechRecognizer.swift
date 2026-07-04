@@ -21,19 +21,28 @@ final class SpeechRecognizer {
         transcript = ""
         SFSpeechRecognizer.requestAuthorization { status in
             guard status == .authorized else { return }
+            #if os(iOS)
             AVAudioApplication.requestRecordPermission { granted in
                 guard granted else { return }
                 DispatchQueue.main.async { self.begin() }
             }
+            #else
+            AVCaptureDevice.requestAccess(for: .audio) { granted in   // macOS: 오디오 세션 없이 마이크 권한만
+                guard granted else { return }
+                DispatchQueue.main.async { self.begin() }
+            }
+            #endif
         }
     }
 
     private func begin() {
         guard wantsRecording, let recognizer, recognizer.isAvailable else { return }   // 이미 손을 뗐으면 시작 안 함
         do {
+            #if os(iOS)
             let audio = AVAudioSession.sharedInstance()
             try audio.setCategory(.record, mode: .measurement, options: .duckOthers)
             try audio.setActive(true, options: .notifyOthersOnDeactivation)
+            #endif
 
             let req = SFSpeechAudioBufferRecognitionRequest()
             req.shouldReportPartialResults = true
@@ -67,6 +76,8 @@ final class SpeechRecognizer {
         request = nil
         task = nil
         isRecording = false
+        #if os(iOS)
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        #endif
     }
 }

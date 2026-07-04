@@ -89,7 +89,9 @@ struct SettingsView: View {
             d.removeObject(forKey: "bell.\(p).start")
             d.removeObject(forKey: "bell.\(p).end")
         }
+        #if os(iOS)
         Task { await LiveActivityController.shared.end() }
+        #endif
         Haptics.notify(.success)
     }
 
@@ -178,7 +180,7 @@ struct PrivacyPolicyView: View {
             }
         }
         .navigationTitle(lang.tr("개인정보 처리방침"))
-        .navigationBarTitleDisplayMode(.inline)
+        .navBarInline()
     }
 
     // (제목, 본문) 쌍 — 언어별 전체 텍스트.

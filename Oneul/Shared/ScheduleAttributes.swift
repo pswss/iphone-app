@@ -1,5 +1,5 @@
 import Foundation
-#if canImport(ActivityKit)
+#if os(iOS)
 import ActivityKit
 #endif
 
@@ -16,7 +16,7 @@ struct EventSnapshot: Codable, Hashable, Identifiable {
     var isMultiDay: Bool = false
 }
 
-#if canImport(ActivityKit)
+#if os(iOS)
 /// 잠금화면 + 다이나믹 아일랜드 Live Activity의 데이터 정의.
 /// - `attributes`(고정): 그날 라벨
 /// - `ContentState`(갱신): 그날 일정 목록 + 현재/다음 일정

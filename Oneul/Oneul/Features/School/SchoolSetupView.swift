@@ -48,12 +48,14 @@ struct SchoolSetupView: View {
             .scrollDismissesKeyboard(.interactively)
         }
         .navigationTitle(lang.tr("학교 설정"))
-        .navigationBarTitleDisplayMode(.inline)
+        .navBarInline()
+        #if os(iOS)
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer(); Button(lang.tr("완료")) { focused = false }
             }
         }
+        #endif
     }
 
     // MARK: 검색
@@ -348,9 +350,23 @@ struct MealView: View {
                             .font(.title3).bold()
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal, 16)
+                        #if os(iOS)
                         DayPager(selectedDay: $mealDay) { day in    // 페이저 재사용 → 121개 카드 대신 3개만(렉↓)
                             ScrollView { MealCard(day: day).padding(16) }
                         }
+                        #else
+                        HStack(spacing: 12) {   // macOS: ‹ 오늘 › + 좌/우 화살표로 날짜 이동
+                            Button { mealDay = Calendar.current.date(byAdding: .day, value: -1, to: mealDay) ?? mealDay } label: { Image(systemName: "chevron.left") }
+                                .keyboardShortcut(.leftArrow, modifiers: [])
+                            Spacer()
+                            Button(lang.tr("오늘")) { mealDay = .now }.font(.subheadline).bold()
+                            Spacer()
+                            Button { mealDay = Calendar.current.date(byAdding: .day, value: 1, to: mealDay) ?? mealDay } label: { Image(systemName: "chevron.right") }
+                                .keyboardShortcut(.rightArrow, modifiers: [])
+                        }
+                        .buttonStyle(.borderless).padding(.horizontal, 16)
+                        ScrollView { MealCard(day: mealDay).padding(16) }
+                        #endif
                     }
                     .padding(.top, 8)
                     .frame(maxWidth: 640).frame(maxWidth: .infinity)

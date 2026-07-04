@@ -41,7 +41,7 @@ struct ScheduleLiveActivity: Widget {
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     VStack(spacing: 6) {
-                        WidgetTimelineBar(state: context.state, height: 12)
+                        WidgetTimelineBar(segments: context.state.segments, height: 12)
                         if let line = nextLine(context.state) {
                             Text(line).font(.caption2).foregroundStyle(.secondary)
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -103,7 +103,7 @@ struct LockScreenView: View {
                 Spacer()
                 countdown
             }
-            WidgetTimelineBar(state: state)
+            WidgetTimelineBar(segments: state.segments)
             if let seg = state.segments.first(where: { $0.start <= Date() && Date() < $0.end }) {
                 ProgressView(timerInterval: seg.start...seg.end, countsDown: false) {
                     EmptyView()

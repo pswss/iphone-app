@@ -49,26 +49,33 @@ struct AIScheduleView: View {
                         .frame(maxWidth: .infinity)
                         .frame(minHeight: geo.size.height, alignment: .top)   // 콘텐츠를 화면만큼 채워 빈 곳 어디든 탭 → 키보드 내림
                         .contentShape(Rectangle())
-                        .onTapGesture { UIApplication.shared.endEditing() }
+                        .onTapGesture { endEditingGlobally() }
                     }
                     .scrollDismissesKeyboard(.interactively)
                 }
             }
             .animation(.easeInOut(duration: 0.45), value: isLoading)   // 글로우 페이드 인/아웃
             .navigationTitle("")
-            .navigationBarTitleDisplayMode(.inline)
+            .navBarInline()
             .task { AppleIntelligenceClient.prewarm() }
             .onChange(of: speech.transcript) { _, t in if !t.isEmpty { inputText = t } }
             .onDisappear { speech.stop() }
+            #if os(iOS)
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
                     Button(lang.tr("완료")) { editorFocused = false }
                 }
             }
+            #endif
             .sheet(isPresented: Binding(get: { editingIndex != nil }, set: { if !$0 { editingIndex = nil } })) {
                 if let i = editingIndex, results.indices.contains(i) {
-                    AIResultEditView(event: $results[i]).presentationDetents([.medium, .large])
+                    AIResultEditView(event: $results[i])
+                    #if os(iOS)
+                        .presentationDetents([.medium, .large])
+                    #else
+                        .frame(minWidth: 480, minHeight: 600)
+                    #endif
                 }
             }
         }
@@ -526,7 +533,7 @@ private struct AIResultEditView: View {
                 }
             }
             .navigationTitle(lang.tr("수정"))
-            .navigationBarTitleDisplayMode(.inline)
+            .navBarInline()
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) { Button(lang.tr("완료")) { dismiss() } }
             }

@@ -1,6 +1,10 @@
 import SwiftUI
 import SwiftData
+#if canImport(UIKit)
 import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 
 /// 애플 캘린더식 시간 그리드(=시간표) 일간뷰. 앱 스타일 유지.
 /// - 빈 곳 탭 → 일정 추가, 일정 탭 → 수정
@@ -553,6 +557,7 @@ private struct DownTriangle: Shape {
     }
 }
 
+#if os(iOS)
 private struct LongPressArea: UIViewRepresentable {
     var minimumDuration: Double = 0.4
     var onBegan: (CGFloat) -> Void = { _ in }                                   // began 위치 y(콘텐츠 좌표)
@@ -605,6 +610,34 @@ private struct LongPressArea: UIViewRepresentable {
                                shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
     }
 }
+#else
+/// macOS: 롱프레스 지연 없이 클릭-드래그로 같은 콜백(onBegan/onChanged/onEnded)을 제공.
+/// 세로 스크롤은 트랙패드/휠로 하므로 드래그와 충돌하지 않음. 가장자리 자동 스크롤은 비활성(수동 스크롤 사용).
+private struct LongPressArea: View {
+    var minimumDuration: Double = 0.4                        // macOS에선 미사용(지연 없음)
+    var onBegan: (CGFloat) -> Void = { _ in }                // began 위치 y(콘텐츠 로컬 좌표)
+    var onChanged: (_ translationY: CGFloat, _ topGap: CGFloat, _ bottomGap: CGFloat) -> Void = { _, _, _ in }
+    var onEnded: (_ translationY: CGFloat) -> Void = { _ in }
+
+    @State private var began = false
+
+    var body: some View {
+        Color.clear
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 4, coordinateSpace: .local)   // 4px 넘겨 끌면 시작 → 순수 클릭은 탭으로 통과
+                    .onChanged { v in
+                        if !began { began = true; onBegan(v.startLocation.y) }
+                        onChanged(v.translation.height, 99_999, 99_999)     // 자동 스크롤 밴드 밖(비활성)
+                    }
+                    .onEnded { v in
+                        began = false
+                        onEnded(v.translation.height)
+                    }
+            )
+    }
+}
+#endif
 
 // MARK: - 스크롤 진행량 추적(앵커 대비) — 타임라인 연속 접기. iOS 18+에서만, 그 이하는 그대로
 private extension View {

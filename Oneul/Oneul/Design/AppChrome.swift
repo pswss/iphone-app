@@ -1,19 +1,45 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
+#if canImport(AppKit)
+import AppKit
+#endif
 
 // MARK: - 키보드 광역 내림
 
+#if canImport(UIKit)
 extension UIApplication {
     func endEditing() {
         sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
+}
+#endif
+
+/// 현재 포커스(키보드)를 내린다. macOS엔 소프트 키보드가 없어 first responder만 해제.
+func endEditingGlobally() {
+    #if canImport(UIKit)
+    UIApplication.shared.endEditing()
+    #elseif canImport(AppKit)
+    NSApp.keyWindow?.makeFirstResponder(nil)
+    #endif
 }
 
 extension View {
     /// 빈 곳을 탭하면 키보드를 내린다. (배경 레이어에 붙여 버튼/입력 탭은 방해하지 않음)
     func dismissKeyboardOnBackgroundTap() -> some View {
         contentShape(Rectangle())
-            .onTapGesture { UIApplication.shared.endEditing() }
+            .onTapGesture { endEditingGlobally() }
+    }
+
+    /// `.navigationBarTitleDisplayMode(.inline)` — macOS엔 없는 모디파이어라 no-op.
+    @ViewBuilder
+    func navBarInline() -> some View {
+        #if os(iOS)
+        self.navigationBarTitleDisplayMode(.inline)
+        #else
+        self
+        #endif
     }
 }
 
@@ -45,11 +71,31 @@ enum Appearance: String, CaseIterable, Identifiable {
 // MARK: - 햅틱
 
 enum Haptics {
-    static func impact(_ style: UIImpactFeedbackGenerator.FeedbackStyle) {
-        UIImpactFeedbackGenerator(style: style).impactOccurred()
+    enum Style { case light, medium, heavy, soft, rigid }
+    enum Notice { case success, warning, error }
+
+    static func impact(_ style: Style) {
+        #if canImport(UIKit)
+        let s: UIImpactFeedbackGenerator.FeedbackStyle
+        switch style {
+        case .light: s = .light; case .medium: s = .medium; case .heavy: s = .heavy
+        case .soft: s = .soft; case .rigid: s = .rigid
+        }
+        UIImpactFeedbackGenerator(style: s).impactOccurred()
+        #elseif canImport(AppKit)
+        NSHapticFeedbackManager.defaultPerformer.perform(.generic, performanceTime: .now)
+        #endif
     }
-    static func notify(_ type: UINotificationFeedbackGenerator.FeedbackType) {
-        UINotificationFeedbackGenerator().notificationOccurred(type)
+    static func notify(_ type: Notice) {
+        #if canImport(UIKit)
+        let t: UINotificationFeedbackGenerator.FeedbackType
+        switch type {
+        case .success: t = .success; case .warning: t = .warning; case .error: t = .error
+        }
+        UINotificationFeedbackGenerator().notificationOccurred(t)
+        #elseif canImport(AppKit)
+        NSHapticFeedbackManager.defaultPerformer.perform(.generic, performanceTime: .now)
+        #endif
     }
 }
 

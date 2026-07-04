@@ -1,27 +1,46 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
+#if canImport(AppKit)
+import AppKit
+#endif
 
 extension Color {
+    /// 라이트/다크 동적 색 (iOS=UIColor 트레이트, macOS=NSColor appearance).
+    private static func dynamic(light: (Double, Double, Double, Double),
+                                dark: (Double, Double, Double, Double)) -> Color {
+        #if canImport(UIKit)
+        return Color(UIColor { $0.userInterfaceStyle == .dark
+            ? UIColor(red: dark.0, green: dark.1, blue: dark.2, alpha: dark.3)
+            : UIColor(red: light.0, green: light.1, blue: light.2, alpha: light.3) })
+        #elseif canImport(AppKit)
+        return Color(NSColor(name: nil) { ap in
+            let d = ap.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? dark : light
+            return NSColor(srgbRed: d.0, green: d.1, blue: d.2, alpha: d.3)
+        })
+        #else
+        return .accentColor
+        #endif
+    }
+
     /// 앱 포인트 컬러 — 라이트=화이트, 다크=남색.
-    static let appAccent = Color(UIColor { trait in
-        trait.userInterfaceStyle == .dark
-            ? UIColor(red: 0.18, green: 0.29, blue: 0.63, alpha: 1)   // 남색
-            : UIColor.white
-    })
-
+    static let appAccent = dynamic(light: (1, 1, 1, 1), dark: (0.18, 0.29, 0.63, 1))
     /// 포인트 컬러 위에 올라가는 글자/아이콘 색.
-    static let appOnAccent = Color(UIColor { trait in
-        trait.userInterfaceStyle == .dark
-            ? UIColor.white
-            : UIColor(white: 0.11, alpha: 1)
-    })
-
+    static let appOnAccent = dynamic(light: (0.11, 0.11, 0.11, 1), dark: (1, 1, 1, 1))
     /// 어두운/밝은 배경 위에서 읽히는 강조 텍스트 색(카운트다운 등).
-    static let appAccentText = Color(UIColor { trait in
-        trait.userInterfaceStyle == .dark
-            ? UIColor(red: 0.56, green: 0.64, blue: 1.0, alpha: 1)    // 밝은 남색
-            : UIColor(white: 0.11, alpha: 1)
-    })
+    static let appAccentText = dynamic(light: (0.11, 0.11, 0.11, 1), dark: (0.56, 0.64, 1.0, 1))
+
+    /// 시스템 배경색 (iOS=.systemBackground, macOS=.windowBackgroundColor).
+    static var appSystemBackground: Color {
+        #if canImport(UIKit)
+        Color(uiColor: .systemBackground)
+        #elseif canImport(AppKit)
+        Color(nsColor: .windowBackgroundColor)
+        #else
+        Color.white
+        #endif
+    }
 }
 
 /// 글래스 뒤로 비치는 컬러 배경(리퀴드 글래스 느낌을 살리려면 배경이 화려해야 함).

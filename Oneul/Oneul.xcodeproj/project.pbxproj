@@ -8,31 +8,51 @@
 
 /* Begin PBXBuildFile section */
 		01B03CBFC066FA4AE84FB90F /* AppleIntelligenceClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AEF004D088ABDDA2FD61577 /* AppleIntelligenceClient.swift */; };
+		01C359154BAE7FEF717EFFDC /* ScheduleEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9845203CDC1D337EDEB41376 /* ScheduleEvent.swift */; };
+		04DD91D2672B07692BFF88FD /* AICommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A4018B36A49D3884C07100 /* AICommand.swift */; };
+		056F8158761F3C36295A1C0A /* WatchSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = A16CFD8B435D3E1D46EF0F09 /* WatchSync.swift */; };
+		094B5368FA3A89424E090318 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6CDAF136B89C9CD70A564B1 /* AppConfig.swift */; };
 		0F506EF0648DD738B3180989 /* OneulWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 2BA16226B30D84045A77F03B /* OneulWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		1163B5973260DF55E9E1820B /* Glass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A201BB565E9308A6DAAEAB4 /* Glass.swift */; };
+		133F28617D2C44375770E9C8 /* FastScheduleParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AFB22F65F7DA7A454446F4C /* FastScheduleParser.swift */; };
 		162CDA1685661DC1777F7FC1 /* OneulWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 4F7FC0B293541145B57F17CD /* OneulWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		17F21E70FEBE7FC30A94DBBF /* NEIS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 741F7445372DEF5858438E89 /* NEIS.swift */; };
 		1CDAAB28C96E1D2652437EC6 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6CDAF136B89C9CD70A564B1 /* AppConfig.swift */; };
 		27289D8F1B5A2E06AF20D96E /* AICommon.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B0BDB1D75C0BC7A988A590 /* AICommon.swift */; };
+		293DD03098EE5B027CDB2B56 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 777161A31B7E4F39C0973C6E /* TodayView.swift */; };
 		2C9D3F62B28E3A1A227366B1 /* Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C8478ADD1C15960DDC8879E /* Persistence.swift */; };
+		31C3B75836FCEB96DED757F0 /* AppleIntelligenceClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AEF004D088ABDDA2FD61577 /* AppleIntelligenceClient.swift */; };
 		31E7F27CAE898F1B83FD07B9 /* ScheduleAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 334A2A6B08661B685EF25A76 /* ScheduleAttributes.swift */; };
 		33F2D826536E8CB3514BCF4E /* ScheduleAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 334A2A6B08661B685EF25A76 /* ScheduleAttributes.swift */; };
 		351F425C79906C834932EEA0 /* EventRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7570E900508DF43B3D91D84 /* EventRow.swift */; };
+		36A41A45267D82442339B129 /* CalendarBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C645C9FB29A1DD74C886502 /* CalendarBar.swift */; };
+		44C4487CBA07B9FCB67E0BE3 /* ScheduleAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 334A2A6B08661B685EF25A76 /* ScheduleAttributes.swift */; };
 		44E99C13B7D22A3854B5AA07 /* ScheduleLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6AED8BA9142551D4DADE991 /* ScheduleLiveActivity.swift */; };
+		47022DDA451A2DB987CEFAA7 /* OneulApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ACE8189A99207C779416B4D /* OneulApp.swift */; };
 		4ADF4B85379FD3B22D3D3DA8 /* DayPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74A7ECD14CA79E4D059D2386 /* DayPlan.swift */; };
 		4D142C261BA290186384FAF1 /* EventPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B86C494CBB8B41E58CDC3E /* EventPalette.swift */; };
 		5068B44582D9C8F403AB4398 /* ScheduleAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 334A2A6B08661B685EF25A76 /* ScheduleAttributes.swift */; };
 		510A835B944A7DC75A0BDA9F /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ACF06EA2A9B63E4872D0D82 /* Theme.swift */; };
+		5160EB9B599C49DC72181368 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F3E3AE2F482E8821D392598 /* SettingsView.swift */; };
 		52D18DA1E0BFF37AFCA77DB0 /* EventEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5057FFD3739CA0A9C50D19B /* EventEditorView.swift */; };
 		53D7519E7811C519E51F224D /* EventPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B86C494CBB8B41E58CDC3E /* EventPalette.swift */; };
 		5AB447DA13E62E3DF893E9CB /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BA30100A3889640819877BDE /* Assets.xcassets */; };
 		5C45AC90E1D23B9E5D0E8352 /* EventPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B86C494CBB8B41E58CDC3E /* EventPalette.swift */; };
+		5FAE164704859CE46D50C5A5 /* BackgroundRefresh.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72970E6D99F9137A4E75455D /* BackgroundRefresh.swift */; };
 		6335D486832092D829A5B858 /* WidgetTimelineBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = B875E87DC1AAC7F636AB7E65 /* WidgetTimelineBar.swift */; };
+		63B1019055C33A0B6883FF15 /* AICommon.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B0BDB1D75C0BC7A988A590 /* AICommon.swift */; };
 		66DEC831D54E1054389D3688 /* ScheduleAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 334A2A6B08661B685EF25A76 /* ScheduleAttributes.swift */; };
+		6EDAE96F7FD4F0A21492F6CA /* WatchPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = B120768A33C004DCF2F45013 /* WatchPayload.swift */; };
+		72396778E4F4CEE8CFAFDE1E /* AIScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A7DA356E9BE16433ED03A34 /* AIScheduleView.swift */; };
+		74189C886162CED33B3BEB65 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 94270AF8C3F1645E053EDB34 /* Assets.xcassets */; };
 		75309A16D28C87AA17064433 /* AIScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A7DA356E9BE16433ED03A34 /* AIScheduleView.swift */; };
 		770DBDF8A2340C77EBA48398 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16EF8C9737267FC333CC19EC /* NotificationManager.swift */; };
 		783155D7C75754F18D43303F /* OneulWatchWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 2FE5158FB2F93365DDD57FEC /* OneulWatchWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		78A750E85B9DF3E94FD5F04F /* Glass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A201BB565E9308A6DAAEAB4 /* Glass.swift */; };
+		7FEBFE102F891625DB5A7734 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ACF06EA2A9B63E4872D0D82 /* Theme.swift */; };
 		811D809B7A894889A5E6B9F4 /* AppChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9F7A51A479EF765DCADE7CC /* AppChrome.swift */; };
 		81425BC87030795CAF808266 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6CDAF136B89C9CD70A564B1 /* AppConfig.swift */; };
+		82A5D9747B70D4941E3BF04B /* EventPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B86C494CBB8B41E58CDC3E /* EventPalette.swift */; };
 		8342AD3F05FD1D798CC7C741 /* EventPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B86C494CBB8B41E58CDC3E /* EventPalette.swift */; };
 		836FC0C29FA313E0CD43F7EC /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = D6485A918A22F530881FA7E2 /* PrivacyInfo.xcprivacy */; };
 		8697B4FE3A5541D083495D75 /* OneulApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ACE8189A99207C779416B4D /* OneulApp.swift */; };
@@ -40,31 +60,49 @@
 		8B72B9B6D654345B9E3D61D8 /* WatchPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = B120768A33C004DCF2F45013 /* WatchPayload.swift */; };
 		8C727C52A59118C9F354FE41 /* OneulWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15E10C76F7BC3F0106E55F39 /* OneulWidgetBundle.swift */; };
 		8D8728FC5A77B9D0A65A3EE2 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4945B28361CA4844CD0BE2A0 /* RootView.swift */; };
+		90D9E832A705B233285C4FC2 /* SpeechRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93B892D311D56026159282E3 /* SpeechRecognizer.swift */; };
 		94288FF630F4E04FD1FB58B6 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6CDAF136B89C9CD70A564B1 /* AppConfig.swift */; };
 		97BAA858C7D312E7C5E090F1 /* SchoolSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FE512E0EFCA4922CDD6E120 /* SchoolSetupView.swift */; };
 		98CC0BB2485C2B8A92CD624E /* WatchPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = B120768A33C004DCF2F45013 /* WatchPayload.swift */; };
+		9AE53CF1AE89239DF3BDC6F7 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = D6485A918A22F530881FA7E2 /* PrivacyInfo.xcprivacy */; };
+		9E7036EDAB19410AF75669FD /* ElectiveSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DDD92EAE062AD8537F2B53E /* ElectiveSetupView.swift */; };
 		A13AE6AE7D3A89DE8C23A3C2 /* NEIS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 741F7445372DEF5858438E89 /* NEIS.swift */; };
 		A342CC60B0C02D253113EB28 /* MapDirections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E4F2E090381140001B79DD9 /* MapDirections.swift */; };
+		A377868AD6D78D418F337FC4 /* DayGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6455A65474E956EDA02D3D48 /* DayGridView.swift */; };
+		ACF87110036B4C3B2E6DA004 /* TimelineBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28D1C0B69DAE7EC2BFA4E7A8 /* TimelineBar.swift */; };
 		AD1FDE6AC6C6BD1FAD733E65 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F3E3AE2F482E8821D392598 /* SettingsView.swift */; };
+		AF2B4B3D1201DD8205613201 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4945B28361CA4844CD0BE2A0 /* RootView.swift */; };
+		B3DF1BE7CAAB4151B6F4070C /* DayPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74A7ECD14CA79E4D059D2386 /* DayPlan.swift */; };
+		B3EB716B8CA971117C239BDC /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90270A5784A434E2BD4F8EB7 /* KeychainStore.swift */; };
 		B53B622954D5D8FBD25C5F54 /* CalendarBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C645C9FB29A1DD74C886502 /* CalendarBar.swift */; };
 		B8492275D42152776351D3CB /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6CDAF136B89C9CD70A564B1 /* AppConfig.swift */; };
+		B88062FDE5641D40232361F5 /* EventEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5057FFD3739CA0A9C50D19B /* EventEditorView.swift */; };
+		BCE7938105033F2E1A16951A /* FastScheduleParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AFB22F65F7DA7A454446F4C /* FastScheduleParser.swift */; };
 		C3C8A27FED06E8DF5FDE3D86 /* DayGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6455A65474E956EDA02D3D48 /* DayGridView.swift */; };
 		C7C38B6B6BC68050E3B00126 /* OneulWatchWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3253AE34D7106C8DA64A07E2 /* OneulWatchWidgetBundle.swift */; };
 		CBC2A029F08197D2257C32A3 /* LiveActivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14B607682CCEA115B95212B8 /* LiveActivityController.swift */; };
+		CBCBA8C5022E2490A93C43EE /* LiveActivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14B607682CCEA115B95212B8 /* LiveActivityController.swift */; };
 		CCB5BAF3023A1F25BC6696D7 /* PlaceSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9779CF0E668CEF123968ACE /* PlaceSearch.swift */; };
 		D0A38FC10823361801D6E040 /* ScheduleEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9845203CDC1D337EDEB41376 /* ScheduleEvent.swift */; };
 		D160E04413B46F8E9EBBFECA /* WatchPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = B120768A33C004DCF2F45013 /* WatchPayload.swift */; };
+		D3305C0542ACD7E7E6B6E8B7 /* EventRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7570E900508DF43B3D91D84 /* EventRow.swift */; };
 		D486E703178E6EA656583725 /* WatchSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = A16CFD8B435D3E1D46EF0F09 /* WatchSync.swift */; };
+		D6B9F600EF442C85AC1880A2 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16EF8C9737267FC333CC19EC /* NotificationManager.swift */; };
+		D878F5A8C4ED547EE9A72BD7 /* SchoolSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FE512E0EFCA4922CDD6E120 /* SchoolSetupView.swift */; };
 		DA1B100733D4D79C56226FF7 /* ElectiveSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DDD92EAE062AD8537F2B53E /* ElectiveSetupView.swift */; };
+		DE59C581CA224D42DDC4B4E9 /* AIProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 535CFBC05030B47581C0E6A6 /* AIProvider.swift */; };
+		DE727193A19957654B4F1467 /* PlaceSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9779CF0E668CEF123968ACE /* PlaceSearch.swift */; };
 		E4592FB74E0748311A618CBF /* SpeechRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93B892D311D56026159282E3 /* SpeechRecognizer.swift */; };
 		E4BE9167F1F82BAD05F04366 /* BackgroundRefresh.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72970E6D99F9137A4E75455D /* BackgroundRefresh.swift */; };
 		E737EB9D49F5A808C1E599A3 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90270A5784A434E2BD4F8EB7 /* KeychainStore.swift */; };
 		E823D7F623DA11AA93889FB4 /* AIProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 535CFBC05030B47581C0E6A6 /* AIProvider.swift */; };
+		E89A0B852A459740CED7491B /* Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C8478ADD1C15960DDC8879E /* Persistence.swift */; };
+		EB12F91608821CDEE7F7CD05 /* MapDirections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E4F2E090381140001B79DD9 /* MapDirections.swift */; };
 		EFE035A3D77BA658A142A159 /* WatchPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = B120768A33C004DCF2F45013 /* WatchPayload.swift */; };
 		F1F5D51D84584898B44A586D /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 777161A31B7E4F39C0973C6E /* TodayView.swift */; };
 		F2BE172507853AEAAA7F3798 /* AICommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A4018B36A49D3884C07100 /* AICommand.swift */; };
-		FA57DA7ABC0DE0001111AAA1 /* FastScheduleParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA57DA7ABC0DE0002222BBB2 /* FastScheduleParser.swift */; };
 		F54DF9FCFD510AE0BFE27C1F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 94270AF8C3F1645E053EDB34 /* Assets.xcassets */; };
+		F6F88039FEDC3B1E8A95AA9B /* AppChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9F7A51A479EF765DCADE7CC /* AppChrome.swift */; };
 		F865AE78CCAE00394D810C75 /* WatchTodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 815B39ECC50A54E32E23A9EB /* WatchTodayView.swift */; };
 		F9BBC1280B4DFCFD1697E63D /* WatchStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFBCDB0ECA3D2AB171BE319 /* WatchStore.swift */; };
 		FEF3CB825D0B369B4449938C /* OneulWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 306B6C9EB3EE7319C5856947 /* OneulWatchApp.swift */; };
@@ -132,12 +170,13 @@
 
 /* Begin PBXFileReference section */
 		01B86C494CBB8B41E58CDC3E /* EventPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventPalette.swift; sourceTree = "<group>"; };
-		07F49EA0A79B8606A3CA0B76 /* Oneul.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Oneul.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		07F49EA0A79B8606A3CA0B76 /* Oneul.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Oneul.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0C645C9FB29A1DD74C886502 /* CalendarBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarBar.swift; sourceTree = "<group>"; };
 		14B607682CCEA115B95212B8 /* LiveActivityController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityController.swift; sourceTree = "<group>"; };
 		15E10C76F7BC3F0106E55F39 /* OneulWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OneulWidgetBundle.swift; sourceTree = "<group>"; };
 		16EF8C9737267FC333CC19EC /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		1AEF004D088ABDDA2FD61577 /* AppleIntelligenceClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleIntelligenceClient.swift; sourceTree = "<group>"; };
+		1AFB22F65F7DA7A454446F4C /* FastScheduleParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FastScheduleParser.swift; sourceTree = "<group>"; };
 		1E4F2E090381140001B79DD9 /* MapDirections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapDirections.swift; sourceTree = "<group>"; };
 		1F3E3AE2F482E8821D392598 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		1FE512E0EFCA4922CDD6E120 /* SchoolSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchoolSetupView.swift; sourceTree = "<group>"; };
@@ -149,7 +188,8 @@
 		3253AE34D7106C8DA64A07E2 /* OneulWatchWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OneulWatchWidgetBundle.swift; sourceTree = "<group>"; };
 		334A2A6B08661B685EF25A76 /* ScheduleAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleAttributes.swift; sourceTree = "<group>"; };
 		4945B28361CA4844CD0BE2A0 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
-		4F7FC0B293541145B57F17CD /* OneulWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = OneulWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		4DF1E264B0D18DCB7B3509C0 /* OneulMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OneulMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		4F7FC0B293541145B57F17CD /* OneulWidget.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = OneulWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		535CFBC05030B47581C0E6A6 /* AIProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIProvider.swift; sourceTree = "<group>"; };
 		5A201BB565E9308A6DAAEAB4 /* Glass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Glass.swift; sourceTree = "<group>"; };
 		5ACE8189A99207C779416B4D /* OneulApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OneulApp.swift; sourceTree = "<group>"; };
@@ -174,9 +214,8 @@
 		C7570E900508DF43B3D91D84 /* EventRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventRow.swift; sourceTree = "<group>"; };
 		C9F7A51A479EF765DCADE7CC /* AppChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppChrome.swift; sourceTree = "<group>"; };
 		D2A4018B36A49D3884C07100 /* AICommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AICommand.swift; sourceTree = "<group>"; };
-		FA57DA7ABC0DE0002222BBB2 /* FastScheduleParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FastScheduleParser.swift; sourceTree = "<group>"; };
 		D5057FFD3739CA0A9C50D19B /* EventEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventEditorView.swift; sourceTree = "<group>"; };
-		D6485A918A22F530881FA7E2 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		D6485A918A22F530881FA7E2 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		DCFBCDB0ECA3D2AB171BE319 /* WatchStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchStore.swift; sourceTree = "<group>"; };
 		E6AED8BA9142551D4DADE991 /* ScheduleLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleLiveActivity.swift; sourceTree = "<group>"; };
 		E9779CF0E668CEF123968ACE /* PlaceSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceSearch.swift; sourceTree = "<group>"; };
@@ -331,11 +370,11 @@
 			isa = PBXGroup;
 			children = (
 				D2A4018B36A49D3884C07100 /* AICommand.swift */,
-				FA57DA7ABC0DE0002222BBB2 /* FastScheduleParser.swift */,
 				E9B0BDB1D75C0BC7A988A590 /* AICommon.swift */,
 				535CFBC05030B47581C0E6A6 /* AIProvider.swift */,
 				6A7DA356E9BE16433ED03A34 /* AIScheduleView.swift */,
 				1AEF004D088ABDDA2FD61577 /* AppleIntelligenceClient.swift */,
+				1AFB22F65F7DA7A454446F4C /* FastScheduleParser.swift */,
 				90270A5784A434E2BD4F8EB7 /* KeychainStore.swift */,
 				93B892D311D56026159282E3 /* SpeechRecognizer.swift */,
 			);
@@ -366,6 +405,7 @@
 			isa = PBXGroup;
 			children = (
 				07F49EA0A79B8606A3CA0B76 /* Oneul.app */,
+				4DF1E264B0D18DCB7B3509C0 /* OneulMac.app */,
 				2BA16226B30D84045A77F03B /* OneulWatch.app */,
 				2FE5158FB2F93365DDD57FEC /* OneulWatchWidget.appex */,
 				4F7FC0B293541145B57F17CD /* OneulWidget.appex */,
@@ -453,6 +493,24 @@
 			productReference = 2BA16226B30D84045A77F03B /* OneulWatch.app */;
 			productType = "com.apple.product-type.application";
 		};
+		C44125BABF99E7F9CAC744EA /* OneulMac */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9FD45B0F569C9C153E87181F /* Build configuration list for PBXNativeTarget "OneulMac" */;
+			buildPhases = (
+				CF25A4CF389C9CB4A3AFD658 /* Sources */,
+				C54DDA5643213F18B7BF1E6C /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = OneulMac;
+			packageProductDependencies = (
+			);
+			productName = OneulMac;
+			productReference = 4DF1E264B0D18DCB7B3509C0 /* OneulMac.app */;
+			productType = "com.apple.product-type.application";
+		};
 		D05D06124A978171A4BB5D30 /* OneulWidget */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = BF4EC98D88EEADE108C49949 /* Build configuration list for PBXNativeTarget "OneulWidget" */;
@@ -478,7 +536,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 2700;
+				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					0D7CB3DCAA6025042701BE28 = {
 						DevelopmentTeam = W9W4CM597R;
@@ -489,6 +547,10 @@
 						ProvisioningStyle = Automatic;
 					};
 					791E2C062FDA3FD3E93D19EB = {
+						DevelopmentTeam = W9W4CM597R;
+						ProvisioningStyle = Automatic;
+					};
+					C44125BABF99E7F9CAC744EA = {
 						DevelopmentTeam = W9W4CM597R;
 						ProvisioningStyle = Automatic;
 					};
@@ -513,6 +575,7 @@
 			projectRoot = "";
 			targets = (
 				55AD186002AC235EE2017970 /* Oneul */,
+				C44125BABF99E7F9CAC744EA /* OneulMac */,
 				791E2C062FDA3FD3E93D19EB /* OneulWatch */,
 				0D7CB3DCAA6025042701BE28 /* OneulWatchWidget */,
 				D05D06124A978171A4BB5D30 /* OneulWidget */,
@@ -527,6 +590,15 @@
 			files = (
 				F54DF9FCFD510AE0BFE27C1F /* Assets.xcassets in Resources */,
 				836FC0C29FA313E0CD43F7EC /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C54DDA5643213F18B7BF1E6C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				74189C886162CED33B3BEB65 /* Assets.xcassets in Resources */,
+				9AE53CF1AE89239DF3BDC6F7 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -546,7 +618,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				F2BE172507853AEAAA7F3798 /* AICommand.swift in Sources */,
-				FA57DA7ABC0DE0001111AAA1 /* FastScheduleParser.swift in Sources */,
 				27289D8F1B5A2E06AF20D96E /* AICommon.swift in Sources */,
 				E823D7F623DA11AA93889FB4 /* AIProvider.swift in Sources */,
 				75309A16D28C87AA17064433 /* AIScheduleView.swift in Sources */,
@@ -561,6 +632,7 @@
 				52D18DA1E0BFF37AFCA77DB0 /* EventEditorView.swift in Sources */,
 				53D7519E7811C519E51F224D /* EventPalette.swift in Sources */,
 				351F425C79906C834932EEA0 /* EventRow.swift in Sources */,
+				BCE7938105033F2E1A16951A /* FastScheduleParser.swift in Sources */,
 				78A750E85B9DF3E94FD5F04F /* Glass.swift in Sources */,
 				E737EB9D49F5A808C1E599A3 /* KeychainStore.swift in Sources */,
 				CBC2A029F08197D2257C32A3 /* LiveActivityController.swift in Sources */,
@@ -609,6 +681,49 @@
 				44E99C13B7D22A3854B5AA07 /* ScheduleLiveActivity.swift in Sources */,
 				D160E04413B46F8E9EBBFECA /* WatchPayload.swift in Sources */,
 				6335D486832092D829A5B858 /* WidgetTimelineBar.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CF25A4CF389C9CB4A3AFD658 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				04DD91D2672B07692BFF88FD /* AICommand.swift in Sources */,
+				63B1019055C33A0B6883FF15 /* AICommon.swift in Sources */,
+				DE59C581CA224D42DDC4B4E9 /* AIProvider.swift in Sources */,
+				72396778E4F4CEE8CFAFDE1E /* AIScheduleView.swift in Sources */,
+				F6F88039FEDC3B1E8A95AA9B /* AppChrome.swift in Sources */,
+				094B5368FA3A89424E090318 /* AppConfig.swift in Sources */,
+				31C3B75836FCEB96DED757F0 /* AppleIntelligenceClient.swift in Sources */,
+				5FAE164704859CE46D50C5A5 /* BackgroundRefresh.swift in Sources */,
+				36A41A45267D82442339B129 /* CalendarBar.swift in Sources */,
+				A377868AD6D78D418F337FC4 /* DayGridView.swift in Sources */,
+				B3DF1BE7CAAB4151B6F4070C /* DayPlan.swift in Sources */,
+				9E7036EDAB19410AF75669FD /* ElectiveSetupView.swift in Sources */,
+				B88062FDE5641D40232361F5 /* EventEditorView.swift in Sources */,
+				82A5D9747B70D4941E3BF04B /* EventPalette.swift in Sources */,
+				D3305C0542ACD7E7E6B6E8B7 /* EventRow.swift in Sources */,
+				133F28617D2C44375770E9C8 /* FastScheduleParser.swift in Sources */,
+				1163B5973260DF55E9E1820B /* Glass.swift in Sources */,
+				B3EB716B8CA971117C239BDC /* KeychainStore.swift in Sources */,
+				CBCBA8C5022E2490A93C43EE /* LiveActivityController.swift in Sources */,
+				EB12F91608821CDEE7F7CD05 /* MapDirections.swift in Sources */,
+				17F21E70FEBE7FC30A94DBBF /* NEIS.swift in Sources */,
+				D6B9F600EF442C85AC1880A2 /* NotificationManager.swift in Sources */,
+				47022DDA451A2DB987CEFAA7 /* OneulApp.swift in Sources */,
+				E89A0B852A459740CED7491B /* Persistence.swift in Sources */,
+				DE727193A19957654B4F1467 /* PlaceSearch.swift in Sources */,
+				AF2B4B3D1201DD8205613201 /* RootView.swift in Sources */,
+				44C4487CBA07B9FCB67E0BE3 /* ScheduleAttributes.swift in Sources */,
+				01C359154BAE7FEF717EFFDC /* ScheduleEvent.swift in Sources */,
+				D878F5A8C4ED547EE9A72BD7 /* SchoolSetupView.swift in Sources */,
+				5160EB9B599C49DC72181368 /* SettingsView.swift in Sources */,
+				90D9E832A705B233285C4FC2 /* SpeechRecognizer.swift in Sources */,
+				7FEBFE102F891625DB5A7734 /* Theme.swift in Sources */,
+				ACF87110036B4C3B2E6DA004 /* TimelineBar.swift in Sources */,
+				293DD03098EE5B027CDB2B56 /* TodayView.swift in Sources */,
+				6EDAE96F7FD4F0A21492F6CA /* WatchPayload.swift in Sources */,
+				056F8158761F3C36295A1C0A /* WatchSync.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -707,6 +822,26 @@
 			};
 			name = Debug;
 		};
+		5BF0B989440405608EE31877 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = OneulMac.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = "Generated/OneulMac-Info.plist";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.oneul.app;
+				SDKROOT = macosx;
+				TARGETED_DEVICE_FAMILY = "";
+			};
+			name = Release;
+		};
 		79E8C5F9A5D9FFF0CD9E1361 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -743,13 +878,11 @@
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
-				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = W9W4CM597R;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -765,12 +898,12 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -815,13 +948,11 @@
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
-				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = W9W4CM597R;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -831,11 +962,11 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.0;
@@ -896,6 +1027,26 @@
 			};
 			name = Release;
 		};
+		DFA575473163CD2DD8134ECE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = OneulMac.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = "Generated/OneulMac-Info.plist";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.oneul.app;
+				SDKROOT = macosx;
+				TARGETED_DEVICE_FAMILY = "";
+			};
+			name = Debug;
+		};
 		FFC5D91ED160A8850A93D8E8 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -947,6 +1098,15 @@
 			buildConfigurations = (
 				068AF6B5E427C8F2BD0F68C8 /* Debug */,
 				43E1F1BA8FF399CDC495F0A7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		9FD45B0F569C9C153E87181F /* Build configuration list for PBXNativeTarget "OneulMac" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DFA575473163CD2DD8134ECE /* Debug */,
+				5BF0B989440405608EE31877 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

@@ -1,6 +1,8 @@
 import SwiftUI
 import SwiftData
+#if canImport(UIKit)
 import UIKit
+#endif
 import WidgetKit
 
 struct TodayView: View {
@@ -19,11 +21,17 @@ struct TodayView: View {
     @State private var gridInteracting = false         // 일정 드래그/리사이즈 중 → 좌우 날짜 스와이프 잠금
     private let lang = AppLanguage.shared
     @AppStorage("userType") private var userType = "general"
+    #if os(iOS)
     @Environment(\.horizontalSizeClass) private var hSize
+    #endif
 
     private var plan: DayPlan { dayPlan(for: selectedDay) }
 
+    #if os(iOS)
     private var wide: Bool { hSize == .regular }
+    #else
+    private var wide: Bool { true }   // macOS: 항상 넓은(regular) 레이아웃
+    #endif
     private var isStudent: Bool { userType == "student" }
 
     /// 날짜별로 미리 묶어둔 인덱스에서 그 날짜 일정만 꺼내 DayPlan 생성 (전체 수천 개 필터 회피).
@@ -57,10 +65,17 @@ struct TodayView: View {
         .overlay(alignment: .bottomTrailing) { addButton }
         .sheet(isPresented: $showingAdd, onDismiss: syncLiveActivity) {
             EventEditorView(event: nil, day: selectedDay, prefillStart: addStart)
+            #if os(iOS)
                 .presentationDetents([.medium, .large])   // 절반 높이 → 위 그리드의 미리보기 블록이 보임
+            #else
+                .frame(minWidth: 480, minHeight: 600)
+            #endif
         }
         .sheet(item: $editing, onDismiss: syncLiveActivity) { event in
             EventEditorView(event: event, day: selectedDay)
+            #if os(macOS)
+                .frame(minWidth: 480, minHeight: 600)
+            #endif
         }
         .onAppear {
             seedIfRequested(); rebuildIndex(); syncLiveActivity()
@@ -129,13 +144,43 @@ struct TodayView: View {
 
             collapsingChrome   // 헤더·D-Day·캘린더·타임라인이 아래→위 순으로 하나씩 계단식 접힘
 
+            #if os(iOS)
             DayPager(selectedDay: $selectedDay, refreshID: gridToken, swipeDisabled: gridInteracting) { day in   // UIPageViewController 3페이지 재사용
                 gridPage(day)
             }
+            #else
+            macDayNav
+            gridPage(selectedDay).id(gridToken)   // macOS: 선택한 하루만 표시(‹ 오늘 › + 좌/우 화살표로 이동)
+            #endif
         }
         .padding(.top, 8)
         .onPreferenceChange(RowHeightKey.self) { rowH.merge($0) { _, n in n } }
     }
+
+    #if os(macOS)
+    // macOS 날짜 이동 컨트롤 — ‹ / 오늘 / › + Left/Right 화살표 단축키.
+    private var macDayNav: some View {
+        HStack(spacing: 12) {
+            Button { shiftDay(-1) } label: { Image(systemName: "chevron.left") }
+                .keyboardShortcut(.leftArrow, modifiers: [])
+            Spacer()
+            Button(lang.tr("오늘")) { selectedDay = .now }
+                .font(.subheadline).bold()
+            Spacer()
+            Button { shiftDay(1) } label: { Image(systemName: "chevron.right") }
+                .keyboardShortcut(.rightArrow, modifiers: [])
+        }
+        .buttonStyle(.borderless)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 4)
+    }
+
+    private func shiftDay(_ n: Int) {
+        if let d = Calendar.current.date(byAdding: .day, value: n, to: selectedDay) {
+            selectedDay = d
+        }
+    }
+    #endif
 
     private let compactTitleH: CGFloat = 34
 
@@ -321,11 +366,13 @@ struct TodayView: View {
     private func syncLiveActivity() {
         // 오늘이 비어도 가장 가까운(다가오는) 일정 있는 날을 띄움 → 일정이 미래여도 Live Activity가 보임.
         let shown = DayPlan.upcoming(events: events)
+        #if os(iOS)
         if let shown {
             LiveActivityController.shared.refresh(plan: shown.plan, dayLabel: dayLabel(for: shown.day))
         } else {
             Task { await LiveActivityController.shared.end() }
         }
+        #endif
         NotificationManager.shared.reschedule(for: events)   // 전체 일정(가까운 알림 + 시험 전날)
         #if canImport(WatchConnectivity)
         let wp = (shown?.plan ?? DayPlan(events: events, day: .now))
@@ -347,6 +394,7 @@ struct TodayView: View {
 }
 
 // MARK: - 날짜 페이저 (UIPageViewController) — 좌우 슬라이드로 하루씩, 3페이지만 재사용(애플 캘린더식, 렉/튐 없음)
+#if os(iOS)
 struct DayPager<Content: View>: UIViewControllerRepresentable {
     @Binding var selectedDay: Date
     var refreshID: Int = 0                       // 일정 변경 시 값이 바뀌어 updateUIViewController를 강제 → 보이는 페이지 갱신
@@ -447,6 +495,7 @@ struct DayPager<Content: View>: UIViewControllerRepresentable {
         @MainActor required dynamic init?(coder: NSCoder) { fatalError() }
     }
 }
+#endif
 
 private struct RowHeightKey: PreferenceKey {
     static var defaultValue: [Int: CGFloat] = [:]
@@ -481,11 +530,25 @@ struct FeaturedBand: View {
     var body: some View {
         let list = items
         if !list.isEmpty {
+            #if os(iOS)
             TabView {
                 ForEach(list, id: \.id) { e in card(e) }
             }
             .tabViewStyle(.page(indexDisplayMode: list.count > 1 ? .automatic : .never))
             .frame(height: 44)
+            #else
+            // macOS: PageTabViewStyle 미지원 → 가로 페이징 스크롤로 대체.
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(spacing: 0) {
+                    ForEach(list, id: \.id) { e in
+                        card(e).containerRelativeFrame(.horizontal)
+                    }
+                }
+                .scrollTargetLayout()
+            }
+            .scrollTargetBehavior(.paging)
+            .frame(height: 44)
+            #endif
         }
     }
 

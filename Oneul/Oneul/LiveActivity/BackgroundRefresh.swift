@@ -1,3 +1,4 @@
+#if os(iOS)
 import Foundation
 import SwiftData
 import BackgroundTasks
@@ -51,3 +52,4 @@ enum BackgroundRefresh {
         return f.string(from: day)
     }
 }
+#endif

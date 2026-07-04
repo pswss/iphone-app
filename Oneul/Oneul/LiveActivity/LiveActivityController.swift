@@ -1,3 +1,4 @@
+#if os(iOS)
 import ActivityKit
 import Foundation
 import Observation
@@ -63,3 +64,4 @@ final class LiveActivityController {
         activity = nil
     }
 }
+#endif

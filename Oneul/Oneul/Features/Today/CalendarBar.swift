@@ -53,6 +53,7 @@ struct CalendarBar: View {
     }
 
     // MARK: 주 페이저
+    #if os(iOS)
     private var weekPager: some View {
         TabView(selection: $weekIndex) {
             ForEach(weekRange, id: \.self) { idx in
@@ -66,6 +67,22 @@ struct CalendarBar: View {
         .tabViewStyle(.page(indexDisplayMode: .never))
         .frame(height: 58)
     }
+    #else
+    // macOS: PageTabViewStyle 미지원 → ‹ › 버튼으로 주 이동(마우스 클릭).
+    private var weekPager: some View {
+        HStack(spacing: 4) {
+            Button { weekIndex -= 1 } label: { Image(systemName: "chevron.left") }
+                .buttonStyle(.borderless)
+            HStack(spacing: 4) {
+                ForEach(days(week: weekIndex), id: \.self) { weekCell($0) }
+            }
+            Button { weekIndex += 1 } label: { Image(systemName: "chevron.right") }
+                .buttonStyle(.borderless)
+        }
+        .padding(.horizontal, 2)
+        .frame(height: 58)
+    }
+    #endif
 
     // MARK: 월 페이저
     private var weekdayHeader: some View {
@@ -78,6 +95,7 @@ struct CalendarBar: View {
         }
     }
 
+    #if os(iOS)
     private var monthPager: some View {
         TabView(selection: $monthIndex) {
             ForEach(monthRange, id: \.self) { idx in
@@ -87,6 +105,23 @@ struct CalendarBar: View {
         .tabViewStyle(.page(indexDisplayMode: .never))
         .frame(height: 250)
     }
+    #else
+    // macOS: ‹ › 버튼으로 달 이동(마우스 클릭).
+    private var monthPager: some View {
+        VStack(spacing: 4) {
+            HStack {
+                Button { monthIndex -= 1 } label: { Image(systemName: "chevron.left") }
+                    .buttonStyle(.borderless)
+                Spacer()
+                Button { monthIndex += 1 } label: { Image(systemName: "chevron.right") }
+                    .buttonStyle(.borderless)
+            }
+            .padding(.horizontal, 4)
+            monthGrid(monthStart(monthIndex))
+        }
+        .frame(height: 250)
+    }
+    #endif
 
     private func monthGrid(_ monthStart: Date) -> some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 7), spacing: 8) {

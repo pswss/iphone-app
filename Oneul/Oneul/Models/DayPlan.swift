@@ -73,7 +73,8 @@ struct DayPlan {
         events.firstIndex(where: { $0.id == event.id }) ?? 0
     }
 
-    /// Live Activity로 넘길 스냅샷 묶음.
+    #if os(iOS)
+    /// Live Activity로 넘길 스냅샷 묶음(ActivityKit 런타임이 있는 iOS에서만 — macOS엔 없음).
     func contentState(at now: Date = .now) -> ScheduleActivityAttributes.ContentState {
         let snaps = events.enumerated().map { index, e in
             EventSnapshot(id: e.id, title: e.title, start: e.start, end: e.end,
@@ -92,6 +93,7 @@ struct DayPlan {
             isEnglish: AppLanguage.shared.isEnglish
         )
     }
+    #endif
 
     /// 애플워치로 보낼 오늘 일정 스냅샷.
     func watchPayload(dayLabel: String, at now: Date = .now) -> WatchSchedulePayload {
@@ -109,11 +111,17 @@ struct DayPlan {
 
     /// 홈 화면 위젯으로 넘길 오늘 스냅샷(App Group 공유). contentState()와 같은 값을 ActivityKit 비의존 형태로.
     func homeSnapshot(dayLabel: String, at now: Date = .now) -> HomeSnapshot {
-        let s = contentState(at: now)
+        let snaps = events.enumerated().map { index, e in
+            EventSnapshot(id: e.id, title: e.title, start: e.start, end: e.end,
+                          colorIndex: index, isMultiDay: e.isMultiDay())
+        }
+        let cur = current(at: now)
+        let nxt = next(at: now)
         return HomeSnapshot(
-            dayLabel: dayLabel, dayStart: s.dayStart, dayEnd: s.dayEnd, segments: s.segments,
-            currentTitle: s.currentTitle, currentEnd: s.currentEnd,
-            nextTitle: s.nextTitle, nextStart: s.nextStart, isEnglish: s.isEnglish, updatedAt: now)
+            dayLabel: dayLabel, dayStart: dayStart, dayEnd: dayEnd, segments: snaps,
+            currentTitle: cur?.title, currentEnd: cur?.end,
+            nextTitle: nxt?.title, nextStart: nxt?.start,
+            isEnglish: AppLanguage.shared.isEnglish, updatedAt: now)
     }
 }
 

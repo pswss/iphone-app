@@ -46,9 +46,15 @@ final class LocationOneShot: NSObject, ObservableObject, CLLocationManagerDelega
     }
 
     func locationManagerDidChangeAuthorization(_ m: CLLocationManager) {
-        if busy, m.authorizationStatus == .authorizedWhenInUse || m.authorizationStatus == .authorizedAlways {
+        let status = m.authorizationStatus
+        #if os(iOS)
+        let granted = status == .authorizedWhenInUse || status == .authorizedAlways
+        #else
+        let granted = status == .authorizedAlways   // macOS엔 authorizedWhenInUse 없음
+        #endif
+        if busy, granted {
             m.requestLocation()
-        } else if busy, m.authorizationStatus == .denied || m.authorizationStatus == .restricted {
+        } else if busy, status == .denied || status == .restricted {
             finish(nil)
         }
     }
@@ -117,10 +123,14 @@ struct PlaceSearchSheet: View {
                     }
                 }
             }
+            #if os(iOS)
             .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "장소 검색")
+            #else
+            .searchable(text: $query, prompt: "장소 검색")
+            #endif
             .onChange(of: query) { _, q in completer.search(q) }
             .navigationTitle("장소")
-            .navigationBarTitleDisplayMode(.inline)
+            .navBarInline()
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("취소") { dismiss() } } }
         }
     }

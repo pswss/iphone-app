@@ -4,6 +4,7 @@ options:
   deploymentTarget:
     iOS: "26.0"
     watchOS: "11.0"
+    macOS: "26.0"
   createIntermediateGroups: true
   groupSortPosition: top
 
@@ -118,11 +119,45 @@ targets:
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
 
+  OneulMac:
+    type: application
+    platform: macOS
+    deploymentTarget: "26.0"
+    sources:
+      - Oneul
+      - Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.oneul.app
+        CODE_SIGN_ENTITLEMENTS: OneulMac.entitlements
+        TARGETED_DEVICE_FAMILY: ""
+        ENABLE_HARDENED_RUNTIME: YES
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
+    info:
+      path: Generated/OneulMac-Info.plist
+      properties:
+        CFBundleDisplayName: Oneul
+        ITSAppUsesNonExemptEncryption: false
+        NSLocationWhenInUseUsageDescription: 일정 장소를 현재 위치로 지정할 때 사용합니다.
+        NSMicrophoneUsageDescription: 음성으로 일정을 입력할 때 마이크를 사용합니다.
+        NSSpeechRecognitionUsageDescription: 말한 내용을 일정으로 바꿀 때 음성 인식을 사용합니다.
+        CFBundleURLTypes:
+          - CFBundleURLName: com.oneul.app
+            CFBundleURLSchemes: [oneul]
+
 schemes:
   Oneul:
     build:
       targets:
         Oneul: all
+    run:
+      config: Debug
+    archive:
+      config: Release
+  OneulMac:
+    build:
+      targets:
+        OneulMac: all
     run:
       config: Debug
     archive:

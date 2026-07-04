@@ -101,12 +101,12 @@ struct EventEditorView: View {
                     }
                     .padding(16)
                     .contentShape(Rectangle())
-                    .onTapGesture { UIApplication.shared.endEditing() }
+                    .onTapGesture { endEditingGlobally() }
                 }
                 .scrollDismissesKeyboard(.interactively)
             }
             .navigationTitle(isEditing ? lang.tr("일정 편집") : lang.tr("새 일정"))
-            .navigationBarTitleDisplayMode(.inline)
+            .navBarInline()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(lang.tr("취소")) { dismiss() }.tint(Color.appAccentText)
@@ -116,9 +116,11 @@ struct EventEditorView: View {
                         .bold().tint(Color.appAccentText)
                         .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
+                #if os(iOS)
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer(); Button(lang.tr("완료")) { focusedField = nil }
                 }
+                #endif
             }
             .sheet(isPresented: $showPlaceSheet) { PlaceSearchSheet(location: $location) }
             .onAppear(perform: load)

@@ -71,7 +71,7 @@ struct HomeWidgetView: View {
                     Spacer()
                     countdown(snap)
                 }
-                WidgetTimelineBar(state: contentState(snap), height: small ? 12 : 16)
+                WidgetTimelineBar(segments: snap.segments, height: small ? 12 : 16)
                 Text(statusLine(snap))
                     .font(small ? .caption2 : .caption).bold()
                     .foregroundStyle(.white).lineLimit(1)
@@ -90,12 +90,6 @@ struct HomeWidgetView: View {
         }
     }
 
-    /// HomeSnapshot → WidgetTimelineBar가 쓰는 ContentState (바 뷰 재사용).
-    private func contentState(_ s: HomeSnapshot) -> ScheduleActivityAttributes.ContentState {
-        .init(dayStart: s.dayStart, dayEnd: s.dayEnd, segments: s.segments,
-              currentTitle: s.currentTitle, currentEnd: s.currentEnd,
-              nextTitle: s.nextTitle, nextStart: s.nextStart, isEnglish: s.isEnglish)
-    }
 
     private func statusLine(_ s: HomeSnapshot) -> String {
         if let cur = s.currentTitle { return L("현재", "Now", s.isEnglish) + " · " + cur }

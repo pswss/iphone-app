@@ -1,4 +1,8 @@
+#if canImport(UIKit)
 import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 import MapKit
 
 /// 네이버 지도 앱으로 길찾기/검색을 연다(URL 스킴 — 키·SDK 불필요).
@@ -15,6 +19,7 @@ enum MapDirections {
             request.naturalLanguageQuery = name
             let coord = try? await MKLocalSearch(request: request).start().mapItems.first?.location.coordinate
             let q = name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? name
+            #if os(iOS)
             let str = coord.map { "nmap://route/car?dlat=\($0.latitude)&dlng=\($0.longitude)&dname=\(q)&appname=\(appName)" }
                 ?? "nmap://search?query=\(q)&appname=\(appName)"
             if let url = URL(string: str), UIApplication.shared.canOpenURL(url) {
@@ -22,6 +27,14 @@ enum MapDirections {
             } else if let store = URL(string: appStore) {
                 _ = await UIApplication.shared.open(store)   // 네이버 지도 미설치
             }
+            #elseif canImport(AppKit)
+            // macOS: nmap:// 딥링크 없음 — 네이버 지도 웹으로 연다.
+            let str = coord.map { "https://map.naver.com/p/directions/-/\($0.longitude),\($0.latitude),\(q)/-/car" }
+                ?? "https://map.naver.com/p/search/\(q)"
+            if let url = URL(string: str) {
+                NSWorkspace.shared.open(url)
+            }
+            #endif
         }
     }
 }

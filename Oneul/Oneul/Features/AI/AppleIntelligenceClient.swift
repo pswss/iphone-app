@@ -15,7 +15,7 @@ struct AppleIntelligenceClient: ScheduleAI {
             return fast
         }
         #if canImport(FoundationModels)
-        if #available(iOS 26, *) {
+        if #available(iOS 26, macOS 26, *) {
             return try await AppleAI.generate(from: text, now: now, existing: existing)
         }
         #endif
@@ -26,13 +26,13 @@ struct AppleIntelligenceClient: ScheduleAI {
     /// 첫 응답 지연을 줄이기 위해 모델 세션을 미리 데움.
     static func prewarm() {
         #if canImport(FoundationModels)
-        if #available(iOS 26, *) { AppleAI.prewarm() }
+        if #available(iOS 26, macOS 26, *) { AppleAI.prewarm() }
         #endif
     }
 
     func validate() async -> AIValidation {
         #if canImport(FoundationModels)
-        if #available(iOS 26, *) {
+        if #available(iOS 26, macOS 26, *) {
             return AppleAI.availability()
         }
         #endif
@@ -49,7 +49,7 @@ struct AppleIntelligenceUnavailable: LocalizedError {
 struct AIContentBlocked: Error {}
 
 #if canImport(FoundationModels)
-@available(iOS 26, *)
+@available(iOS 26, macOS 26, *)
 enum AppleAI {
     // MARK: 의미 슬롯 스키마 (모델은 슬롯만 채운다 — 날짜/시각 계산은 Swift가)
     @Generable

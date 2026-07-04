@@ -4,11 +4,11 @@ import WidgetKit
 /// 위젯/Live Activity용 무지개 바 (packed).
 /// 단일일 일정은 무지개 칸, 멀티데이 일정은 바 위 흰 밴드(지난 부분은 안 빛남, 갱신 시점 기준).
 struct WidgetTimelineBar: View {
-    let state: ScheduleActivityAttributes.ContentState
+    let segments: [EventSnapshot]           // ActivityKit 비의존 — Live Activity(ContentState.segments)·홈 위젯(HomeSnapshot.segments) 공용
     var height: CGFloat = 14
 
-    private var single: [EventSnapshot] { state.segments.filter { !$0.isMultiDay } }
-    private var multi: [EventSnapshot] { state.segments.filter { $0.isMultiDay } }
+    private var single: [EventSnapshot] { segments.filter { !$0.isMultiDay } }
+    private var multi: [EventSnapshot] { segments.filter { $0.isMultiDay } }
     private var layout: PackedLayout {
         PackedLayout(intervals: single.map { (start: $0.start, end: $0.end) })
     }
@@ -32,7 +32,7 @@ struct WidgetTimelineBar: View {
                         let multi = sl.eventIndices.count > 1
                         ForEach(sl.eventIndices.sorted { single[$0].start > single[$1].start }, id: \.self) { i in
                             let e = single[i]
-                            let color = EventPalette.color(e.colorIndex, of: state.segments.count)
+                            let color = EventPalette.color(e.colorIndex, of: segments.count)
                             let isCurrent = now >= e.start && now < e.end
                             let isPast = now >= e.end
                             let f0 = min(max(e.start.timeIntervalSince(sl.start) / span, 0), 1)
