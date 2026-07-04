@@ -62,7 +62,9 @@ struct TodayView: View {
             // 아이패드도 검증된 단일 컬럼(narrowContent)을 중앙 정렬로 — 2단 레이아웃의 동작 불량 해결
             narrowContent.frame(maxWidth: wide ? 760 : .infinity)
         }
-        .overlay(alignment: .bottomTrailing) { addButton }
+        #if os(iOS)
+        .overlay(alignment: .bottomTrailing) { addButton }   // 맥은 툴바 '+ 새 일정' 사용
+        #endif
         .sheet(isPresented: $showingAdd, onDismiss: syncLiveActivity) {
             EventEditorView(event: nil, day: selectedDay, prefillStart: addStart)
             #if os(iOS)
@@ -82,6 +84,12 @@ struct TodayView: View {
             if sharedScrollHour == nil { sharedScrollHour = max(0, Calendar.current.component(.hour, from: Date()) - 1) }
         }
         .onChange(of: events) { _, _ in rebuildIndex(); syncLiveActivity() }
+        .onReceive(NotificationCenter.default.publisher(for: .oneulNewEvent)) { _ in addStart = nil; showingAdd = true }
+        .onReceive(NotificationCenter.default.publisher(for: .oneulToday)) { _ in selectedDay = .now }
+        .onReceive(NotificationCenter.default.publisher(for: .oneulShiftDay)) { note in
+            if let n = note.object as? Int,
+               let d = Calendar.current.date(byAdding: .day, value: n, to: selectedDay) { selectedDay = d }
+        }
     }
 
     private func grid(_ p: DayPlan, _ d: Date,

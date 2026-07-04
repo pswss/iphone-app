@@ -7,21 +7,17 @@ import UIKit
 #if os(macOS)
 /// macOS 사이드바 섹션(아이폰의 탭에 대응).
 enum MacSection: Hashable, CaseIterable {
-    case today, meal, ai, settings
+    case today, meal
     var title: String {
         switch self {
         case .today: return "오늘"
         case .meal: return "급식"
-        case .ai: return "AI"
-        case .settings: return "설정"
         }
     }
     var icon: String {
         switch self {
         case .today: return "calendar.day.timeline.left"
         case .meal: return "fork.knife"
-        case .ai: return "sparkles"
-        case .settings: return "gearshape"
         }
     }
 }
@@ -37,6 +33,7 @@ struct RootView: View {
     #endif
     #if os(macOS)
     @State private var macSection: MacSection? = .today
+    @State private var showMeal = false
     #endif
     private let lang = AppLanguage.shared
 
@@ -102,18 +99,34 @@ struct RootView: View {
             }
         }
         #else
-        // macOS: 사이드바(NavigationSplitView) — 외형 전환은 즉시(크로스페이드 없음).
+        // macOS: 사이드바(Today/급식). AI는 상단 툴바, 설정은 앱 메뉴(⌘,).
         NavigationSplitView {
             List(macSections, id: \.self, selection: $macSection) { section in
                 Label(lang.tr(section.title), systemImage: section.icon).tag(section)
             }
             .navigationTitle("Oneul")
+            .navigationSplitViewColumnWidth(min: 150, ideal: 185, max: 240)
         } detail: {
-            switch macSection ?? .today {
-            case .today: TodayView()
-            case .meal: MealView()
-            case .ai: AIScheduleView()
-            case .settings: SettingsView()
+            Group {
+                switch macSection ?? .today {
+                case .today: TodayView()
+                case .meal: MealView()
+                }
+            }
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button { NotificationCenter.default.post(name: .oneulNewEvent, object: nil) } label: {
+                        Label(lang.tr("새 일정"), systemImage: "plus")
+                    }
+                }
+                if userType == "student" {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button { showMeal = true } label: { Label(lang.tr("급식"), systemImage: "fork.knife") }
+                    }
+                }
+            }
+            .sheet(isPresented: $showMeal) {
+                NavigationStack { MealView() }.frame(minWidth: 420, minHeight: 540)
             }
         }
         #endif
