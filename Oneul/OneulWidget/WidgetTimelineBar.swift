@@ -27,16 +27,17 @@ struct WidgetTimelineBar: View {
                         .frame(height: height)
                         .frame(maxHeight: .infinity, alignment: .center)
 
-                    ForEach(Array(single.enumerated()), id: \.element.id) { idx, seg in
-                        let slot = layout.slots[idx]
-                        let isCurrent = now >= seg.start && now < seg.end
-                        let isPast = now >= seg.end
+                    ForEach(Array(layout.segments.enumerated()), id: \.offset) { _, sl in
+                        let evs = sl.eventIndices.map { single[$0] }
+                        let colors = evs.map { EventPalette.color($0.colorIndex, of: state.segments.count) }
+                        let isCurrent = evs.contains { now >= $0.start && now < $0.end }
+                        let isPast = evs.allSatisfy { now >= $0.end }
 
                         RoundedRectangle(cornerRadius: 3, style: .continuous)
-                            .fill(EventPalette.color(seg.colorIndex, of: state.segments.count))
-                            .frame(width: max(2, slot.width * w - 1.5), height: height)
+                            .fill(stripeFill(colors))   // 단일=solid, 겹침=대각선 줄무늬
+                            .frame(width: max(2, sl.width * w - 1.5), height: height)
                             .opacity(isPast ? 0.3 : (isCurrent ? 1 : 0.55))
-                            .offset(x: slot.left * w + 0.75)
+                            .offset(x: sl.left * w + 0.75)
                             .frame(maxHeight: .infinity, alignment: .center)
                     }
 
@@ -54,6 +55,22 @@ struct WidgetTimelineBar: View {
             }
         }
         .frame(height: CGFloat(multi.count) * 10 + height + 10)
+    }
+
+    /// 단일 색은 solid, 겹침(여러 색)은 대각선 하드 줄무늬.
+    private func stripeFill(_ colors: [Color]) -> LinearGradient {
+        let cs = colors.isEmpty ? [Color.clear] : colors
+        guard cs.count > 1 else {
+            return LinearGradient(colors: [cs[0]], startPoint: .leading, endPoint: .trailing)
+        }
+        let bands = cs.count * 3
+        var stops: [Gradient.Stop] = []
+        for i in 0..<bands {
+            let c = cs[i % cs.count]
+            stops.append(.init(color: c, location: Double(i) / Double(bands)))
+            stops.append(.init(color: c, location: Double(i + 1) / Double(bands)))
+        }
+        return LinearGradient(stops: stops, startPoint: .topLeading, endPoint: .bottomTrailing)
     }
 
     /// 멀티데이 흰 밴드: 지난 부분(흐림) + 남은 부분(흰 글로우).

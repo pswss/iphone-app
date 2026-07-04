@@ -41,19 +41,19 @@ struct TimelineBar: View {
                         .frame(height: height)
                         .frame(maxHeight: .infinity, alignment: .center)
 
-                    ForEach(Array(single.enumerated()), id: \.element.id) { idx, event in
-                        let slot = layout.slots[idx]
-                        let isCurrent = current?.id == event.id
-                        let isPast = now >= event.end
-                        let color = EventPalette.color(plan.colorIndex(of: event), of: plan.events.count)
+                    ForEach(Array(layout.segments.enumerated()), id: \.offset) { _, seg in
+                        let evs = seg.eventIndices.map { single[$0] }
+                        let colors = evs.map { EventPalette.color(plan.colorIndex(of: $0), of: plan.events.count) }
+                        let isCurrent = evs.contains { current?.id == $0.id }
+                        let isPast = evs.allSatisfy { now >= $0.end }
 
                         RoundedRectangle(cornerRadius: 3, style: .continuous)
-                            .fill(color)
-                            .frame(width: max(2, slot.width * w - 1.5),
+                            .fill(stripeFill(colors))   // 단일=solid, 겹침=대각선 줄무늬
+                            .frame(width: max(2, seg.width * w - 1.5),
                                    height: height * (isCurrent ? 1.15 : 1))   // 현재 일정 강조 높이 축소(너무 튀지 않게)
                             .opacity(isPast ? 0.25 : (isCurrent ? 1 : 0.5))
-                            .shadow(color: isCurrent ? color.opacity(0.6) : .clear, radius: 6, y: 3)
-                            .offset(x: slot.left * w + 0.75)
+                            .shadow(color: isCurrent ? (colors.first ?? .clear).opacity(0.6) : .clear, radius: 6, y: 3)
+                            .offset(x: seg.left * w + 0.75)
                             .frame(maxHeight: .infinity, alignment: .center)
                     }
 
@@ -73,6 +73,22 @@ struct TimelineBar: View {
         }
         .frame(height: CGFloat(bandCount) * 12 + height + 14)
         .animation(.easeInOut(duration: 0.35), value: current?.id)
+    }
+
+    /// 단일 색은 solid, 겹침(여러 색)은 대각선 하드 줄무늬 — "이 구간에 여러 일정" 표시.
+    private func stripeFill(_ colors: [Color]) -> LinearGradient {
+        let cs = colors.isEmpty ? [Color.clear] : colors
+        guard cs.count > 1 else {
+            return LinearGradient(colors: [cs[0]], startPoint: .leading, endPoint: .trailing)
+        }
+        let bands = cs.count * 3            // 색을 몇 번 반복해 줄무늬로
+        var stops: [Gradient.Stop] = []
+        for i in 0..<bands {
+            let c = cs[i % cs.count]
+            stops.append(.init(color: c, location: Double(i) / Double(bands)))
+            stops.append(.init(color: c, location: Double(i + 1) / Double(bands)))
+        }
+        return LinearGradient(stops: stops, startPoint: .topLeading, endPoint: .bottomTrailing)
     }
 
     /// 멀티데이 흰 밴드: 지난 부분(흐림) + 남은 부분(흰 글로우).

@@ -44,41 +44,62 @@ struct ScheduleActivityAttributes: ActivityAttributes {
 #endif
 
 /// 일정들을 빈틈없이 붙여 바를 채우는 레이아웃 + 진행 위치 계산.
-/// (앱·위젯 공통) 진행 중이면 그 칸 안 비율, 쉬는 시간엔 다음 칸 경계에 정지.
+/// (앱·위젯 공통) 시간이 겹치는 일정들은 **한 세그먼트로 병합**한다 — eventIndices가 2개 이상이면
+/// 겹침 칸(줄무늬로 표시). 진행 중이면 그 칸 안 비율, 쉬는 시간엔 다음 칸 경계에 정지.
 struct PackedLayout {
-    struct Slot { let left: Double; let width: Double }   // 0...1
+    /// packed 한 칸 = 시간이 겹치는 일정들의 병합 구간. eventIndices 개수가 2 이상이면 겹침.
+    struct Segment { let left: Double; let width: Double; let eventIndices: [Int] }
 
-    let slots: [Slot]
-    private let intervals: [(start: Date, end: Date)]
+    let segments: [Segment]
+    private let clusters: [(start: Date, end: Date)]
 
     init(intervals: [(start: Date, end: Date)], minWidth: Double = 0.05) {
-        self.intervals = intervals
-        guard !intervals.isEmpty else { slots = []; return }
+        guard !intervals.isEmpty else { segments = []; clusters = []; return }
 
-        let durations = intervals.map { max(1, $0.end.timeIntervalSince($0.start)) }
+        // 1) 시작순 정렬(원 인덱스 보존) → 2) 시간이 겹치면(전이적) 한 클러스터로 병합
+        let order = intervals.indices.sorted {
+            intervals[$0].start != intervals[$1].start
+                ? intervals[$0].start < intervals[$1].start
+                : intervals[$0].end < intervals[$1].end
+        }
+        var built: [(start: Date, end: Date, idxs: [Int])] = []
+        for oi in order {
+            let iv = intervals[oi]
+            if var last = built.last, iv.start < last.end {          // 겹침 → 병합
+                last.end = max(last.end, iv.end); last.idxs.append(oi)
+                built[built.count - 1] = last
+            } else {
+                built.append((iv.start, iv.end, [oi]))
+            }
+        }
+        clusters = built.map { ($0.start, $0.end) }
+
+        // 3) 클러스터 union 길이 비례 폭으로 빈틈없이 packed
+        let durations = built.map { max(1, $0.end.timeIntervalSince($0.start)) }
         let total = durations.reduce(0, +)
         var widths = durations.map { max($0 / total, minWidth) }
         let sum = widths.reduce(0, +)
         widths = widths.map { $0 / sum }
 
         var acc = 0.0
-        slots = widths.map { w in
-            let slot = Slot(left: acc, width: w)
-            acc += w
-            return slot
+        var segs: [Segment] = []
+        for (k, c) in built.enumerated() {
+            segs.append(Segment(left: acc, width: widths[k], eventIndices: c.idxs))
+            acc += widths[k]
         }
+        segments = segs
     }
 
     /// 진행 위치(0...1). 쉬는 시간엔 다음 칸 경계에 정지.
     func fraction(at now: Date) -> Double {
-        guard !intervals.isEmpty else { return 0 }
-        if now < intervals[0].start { return 0 }
-        for i in intervals.indices {
-            let iv = intervals[i]
-            if now < iv.start { return slots[i].left }     // 쉬는 시간 → 경계 정지
-            if now < iv.end {
-                let f = now.timeIntervalSince(iv.start) / iv.end.timeIntervalSince(iv.start)
-                return slots[i].left + slots[i].width * f  // 진행 중
+        guard !clusters.isEmpty else { return 0 }
+        if now < clusters[0].start { return 0 }
+        for i in clusters.indices {
+            let c = clusters[i]
+            if now < c.start { return segments[i].left }     // 쉬는 시간 → 경계 정지
+            if now < c.end {
+                let f = now.timeIntervalSince(c.start) / c.end.timeIntervalSince(c.start)
+                return segments[i].left + segments[i].width * f  // 진행 중
             }
         }
         return 1
@@ -86,9 +107,9 @@ struct PackedLayout {
 
     /// 지금이 쉬는 시간(어떤 일정에도 안 속하고 다음 일정이 남음)인지.
     func isWaiting(at now: Date) -> Bool {
-        guard let first = intervals.first, let last = intervals.last else { return false }
+        guard let first = clusters.first, let last = clusters.last else { return false }
         if now < first.start || now >= last.end { return false }
-        return !intervals.contains { now >= $0.start && now < $0.end }
+        return !clusters.contains { now >= $0.start && now < $0.end }
     }
 }
 
