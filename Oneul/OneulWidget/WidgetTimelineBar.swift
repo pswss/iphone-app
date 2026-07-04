@@ -28,17 +28,29 @@ struct WidgetTimelineBar: View {
                         .frame(maxHeight: .infinity, alignment: .center)
 
                     ForEach(Array(layout.segments.enumerated()), id: \.offset) { _, sl in
-                        let evs = sl.eventIndices.map { single[$0] }
-                        let colors = evs.map { EventPalette.color($0.colorIndex, of: state.segments.count) }
-                        let isCurrent = evs.contains { now >= $0.start && now < $0.end }
-                        let isPast = evs.allSatisfy { now >= $0.end }
+                        let span = max(1, sl.end.timeIntervalSince(sl.start))
+                        let multi = sl.eventIndices.count > 1
+                        ForEach(sl.eventIndices.sorted { single[$0].start > single[$1].start }, id: \.self) { i in
+                            let e = single[i]
+                            let color = EventPalette.color(e.colorIndex, of: state.segments.count)
+                            let isCurrent = now >= e.start && now < e.end
+                            let isPast = now >= e.end
+                            let f0 = min(max(e.start.timeIntervalSince(sl.start) / span, 0), 1)
+                            let f1 = min(max(e.end.timeIntervalSince(sl.start) / span, 0), 1)
 
-                        RoundedRectangle(cornerRadius: 3, style: .continuous)
-                            .fill(stripeFill(colors))   // 단일=solid, 겹침=대각선 줄무늬
-                            .frame(width: max(2, sl.width * w - 1.5), height: height)
-                            .opacity(isPast ? 0.3 : (isCurrent ? 1 : 0.55))
-                            .offset(x: sl.left * w + 0.75)
-                            .frame(maxHeight: .infinity, alignment: .center)
+                            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                .fill(color)
+                                .frame(width: max(2, sl.width * (f1 - f0) * w - 1.5), height: height)
+                                .opacity(isPast ? 0.3 : (isCurrent ? 1 : (multi ? 0.62 : 0.55)))   // 겹치면 반투명 유리판
+                                .overlay {
+                                    if multi {
+                                        RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                            .strokeBorder(.white.opacity(0.35), lineWidth: 0.5)
+                                    }
+                                }
+                                .offset(x: (sl.left + sl.width * f0) * w + 0.75)
+                                .frame(maxHeight: .infinity, alignment: .center)
+                        }
                     }
 
                     if !single.isEmpty {
@@ -55,22 +67,6 @@ struct WidgetTimelineBar: View {
             }
         }
         .frame(height: CGFloat(multi.count) * 10 + height + 10)
-    }
-
-    /// 단일 색은 solid, 겹침(여러 색)은 대각선 하드 줄무늬.
-    private func stripeFill(_ colors: [Color]) -> LinearGradient {
-        let cs = colors.isEmpty ? [Color.clear] : colors
-        guard cs.count > 1 else {
-            return LinearGradient(colors: [cs[0]], startPoint: .leading, endPoint: .trailing)
-        }
-        let bands = cs.count * 3
-        var stops: [Gradient.Stop] = []
-        for i in 0..<bands {
-            let c = cs[i % cs.count]
-            stops.append(.init(color: c, location: Double(i) / Double(bands)))
-            stops.append(.init(color: c, location: Double(i + 1) / Double(bands)))
-        }
-        return LinearGradient(stops: stops, startPoint: .topLeading, endPoint: .bottomTrailing)
     }
 
     /// 멀티데이 흰 밴드: 지난 부분(흐림) + 남은 부분(흰 글로우).

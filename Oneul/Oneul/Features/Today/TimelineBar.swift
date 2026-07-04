@@ -42,19 +42,32 @@ struct TimelineBar: View {
                         .frame(maxHeight: .infinity, alignment: .center)
 
                     ForEach(Array(layout.segments.enumerated()), id: \.offset) { _, seg in
-                        let evs = seg.eventIndices.map { single[$0] }
-                        let colors = evs.map { EventPalette.color(plan.colorIndex(of: $0), of: plan.events.count) }
-                        let isCurrent = evs.contains { current?.id == $0.id }
-                        let isPast = evs.allSatisfy { now >= $0.end }
+                        let span = max(1, seg.end.timeIntervalSince(seg.start))
+                        let multi = seg.eventIndices.count > 1
+                        // 스테인글라스: 늦게 시작하는 일정을 먼저(뒤층) 그려 앞 일정 뒤로 비치게
+                        ForEach(seg.eventIndices.sorted { single[$0].start > single[$1].start }, id: \.self) { i in
+                            let e = single[i]
+                            let color = EventPalette.color(plan.colorIndex(of: e), of: plan.events.count)
+                            let isCurrent = current?.id == e.id
+                            let isPast = now >= e.end
+                            let f0 = min(max(e.start.timeIntervalSince(seg.start) / span, 0), 1)
+                            let f1 = min(max(e.end.timeIntervalSince(seg.start) / span, 0), 1)
 
-                        RoundedRectangle(cornerRadius: 3, style: .continuous)
-                            .fill(stripeFill(colors))   // 단일=solid, 겹침=대각선 줄무늬
-                            .frame(width: max(2, seg.width * w - 1.5),
-                                   height: height * (isCurrent ? 1.15 : 1))   // 현재 일정 강조 높이 축소(너무 튀지 않게)
-                            .opacity(isPast ? 0.25 : (isCurrent ? 1 : 0.5))
-                            .shadow(color: isCurrent ? (colors.first ?? .clear).opacity(0.6) : .clear, radius: 6, y: 3)
-                            .offset(x: seg.left * w + 0.75)
-                            .frame(maxHeight: .infinity, alignment: .center)
+                            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                .fill(color)
+                                .frame(width: max(2, seg.width * (f1 - f0) * w - 1.5),
+                                       height: height * (isCurrent ? 1.15 : 1))   // 현재 일정 강조 높이
+                                .opacity(isPast ? 0.25 : (isCurrent ? 1 : (multi ? 0.6 : 0.5)))   // 겹치면 반투명 유리판 → 뒤가 비침
+                                .overlay {
+                                    if multi {   // 각 유리판 윤곽 → '두 개'임이 보이게
+                                        RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                            .strokeBorder(.white.opacity(0.35), lineWidth: 0.5)
+                                    }
+                                }
+                                .shadow(color: isCurrent ? color.opacity(0.6) : .clear, radius: 6, y: 3)
+                                .offset(x: (seg.left + seg.width * f0) * w + 0.75)
+                                .frame(maxHeight: .infinity, alignment: .center)
+                        }
                     }
 
                     if !single.isEmpty && live {
@@ -73,22 +86,6 @@ struct TimelineBar: View {
         }
         .frame(height: CGFloat(bandCount) * 12 + height + 14)
         .animation(.easeInOut(duration: 0.35), value: current?.id)
-    }
-
-    /// 단일 색은 solid, 겹침(여러 색)은 대각선 하드 줄무늬 — "이 구간에 여러 일정" 표시.
-    private func stripeFill(_ colors: [Color]) -> LinearGradient {
-        let cs = colors.isEmpty ? [Color.clear] : colors
-        guard cs.count > 1 else {
-            return LinearGradient(colors: [cs[0]], startPoint: .leading, endPoint: .trailing)
-        }
-        let bands = cs.count * 3            // 색을 몇 번 반복해 줄무늬로
-        var stops: [Gradient.Stop] = []
-        for i in 0..<bands {
-            let c = cs[i % cs.count]
-            stops.append(.init(color: c, location: Double(i) / Double(bands)))
-            stops.append(.init(color: c, location: Double(i + 1) / Double(bands)))
-        }
-        return LinearGradient(stops: stops, startPoint: .topLeading, endPoint: .bottomTrailing)
     }
 
     /// 멀티데이 흰 밴드: 지난 부분(흐림) + 남은 부분(흰 글로우).

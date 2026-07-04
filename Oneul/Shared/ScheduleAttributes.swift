@@ -48,7 +48,8 @@ struct ScheduleActivityAttributes: ActivityAttributes {
 /// 겹침 칸(줄무늬로 표시). 진행 중이면 그 칸 안 비율, 쉬는 시간엔 다음 칸 경계에 정지.
 struct PackedLayout {
     /// packed 한 칸 = 시간이 겹치는 일정들의 병합 구간. eventIndices 개수가 2 이상이면 겹침.
-    struct Segment { let left: Double; let width: Double; let eventIndices: [Int] }
+    /// start/end는 칸의 시각 범위 — 칸 안에서 각 일정을 실제 시각 비율로 배치(스테인글라스 겹침)하는 데 쓴다.
+    struct Segment { let left: Double; let width: Double; let start: Date; let end: Date; let eventIndices: [Int] }
 
     let segments: [Segment]
     private let clusters: [(start: Date, end: Date)]
@@ -84,7 +85,7 @@ struct PackedLayout {
         var acc = 0.0
         var segs: [Segment] = []
         for (k, c) in built.enumerated() {
-            segs.append(Segment(left: acc, width: widths[k], eventIndices: c.idxs))
+            segs.append(Segment(left: acc, width: widths[k], start: c.start, end: c.end, eventIndices: c.idxs))
             acc += widths[k]
         }
         segments = segs
