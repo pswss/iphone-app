@@ -192,6 +192,20 @@ enum EventActions {
         try? context.save()
     }
 
+    /// 앱이 만든 특정 출처(timetable/academic)의 내용 중복 제거.
+    /// 여러 기기에서 각자 임포트 → CloudKit 병합으로 동일 일정이 두 벌 생기거나, 삭제가 동기화되기 전
+    /// 재생성돼 좀비 레코드가 남는 경우를 정리한다. 사용자 일정(source="")은 절대 건드리지 않는다.
+    static func dedupBySource(_ sources: Set<String>, in context: ModelContext) {
+        guard let all = try? context.fetch(FetchDescriptor<ScheduleEvent>()) else { return }
+        var seen = Set<String>()
+        var changed = false
+        for e in all where sources.contains(e.source) {
+            let key = "\(e.source)|\(e.title)|\(Int(e.start.timeIntervalSince1970))|\(Int(e.end.timeIntervalSince1970))"
+            if !seen.insert(key).inserted { context.delete(e); changed = true }   // 같은 (출처·제목·시작·끝) → 하나만 남김
+        }
+        if changed { try? context.save() }
+    }
+
     /// 특정 출처(timetable/academic)의 일정 전부 삭제. 재가져오기 전 호출.
     static func deleteBySource(_ source: String, in context: ModelContext) {
         let descriptor = FetchDescriptor<ScheduleEvent>(
