@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// 인앱 무지개 타임라인 바 (packed).
-/// 단일일 일정은 빈틈없이 붙인 무지개 칸으로, 멀티데이 일정은 바 위쪽 흰 글로우 밴드로 표시.
+/// 단일일 일정은 빈틈없이 붙인 무지개 칸으로 표시(멀티데이·주요 일정은 상단 FeaturedBand가 담당).
 /// `live`가 true(오늘)일 때만 매 프레임 애니메이션 — 다른 날은 정적으로 그려 스와이프 부드럽게.
 struct TimelineBar: View {
     let plan: DayPlan
@@ -12,7 +12,6 @@ struct TimelineBar: View {
     private var layout: PackedLayout {
         PackedLayout(intervals: single.map { (start: $0.start, end: $0.end) })
     }
-    private var bandCount: Int { plan.multiDayEvents.isEmpty ? 0 : 1 }   // 밴드는 한 줄만
 
     var body: some View {
         if live {
@@ -31,10 +30,6 @@ struct TimelineBar: View {
         GeometryReader { geo in
             let w = geo.size.width
             VStack(spacing: 5) {
-                if !plan.multiDayEvents.isEmpty {     // 멀티데이 밴드는 모두 동일하므로 한 줄만(여러 개여도 안 길어지게)
-                    multiDayBand(width: w, fraction: frac)
-                }
-
                 ZStack(alignment: .leading) {
                     Capsule()
                         .fill(.white.opacity(0.08))
@@ -84,22 +79,7 @@ struct TimelineBar: View {
                 .frame(height: height + 14)
             }
         }
-        .frame(height: CGFloat(bandCount) * 12 + height + 14)
+        .frame(height: height + 14)
         .animation(.easeInOut(duration: 0.35), value: current?.id)
-    }
-
-    /// 멀티데이 흰 밴드: 지난 부분(흐림) + 남은 부분(흰 글로우).
-    private func multiDayBand(width w: CGFloat, fraction f: Double) -> some View {
-        let px = max(0, min(w, f * w))
-        return ZStack(alignment: .leading) {
-            Capsule().fill(.white.opacity(0.16))
-                .frame(width: px, height: 6)
-            Capsule().fill(.white)
-                .frame(width: max(0, w - px), height: 6)
-                .shadow(color: .white.opacity(0.9), radius: 7)
-                .shadow(color: .white.opacity(0.45), radius: 14)
-                .offset(x: px)
-        }
-        .frame(width: w, height: 7, alignment: .leading)
     }
 }

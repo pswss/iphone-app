@@ -21,6 +21,8 @@ final class ScheduleEvent {
     var seriesID: String = ""
     /// 출처 태그. ""=사용자, "timetable"=학교 시간표, "academic"=학사일정. 재가져오기 시 삭제 기준.
     var source: String = ""
+    /// 사용자가 '주요 일정'으로 지정 → 상단 스와이프 밴드에 D-day로 표시.
+    var pinned: Bool = false
 
     init(
         id: UUID = UUID(),
@@ -33,7 +35,8 @@ final class ScheduleEvent {
         reminderMinutes2: Int = -1,
         recurrenceRaw: String = "none",
         seriesID: String = "",
-        source: String = ""
+        source: String = "",
+        pinned: Bool = false
     ) {
         self.id = id
         self.title = title
@@ -46,6 +49,7 @@ final class ScheduleEvent {
         self.recurrenceRaw = recurrenceRaw
         self.seriesID = seriesID
         self.source = source
+        self.pinned = pinned
     }
 }
 
@@ -134,14 +138,14 @@ enum EventActions {
         title: String, start: Date, end: Date, location: String,
         reminderMinutes: Int, reminderMinutes2: Int = -1, recurrence: Recurrence,
         weekdays: Set<Int> = [], endDate: Date? = nil, source: String = "",
-        excludeDays: Set<Date> = [], into context: ModelContext
+        excludeDays: Set<Date> = [], pinned: Bool = false, into context: ModelContext
     ) {
         let duration = max(0, end.timeIntervalSince(start))
 
         guard recurrence != .none else {
             context.insert(ScheduleEvent(title: title, start: start, end: end,
                                          location: location, reminderMinutes: reminderMinutes,
-                                         reminderMinutes2: reminderMinutes2, source: source))
+                                         reminderMinutes2: reminderMinutes2, source: source, pinned: pinned))
             try? context.save()
             return
         }
@@ -165,7 +169,7 @@ enum EventActions {
                         title: title, start: s, end: s.addingTimeInterval(duration),
                         location: location, reminderMinutes: reminderMinutes,
                         reminderMinutes2: reminderMinutes2,
-                        recurrenceRaw: recurrence.rawValue, seriesID: seriesID, source: source))
+                        recurrenceRaw: recurrence.rawValue, seriesID: seriesID, source: source, pinned: pinned))
                     count += 1
                 }
                 guard let next = cal.date(byAdding: .day, value: 1, to: day) else { break }
@@ -178,7 +182,7 @@ enum EventActions {
                     title: title, start: date, end: date.addingTimeInterval(duration),
                     location: location, reminderMinutes: reminderMinutes,
                     reminderMinutes2: reminderMinutes2,
-                    recurrenceRaw: recurrence.rawValue, seriesID: seriesID, source: source))
+                    recurrenceRaw: recurrence.rawValue, seriesID: seriesID, source: source, pinned: pinned))
                 count += 1
                 guard let next = cal.date(byAdding: step.component, value: step.value, to: date) else { break }
                 date = next

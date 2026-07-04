@@ -21,6 +21,7 @@ struct EventEditorView: View {
     @State private var endDate = Date()
     @State private var showDeleteOptions = false
     @State private var showPlaceSheet = false
+    @State private var pinned = false            // 주요 일정(상단 스와이프 밴드)
     @FocusState private var focusedField: Field?
     private let lang = AppLanguage.shared
 
@@ -90,6 +91,10 @@ struct EventEditorView: View {
                                                displayedComponents: .date).labelsHidden()
                                 }
                             }
+                        }
+
+                        field(lang.tr("주요 일정")) {
+                            Toggle("", isOn: $pinned).labelsHidden().tint(Color.appAccent)
                         }
 
                         if isEditing { deleteSection }
@@ -218,6 +223,7 @@ struct EventEditorView: View {
             reminderMinutes = event.reminderMinutes
             reminderMinutes2 = event.reminderMinutes2
             recurrence = Recurrence(rawValue: event.recurrenceRaw) ?? .none   // 반복 복원(수정에서 편집 가능)
+            pinned = event.pinned
             weekdays = [Calendar.current.component(.weekday, from: event.start)]
             endDate = Calendar.current.date(byAdding: .month, value: 3, to: event.start) ?? event.start
         } else {
@@ -243,12 +249,13 @@ struct EventEditorView: View {
                                     reminderMinutes2: reminderMinutes != -1 ? reminderMinutes2 : -1,
                                     recurrence: recurrence,
                                     weekdays: recurrence == .weekly ? weekdays : [],
-                                    endDate: hasEndDate ? endDate : nil, source: event.source, into: context)
+                                    endDate: hasEndDate ? endDate : nil, source: event.source, pinned: pinned, into: context)
             } else {
                 event.title = title; event.location = location
                 event.start = start; event.end = end
                 event.reminderMinutes = reminderMinutes
                 event.reminderMinutes2 = reminderMinutes != -1 ? reminderMinutes2 : -1
+                event.pinned = pinned
                 try? context.save()
             }
         } else {
@@ -257,7 +264,7 @@ struct EventEditorView: View {
                                 reminderMinutes2: reminderMinutes != -1 ? reminderMinutes2 : -1,
                                 recurrence: recurrence,
                                 weekdays: recurrence == .weekly ? weekdays : [],
-                                endDate: hasEndDate ? endDate : nil, into: context)
+                                endDate: hasEndDate ? endDate : nil, pinned: pinned, into: context)
         }
         dismiss()
     }

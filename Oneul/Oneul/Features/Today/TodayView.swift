@@ -253,6 +253,7 @@ struct TodayView: View {
     // MARK: 타임라인 카드
     private func timelineCard(_ p: DayPlan, live: Bool) -> some View {
         VStack(alignment: .leading, spacing: 7) {   // 제목·바·상태를 촘촘히 붙임
+            if live { FeaturedBand(events: events, lang: lang) }   // 주요 일정 스와이프 밴드(남은 일자 순)
             HStack {
                 Text(live ? lang.tr("오늘 타임라인")
                           : selectedDay.formatted(.dateTime.month().day().locale(lang.locale)) + " " + lang.tr("타임라인"))
@@ -457,6 +458,60 @@ private struct RowHeightKey: PreferenceKey {
 private extension View {
     @ViewBuilder func clippedIf(_ condition: Bool) -> some View {
         if condition { self.clipped() } else { self }
+    }
+}
+
+/// 상단 '주요 일정' 스와이프 밴드 — pinned 또는 여러 날 일정 중 지나지 않은 것을 남은 일자(D-day) 순으로 하나씩.
+struct FeaturedBand: View {
+    let events: [ScheduleEvent]
+    var lang: AppLanguage
+
+    private var items: [ScheduleEvent] {
+        let now = Date()
+        let cal = Calendar.current
+        return events
+            .filter { ($0.pinned || $0.isMultiDay()) && $0.end >= now }
+            .sorted { daysLeft($0, cal, now) < daysLeft($1, cal, now) }
+    }
+
+    private func daysLeft(_ e: ScheduleEvent, _ cal: Calendar, _ now: Date) -> Int {
+        cal.dateComponents([.day], from: cal.startOfDay(for: now), to: cal.startOfDay(for: e.start)).day ?? 0
+    }
+
+    var body: some View {
+        let list = items
+        if !list.isEmpty {
+            TabView {
+                ForEach(list, id: \.id) { e in card(e) }
+            }
+            .tabViewStyle(.page(indexDisplayMode: list.count > 1 ? .automatic : .never))
+            .frame(height: 44)
+        }
+    }
+
+    @ViewBuilder
+    private func card(_ e: ScheduleEvent) -> some View {
+        let now = Date()
+        let cal = Calendar.current
+        HStack(spacing: 8) {
+            Text(dLabel(e, cal, now))
+                .font(.caption).bold().monospacedDigit()
+                .foregroundStyle(Color.appOnAccent)
+                .padding(.horizontal, 8).padding(.vertical, 3)
+                .background(Color.appAccent, in: Capsule())
+            Text(e.title).font(.subheadline).bold().lineLimit(1)
+            Spacer(minLength: 6)
+            Text(e.start.formatted(.dateTime.month().day().locale(lang.locale)))
+                .font(.caption2).foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func dLabel(_ e: ScheduleEvent, _ cal: Calendar, _ now: Date) -> String {
+        if e.isMultiDay() && e.start <= now && e.end >= now { return lang.tr("진행 중") }
+        let d = daysLeft(e, cal, now)
+        return d <= 0 ? "D-DAY" : "D-\(d)"
     }
 }
 
