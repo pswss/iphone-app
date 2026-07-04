@@ -63,6 +63,7 @@
 		EFE035A3D77BA658A142A159 /* WatchPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = B120768A33C004DCF2F45013 /* WatchPayload.swift */; };
 		F1F5D51D84584898B44A586D /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 777161A31B7E4F39C0973C6E /* TodayView.swift */; };
 		F2BE172507853AEAAA7F3798 /* AICommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A4018B36A49D3884C07100 /* AICommand.swift */; };
+		FA57DA7ABC0DE0001111AAA1 /* FastScheduleParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA57DA7ABC0DE0002222BBB2 /* FastScheduleParser.swift */; };
 		F54DF9FCFD510AE0BFE27C1F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 94270AF8C3F1645E053EDB34 /* Assets.xcassets */; };
 		F865AE78CCAE00394D810C75 /* WatchTodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 815B39ECC50A54E32E23A9EB /* WatchTodayView.swift */; };
 		F9BBC1280B4DFCFD1697E63D /* WatchStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFBCDB0ECA3D2AB171BE319 /* WatchStore.swift */; };
@@ -131,7 +132,7 @@
 
 /* Begin PBXFileReference section */
 		01B86C494CBB8B41E58CDC3E /* EventPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventPalette.swift; sourceTree = "<group>"; };
-		07F49EA0A79B8606A3CA0B76 /* Oneul.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Oneul.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		07F49EA0A79B8606A3CA0B76 /* Oneul.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Oneul.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0C645C9FB29A1DD74C886502 /* CalendarBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarBar.swift; sourceTree = "<group>"; };
 		14B607682CCEA115B95212B8 /* LiveActivityController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityController.swift; sourceTree = "<group>"; };
 		15E10C76F7BC3F0106E55F39 /* OneulWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OneulWidgetBundle.swift; sourceTree = "<group>"; };
@@ -148,7 +149,7 @@
 		3253AE34D7106C8DA64A07E2 /* OneulWatchWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OneulWatchWidgetBundle.swift; sourceTree = "<group>"; };
 		334A2A6B08661B685EF25A76 /* ScheduleAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleAttributes.swift; sourceTree = "<group>"; };
 		4945B28361CA4844CD0BE2A0 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
-		4F7FC0B293541145B57F17CD /* OneulWidget.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = OneulWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		4F7FC0B293541145B57F17CD /* OneulWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = OneulWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		535CFBC05030B47581C0E6A6 /* AIProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIProvider.swift; sourceTree = "<group>"; };
 		5A201BB565E9308A6DAAEAB4 /* Glass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Glass.swift; sourceTree = "<group>"; };
 		5ACE8189A99207C779416B4D /* OneulApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OneulApp.swift; sourceTree = "<group>"; };
@@ -173,8 +174,9 @@
 		C7570E900508DF43B3D91D84 /* EventRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventRow.swift; sourceTree = "<group>"; };
 		C9F7A51A479EF765DCADE7CC /* AppChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppChrome.swift; sourceTree = "<group>"; };
 		D2A4018B36A49D3884C07100 /* AICommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AICommand.swift; sourceTree = "<group>"; };
+		FA57DA7ABC0DE0002222BBB2 /* FastScheduleParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FastScheduleParser.swift; sourceTree = "<group>"; };
 		D5057FFD3739CA0A9C50D19B /* EventEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventEditorView.swift; sourceTree = "<group>"; };
-		D6485A918A22F530881FA7E2 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		D6485A918A22F530881FA7E2 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		DCFBCDB0ECA3D2AB171BE319 /* WatchStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchStore.swift; sourceTree = "<group>"; };
 		E6AED8BA9142551D4DADE991 /* ScheduleLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleLiveActivity.swift; sourceTree = "<group>"; };
 		E9779CF0E668CEF123968ACE /* PlaceSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceSearch.swift; sourceTree = "<group>"; };
@@ -329,6 +331,7 @@
 			isa = PBXGroup;
 			children = (
 				D2A4018B36A49D3884C07100 /* AICommand.swift */,
+				FA57DA7ABC0DE0002222BBB2 /* FastScheduleParser.swift */,
 				E9B0BDB1D75C0BC7A988A590 /* AICommon.swift */,
 				535CFBC05030B47581C0E6A6 /* AIProvider.swift */,
 				6A7DA356E9BE16433ED03A34 /* AIScheduleView.swift */,
@@ -475,7 +478,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 1430;
+				LastUpgradeCheck = 2700;
 				TargetAttributes = {
 					0D7CB3DCAA6025042701BE28 = {
 						DevelopmentTeam = W9W4CM597R;
@@ -543,6 +546,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F2BE172507853AEAAA7F3798 /* AICommand.swift in Sources */,
+				FA57DA7ABC0DE0001111AAA1 /* FastScheduleParser.swift in Sources */,
 				27289D8F1B5A2E06AF20D96E /* AICommon.swift in Sources */,
 				E823D7F623DA11AA93889FB4 /* AIProvider.swift in Sources */,
 				75309A16D28C87AA17064433 /* AIScheduleView.swift in Sources */,
@@ -739,11 +743,13 @@
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = W9W4CM597R;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -764,6 +770,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -808,11 +815,13 @@
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = W9W4CM597R;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -826,6 +835,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.0;

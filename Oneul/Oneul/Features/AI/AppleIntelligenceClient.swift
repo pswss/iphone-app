@@ -8,6 +8,12 @@ import FoundationModels
 /// 모델은 '의미 슬롯'만 채우고(날짜/시각 ISO 생성 금지), 실제 계산은 Swift(AIDateResolver)가 한다.
 struct AppleIntelligenceClient: ScheduleAI {
     func generateSchedule(from text: String, now: Date, existing: [ExistingEvent]) async throws -> AIResult {
+        // 0) 빠른 경로: 규칙 기반 파서가 '단순 일정 생성'이라고 확신하면 모델 없이 즉시 반환.
+        //    질문·수정·삭제·외형 변경·모호한 문장은 nil → 아래 Apple Intelligence 경로로 폴백.
+        //    (표·여러 줄 일정도 여기서 처리 — 모델보다 빠르고 정확. AI 미지원 기기에서도 동작.)
+        if let fast = await FastScheduleParser.tryParse(text: text, now: now, existing: existing) {
+            return fast
+        }
         #if canImport(FoundationModels)
         if #available(iOS 26, *) {
             return try await AppleAI.generate(from: text, now: now, existing: existing)
