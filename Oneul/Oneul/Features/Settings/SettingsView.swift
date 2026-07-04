@@ -7,8 +7,6 @@ struct SettingsView: View {
     @AppStorage("userType") private var userType = "general"
     @Bindable private var lang = AppLanguage.shared
     @State private var showResetConfirm = false
-    @State private var laResult: String?                                     // 실시간 활동 시작 결과(팝업)
-    @Query(sort: \ScheduleEvent.start) private var events: [ScheduleEvent]   // 실시간 활동 수동 시작용
 
     var body: some View {
         NavigationStack {
@@ -24,9 +22,6 @@ struct SettingsView: View {
 
                         sectionTitle(lang.tr("외형"))
                         appearanceCard
-
-                        sectionTitle(lang.tr("실시간 활동"))
-                        liveActivityCard
 
                         sectionTitle(lang.tr("개인정보"))
                         privacyCard
@@ -49,12 +44,6 @@ struct SettingsView: View {
                 Button(lang.tr("취소"), role: .cancel) {}
             } message: {
                 Text(lang.tr("이 기기의 모든 일정·학교 설정이 삭제됩니다. 되돌릴 수 없어요."))
-            }
-            .alert(lang.tr("실시간 활동"),
-                   isPresented: Binding(get: { laResult != nil }, set: { if !$0 { laResult = nil } })) {
-                Button(lang.tr("확인"), role: .cancel) {}
-            } message: {
-                Text(laResult ?? "")
             }
         }
     }
@@ -106,38 +95,6 @@ struct SettingsView: View {
 
     private func sectionTitle(_ t: String) -> some View {
         Text(t).font(.caption).bold().foregroundStyle(.secondary).padding(.leading, 4)
-    }
-
-    // MARK: 실시간 활동 (잠금화면/다이나믹 아일랜드) — 수동 시작 + 진단 상태
-    private var liveActivityCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Button {
-                let up = DayPlan.upcoming(events: events)
-                LiveActivityController.shared.refresh(
-                    plan: up?.plan ?? DayPlan(events: [], day: .now),
-                    dayLabel: laLabel(up?.day ?? .now))
-                laResult = LiveActivityController.shared.status + "\n\n(다가오는 일정 수: \(events.filter { $0.end >= Date() }.count)개)"
-                Haptics.impact(.light)
-            } label: {
-                HStack {
-                    Label(lang.tr("잠금화면에 오늘 일정 띄우기"), systemImage: "bolt.badge.clock").font(.subheadline)
-                    Spacer()
-                    Image(systemName: "arrow.up.forward.app").font(.caption).foregroundStyle(.secondary)
-                }
-                .contentShape(Rectangle())
-            }
-            .tint(.primary)
-            Text(LiveActivityController.shared.status)                 // 왜 안/되는지 즉시 표시
-                .font(.caption2).foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(14)
-        .glassCard(cornerRadius: 22)
-    }
-
-    private func laLabel(_ day: Date) -> String {
-        let f = DateFormatter(); f.locale = Locale(identifier: "ko_KR"); f.dateFormat = "M월 d일 EEEE"
-        return f.string(from: day)
     }
 
     // MARK: 사용자 유형
