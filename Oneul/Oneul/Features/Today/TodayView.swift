@@ -382,6 +382,8 @@ struct TodayView: View {
         let today = Calendar.current.startOfDay(for: Date())
         var nearest: [String: Date] = [:]
         for e in events {
+            // '수행평가'는 상시 과제라 D-Day 칩에서 제외(수능·기말이 밀려나는 문제)
+            guard !e.title.contains("수행") else { continue }
             let isExam = e.examKind != .none
                 || ["수능", "고사", "평가", "시험", "학력"].contains { e.title.contains($0) }
             guard isExam else { continue }
@@ -640,8 +642,9 @@ struct FeaturedBand: View {
     private var items: [ScheduleEvent] {
         let now = Date()
         let cal = Calendar.current
+        let horizon = cal.date(byAdding: .day, value: 365, to: now) ?? now   // 수년 뒤 방학까지 노출 방지
         return events
-            .filter { ($0.pinned || $0.isMultiDay()) && $0.end >= now }
+            .filter { ($0.pinned || $0.isMultiDay()) && $0.end >= now && $0.start <= horizon }
             .sorted { daysLeft($0, cal, now) < daysLeft($1, cal, now) }
     }
 

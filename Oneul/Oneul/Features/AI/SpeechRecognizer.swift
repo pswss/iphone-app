@@ -7,8 +7,18 @@ import AVFoundation
 final class SpeechRecognizer {
     var transcript = ""
     var isRecording = false
+    var onDenied: (() -> Void)?   // 권한 거부 시 UI 피드백(무반응이 고장으로 오인되던 문제)
 
-    @ObservationIgnored private lazy var recognizer = SFSpeechRecognizer(locale: Locale(identifier: "ko_KR"))   // 첫 녹음 때 생성(AI 탭 진입 렉↓)
+    // 앱 언어에 맞는 인식 로케일(영어 모드에서 한국어 인식 고정 문제)
+    @ObservationIgnored private var recognizer: SFSpeechRecognizer? {
+        if _recognizer == nil || _recognizerLang != AppLanguage.shared.code {
+            _recognizerLang = AppLanguage.shared.code
+            _recognizer = SFSpeechRecognizer(locale: AppLanguage.shared.locale)
+        }
+        return _recognizer
+    }
+    @ObservationIgnored private var _recognizer: SFSpeechRecognizer?
+    @ObservationIgnored private var _recognizerLang = ""
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
     @ObservationIgnored private lazy var engine = AVAudioEngine()
@@ -20,15 +30,18 @@ final class SpeechRecognizer {
         wantsRecording = true
         transcript = ""
         SFSpeechRecognizer.requestAuthorization { status in
-            guard status == .authorized else { return }
+            guard status == .authorized else {
+                DispatchQueue.main.async { self.onDenied?() }
+                return
+            }
             #if os(iOS)
             AVAudioApplication.requestRecordPermission { granted in
-                guard granted else { return }
+                guard granted else { DispatchQueue.main.async { self.onDenied?() }; return }
                 DispatchQueue.main.async { self.begin() }
             }
             #else
             AVCaptureDevice.requestAccess(for: .audio) { granted in   // macOS: 오디오 세션 없이 마이크 권한만
-                guard granted else { return }
+                guard granted else { DispatchQueue.main.async { self.onDenied?() }; return }
                 DispatchQueue.main.async { self.begin() }
             }
             #endif

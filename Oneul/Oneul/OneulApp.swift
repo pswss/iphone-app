@@ -15,7 +15,7 @@ struct OneulApp: App {
     let container = Persistence.makeContainer()
 
     init() {
-        NotificationManager.shared.requestAuthorizationIfNeeded()
+        _ = NotificationManager.shared   // delegate 연결(권한 요청은 온보딩 완료 후 — HIG 컨텍스트 요청)
         #if os(iOS)
         BackgroundRefresh.register(container: container)   // 백그라운드 갱신 작업 등록(launch 전)
         #endif

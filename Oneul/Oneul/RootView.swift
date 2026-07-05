@@ -175,6 +175,7 @@ struct RootView: View {
             VStack(spacing: 10) {
                 Button {
                     userType = "student"; didOnboard = true
+                    NotificationManager.shared.requestAuthorizationIfNeeded()   // 맥락 있는 시점에 권한 요청
                 } label: {
                     Label(lang.tr("학생 — 시간표·급식 사용"), systemImage: "graduationcap.fill")
                         .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 14)
@@ -182,6 +183,7 @@ struct RootView: View {
                 .buttonStyle(.borderedProminent)
                 Button {
                     userType = "general"; didOnboard = true
+                    NotificationManager.shared.requestAuthorizationIfNeeded()
                 } label: {
                     Text(lang.tr("일반 — 일정·메모만"))
                         .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 14)
