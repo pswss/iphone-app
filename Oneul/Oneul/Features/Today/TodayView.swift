@@ -60,7 +60,11 @@ struct TodayView: View {
         ZStack {
             AppBackground()
             // 아이패드도 검증된 단일 컬럼(narrowContent)을 중앙 정렬로 — 2단 레이아웃의 동작 불량 해결
+            #if os(macOS)
+            narrowContent   // 맥: 주 그리드가 창 전체 폭을 알뜰히 사용
+            #else
             narrowContent.frame(maxWidth: wide ? 760 : .infinity)
+            #endif
         }
         #if os(iOS)
         .overlay(alignment: .bottomTrailing) { addButton }   // 맥은 툴바 '+ 새 일정' 사용
@@ -217,7 +221,9 @@ struct TodayView: View {
         VStack(spacing: 0) {
             chromeRow(index: 0, order: 3) { header }
             chromeRow(index: 1, order: 2) { dDayBar }
-            chromeRow(index: 2, order: 1) { CalendarBar(selectedDay: $selectedDay) }
+            #if os(iOS)
+            chromeRow(index: 2, order: 1) { CalendarBar(selectedDay: $selectedDay) }   // 맥은 주 그리드가 대신함 → 주간 스트립 불필요
+            #endif
             chromeRow(index: 3, order: 0) { timelineCard(plan, live: Calendar.current.isDateInToday(selectedDay)) }
         }
         .padding(.horizontal, 16)

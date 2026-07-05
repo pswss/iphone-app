@@ -102,11 +102,16 @@ struct SettingsView: View {
     // MARK: 사용자 유형
     private var userTypeCard: some View {
         VStack(spacing: 10) {
+            #if os(macOS)
+            FullWidthSegments(selection: $userType,
+                              options: [(lang.tr("일반"), "general"), (lang.tr("학생"), "student")])
+            #else
             Picker("", selection: $userType) {
                 Text(lang.tr("일반")).tag("general")
                 Text(lang.tr("학생")).tag("student")
             }
             .pickerStyle(.segmented)
+            #endif
             if userType == "student" {
                 NavigationLink {
                     SchoolSetupView()
@@ -128,11 +133,18 @@ struct SettingsView: View {
 
     // MARK: 언어
     private var languageCard: some View {
-        Picker(lang.tr("언어"), selection: $lang.code) {
-            Text("한국어").tag("ko")
-            Text("English").tag("en")
+        Group {
+            #if os(macOS)
+            FullWidthSegments(selection: $lang.code, options: [("한국어", "ko"), ("English", "en")])
+            #else
+            Picker(lang.tr("언어"), selection: $lang.code) {
+                Text("한국어").tag("ko")
+                Text("English").tag("en")
+            }
+            .labelsHidden().pickerStyle(.segmented)   // 섹션 헤더가 이미 '언어'
+            #endif
         }
-        .pickerStyle(.segmented)
+        .frame(maxWidth: .infinity)
         .padding(14)
         .glassCard(cornerRadius: 22)
     }
@@ -140,17 +152,49 @@ struct SettingsView: View {
     // MARK: 외형
     private var appearanceCard: some View {
         VStack(alignment: .leading, spacing: 10) {
+            #if os(macOS)
+            FullWidthSegments(selection: $appearanceRaw,
+                              options: Appearance.allCases.map { (lang.tr($0.label), $0.rawValue) })
+            #else
             Picker(lang.tr("외형"), selection: $appearanceRaw) {
                 ForEach(Appearance.allCases) { a in Text(lang.tr(a.label)).tag(a.rawValue) }
             }
-            .pickerStyle(.segmented)
+            .labelsHidden().pickerStyle(.segmented)
+            #endif
             Text(lang.tr("‘시스템’은 기기 설정(다크/라이트)을 따릅니다."))
                 .font(.caption2).foregroundStyle(.secondary)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
         .glassCard(cornerRadius: 22)
     }
 
+}
+
+/// 맥용 풀폭 세그먼트 컨트롤 — macOS 기본 segmented는 폭을 안 채워서 직접 그림(각 칸이 균등하게 꽉 참).
+struct FullWidthSegments: View {
+    @Binding var selection: String
+    let options: [(label: String, value: String)]
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(options, id: \.value) { opt in
+                Button { selection = opt.value } label: {
+                    Text(opt.label)
+                        .font(.subheadline).bold()
+                        .frame(maxWidth: .infinity).padding(.vertical, 6)
+                        .foregroundStyle(selection == opt.value ? Color.appOnAccent : .primary)
+                        .background(selection == opt.value ? Color.appAccent : Color.clear,
+                                    in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(4)
+        .background(.gray.opacity(0.15), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .focusEffectDisabled()   // 선택 칸 파란 포커스 링 제거
+    }
 }
 
 // MARK: - 개인정보 처리방침 (인앱)

@@ -74,10 +74,18 @@ struct DayGridView: View {
                                 .scrollTargetLayout()                    // 시간 행 = 스크롤 위치 타깃(공유 복원용)
                                 Rectangle().fill(.white.opacity(0.12))   // 시간 ↔ 일정 구분선
                                     .frame(width: 1, height: gridHeight).offset(x: leftInset)
+                                #if os(iOS)
                                 LongPressArea(minimumDuration: 0.4,                           // 빈 곳 꾹 → 그 위치에 새 일정(스크롤과 동시)
                                               onBegan: { y in selectedID = nil; addAt(y: y); Haptics.impact(.medium) })
                                     .frame(width: geo.size.width, height: gridHeight)
                                     .onTapGesture { selectedID = nil; deleteBubbleID = nil }   // 한 번 탭 → 선택/말풍선 해제
+                                #else
+                                Color.clear                                                   // 맥: 빈 곳 더블클릭 → 새 일정, 한 번 클릭 → 선택 해제
+                                    .frame(width: geo.size.width, height: gridHeight)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture { selectedID = nil; deleteBubbleID = nil }
+                                    .gesture(SpatialTapGesture(count: 2).onEnded { v in selectedID = nil; addAt(y: v.location.y) })
+                                #endif
                                 if cal.isDateInToday(day) { nowLine(width: geo.size.width) }
                                 ForEach(laidOut, id: \.event.id) { eventBlock($0, gridW: gridW) }
                                 if let ps = previewStart { previewBlock(ps, gridW: gridW) }

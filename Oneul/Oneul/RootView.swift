@@ -137,6 +137,7 @@ struct RootView: View {
                             }
                         }
                 }
+                .focusEffectDisabled()   // 급식 시트 화살표 포커스 링 제거
                 .frame(minWidth: 420, minHeight: 540)
             }
         }

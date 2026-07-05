@@ -45,6 +45,7 @@ struct OneulApp: App {
             SettingsView()
                 .modelContainer(container)
                 .frame(width: 480, height: 600)
+                .focusEffectDisabled()   // 설정 창(별도 씬) 파란 포커스 링 제거
         }
 
         // AI = 메뉴바 상단 ✨ (클릭→자연어 입력 팝오버, 바깥 클릭으로 닫힘)
