@@ -121,8 +121,10 @@ struct RootView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button { NotificationCenter.default.post(name: .oneulNewEvent, object: nil) } label: {
-                        Label(lang.tr("새 일정"), systemImage: "plus")
+                    Button {
+                        NotificationCenter.default.post(name: macSection == .memo ? .oneulNewMemo : .oneulNewEvent, object: nil)
+                    } label: {
+                        Label(macSection == .memo ? lang.tr("새 메모") : lang.tr("새 일정"), systemImage: "plus")
                     }
                 }
                 if userType == "student" {

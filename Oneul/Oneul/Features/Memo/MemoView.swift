@@ -89,14 +89,19 @@ struct MemoView: View {
             }
             .navigationTitle(lang.tr("메모"))
             .navBarInline()
-            .toolbar {
+            #if os(iOS)
+            .toolbar {                                   // 아이폰: 탭 자체 툴바의 작성 버튼
                 ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        let m = Memo(); context.insert(m); try? context.save()
-                    } label: { Image(systemName: "square.and.pencil") }
+                    Button { addMemo() } label: { Image(systemName: "square.and.pencil") }
                 }
             }
+            #endif
+            .onReceive(NotificationCenter.default.publisher(for: .oneulNewMemo)) { _ in addMemo() }   // 맥: 창 툴바 '+'
         }
+    }
+
+    private func addMemo() {
+        let m = Memo(); context.insert(m); try? context.save()
     }
 
     private func firstLine(_ s: String) -> String {

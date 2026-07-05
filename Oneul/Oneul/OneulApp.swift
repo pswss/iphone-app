@@ -5,6 +5,7 @@ extension Notification.Name {
     static let oneulNewEvent = Notification.Name("oneul.newEvent")   // ⌘N
     static let oneulToday = Notification.Name("oneul.today")         // ⌘T
     static let oneulShiftDay = Notification.Name("oneul.shiftDay")   // ⌘←/→ (object: Int -1/+1)
+    static let oneulNewMemo = Notification.Name("oneul.newMemo")     // 메모 섹션에서 + → 새 메모
 }
 
 @main
