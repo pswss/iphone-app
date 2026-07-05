@@ -685,7 +685,7 @@ struct MacWeekGrid: View {
         let weekEnd = cal.date(byAdding: .day, value: 7, to: days[0]) ?? days[0]
         var rowEnds: [Int] = []        // 각 행이 채운 마지막 열
         var packed: [PackedBar] = []
-        for (i, e) in events.enumerated() {
+        for e in events {
             let cols = (0..<7).filter { e.occurs(on: days[$0]) }
             guard let s = cols.first, let en = cols.last else { continue }
             var row = 0
@@ -693,7 +693,6 @@ struct MacWeekGrid: View {
             if row == rowEnds.count { rowEnds.append(en) } else { rowEnds[row] = en }
             packed.append(PackedBar(
                 id: e.id, event: e, startCol: s, endCol: en, row: row,
-                color: EventPalette.color(i, of: events.count),
                 openLeft: s == 0 && cal.startOfDay(for: e.start) < days[0],   // 지난 주부터 이어짐
                 openRight: en == 6 && e.end > weekEnd))                        // 다음 주로 이어짐
         }
@@ -721,24 +720,25 @@ struct MacWeekGrid: View {
         }
     }
 
+    // 표시는 이전 종일 스타일 그대로(흰 글래스 + 아이콘 + '종일') — 며칠 이어지는 연속 바로만 확장.
     private func allDayPill(_ bar: PackedBar) -> some View {
-        let shape = UnevenRoundedRectangle(
-            topLeadingRadius: bar.openLeft ? 3 : 9, bottomLeadingRadius: bar.openLeft ? 3 : 9,
-            bottomTrailingRadius: bar.openRight ? 3 : 9, topTrailingRadius: bar.openRight ? 3 : 9,
+        let shape = UnevenRoundedRectangle(   // 주 경계를 넘어 이어지는 쪽은 각지게
+            topLeadingRadius: bar.openLeft ? 3 : 12, bottomLeadingRadius: bar.openLeft ? 3 : 12,
+            bottomTrailingRadius: bar.openRight ? 3 : 12, topTrailingRadius: bar.openRight ? 3 : 12,
             style: .continuous)
         return Button { onEdit(bar.event) } label: {
-            HStack(spacing: 5) {
-                if bar.openLeft { Image(systemName: "chevron.compact.left").font(.caption2).opacity(0.85) }
-                Text(bar.event.title.isEmpty ? lang.tr("제목 없음") : bar.event.title)
-                    .font(.caption).bold().lineLimit(1)
-                Spacer(minLength: 0)
-                if bar.openRight { Image(systemName: "chevron.compact.right").font(.caption2).opacity(0.85) }
+            HStack(spacing: 8) {
+                if bar.openLeft { Image(systemName: "chevron.compact.left").font(.caption2).foregroundStyle(.secondary) }
+                Image(systemName: "rectangle.expand.vertical").font(.caption2)
+                Text(bar.event.title.isEmpty ? lang.tr("제목 없음") : bar.event.title).font(.caption).bold().lineLimit(1)
+                Spacer(minLength: 4)
+                Text(lang.tr("종일")).font(.caption2).foregroundStyle(.secondary)
+                if bar.openRight { Image(systemName: "chevron.compact.right").font(.caption2).foregroundStyle(.secondary) }
             }
-            .foregroundStyle(.white)
-            .padding(.horizontal, 10)
+            .padding(.horizontal, 12)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .background(bar.color, in: shape)
-            .shadow(color: .black.opacity(0.14), radius: 3, y: 1)   // 위젯처럼 살짝 떠 보이게
+            .background(.white.opacity(0.10), in: shape)
+            .overlay(shape.strokeBorder(.white.opacity(0.18)))
         }
         .buttonStyle(.plain)
     }
@@ -750,7 +750,6 @@ struct MacWeekGrid: View {
         let startCol: Int
         let endCol: Int
         let row: Int
-        let color: Color
         let openLeft: Bool
         let openRight: Bool
     }
