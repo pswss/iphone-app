@@ -427,10 +427,10 @@ struct DayGridView: View {
         VStack(spacing: 0) {
             HStack(spacing: 0) {
                 menuItem(deviceTerm("잘라내기", "Cut", "カット", "剪切", "剪下", "Cortar", "Couper", "Ausschneiden")) {
-                    EventClipboard.copy(e); EventActions.deleteSingle(e, in: context); dismissMenu() }
+                    EventClipboard.shared.copy(e); EventActions.deleteSingle(e, in: context); dismissMenu() }
                 menuSep
                 menuItem(deviceTerm("복사", "Copy", "コピー", "拷贝", "拷貝", "Copiar", "Copier", "Kopieren")) {
-                    EventClipboard.copy(e); dismissMenu() }
+                    EventClipboard.shared.copy(e); dismissMenu() }
                 menuSep
                 menuItem(deviceTerm("복제", "Duplicate", "複製", "复制", "複製", "Duplicar", "Dupliquer", "Duplizieren")) {
                     duplicate(e); dismissMenu() }
@@ -501,10 +501,11 @@ struct DayGridView: View {
         let mins = Double(y) / Double(hourHeight) * 60
         let snapped = (mins / 30).rounded(.down) * 30
         let date = gridTop.addingTimeInterval(snapped * 60)
-        if let c = EventClipboard.item {                          // 복사/잘라낸 일정이 있으면 그 자리에 붙여넣기
+        if let c = EventClipboard.shared.item {                   // 복사/잘라낸 일정이 있으면 그 자리에 붙여넣기(상단 칩으로 모드 표시·취소 가능)
             EventActions.create(title: c.title, start: date, end: date.addingTimeInterval(c.duration),
                                 location: c.location, reminderMinutes: c.reminderMinutes,
                                 reminderMinutes2: c.reminderMinutes2, recurrence: .none, into: context)
+            Haptics.impact(.soft)
         } else {
             onAdd(date)
         }
@@ -563,13 +564,16 @@ struct CopiedEvent {
     var reminderMinutes: Int
     var reminderMinutes2: Int
 }
-enum EventClipboard {
-    static var item: CopiedEvent?
-    static func copy(_ e: ScheduleEvent) {
+@Observable final class EventClipboard {
+    static let shared = EventClipboard()
+    private init() {}
+    var item: CopiedEvent?
+    func copy(_ e: ScheduleEvent) {
         item = CopiedEvent(title: e.title, duration: max(300, e.end.timeIntervalSince(e.start)),
                            location: e.location, reminderMinutes: e.reminderMinutes,
                            reminderMinutes2: e.reminderMinutes2)
     }
+    func clear() { item = nil }
 }
 
 /// 아래를 가리키는 작은 삼각형(말풍선 꼬리).

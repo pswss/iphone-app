@@ -66,6 +66,8 @@ struct TodayView: View {
             narrowContent.frame(maxWidth: wide ? 760 : .infinity)
             #endif
         }
+        .overlay(alignment: .top) { clipboardChip }          // 복사/잘라내기 활성 표시 + 취소(빈 곳 추가 하이재킹 방지)
+        .animation(.snappy(duration: 0.25), value: EventClipboard.shared.item == nil)
         #if os(iOS)
         .overlay(alignment: .bottomTrailing) { addButton }   // 맥은 툴바 '+ 새 일정' 사용
         #endif
@@ -126,6 +128,26 @@ struct TodayView: View {
         h.combine(addStart)
         h.combine(Calendar.current.startOfDay(for: selectedDay))
         return h.finalize()
+    }
+
+    // 복사/잘라내기 상태 칩 — 클립보드가 차 있는 동안만 상단에 떠서 붙여넣기 모드임을 알리고 취소 제공
+    @ViewBuilder private var clipboardChip: some View {
+        if EventClipboard.shared.item != nil {
+            HStack(spacing: 8) {
+                Image(systemName: "doc.on.clipboard").font(.caption)
+                Text(lang.tr("일정 복사됨 · 빈 곳을 눌러 붙여넣기")).font(.caption).bold()
+                Button {
+                    EventClipboard.shared.clear(); Haptics.impact(.light)
+                } label: {
+                    Image(systemName: "xmark.circle.fill").font(.callout).foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 14).padding(.vertical, 8)
+            .glassEffect(.regular, in: Capsule())
+            .padding(.top, 8)
+            .transition(.move(edge: .top).combined(with: .opacity))
+        }
     }
 
     // 우하단 리퀴드 글래스 + 버튼 (새 일정)

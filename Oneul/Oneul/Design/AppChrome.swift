@@ -276,6 +276,7 @@ final class AppLanguage {
         "기울임": "Italic",
         "사진": "Photo",
         "파일": "File",
+        "일정 복사됨 · 빈 곳을 눌러 붙여넣기": "Event copied · tap empty space to paste",
         // 맥 주 그리드/공통
         "닫기": "Close",
         "주": "Week",
