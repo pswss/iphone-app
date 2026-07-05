@@ -284,6 +284,10 @@ final class AppLanguage {
         "잘라내기": "Cut",
         "복사": "Copy",
         "복제": "Duplicate",
+        "일정 검색": "Search Events",
+        "제목이나 장소": "Title or location",
+        "제목이나 장소로 일정을 찾아요": "Find events by title or location",
+        "검색 결과가 없어요": "No results",
         // 맥 주 그리드/공통
         "닫기": "Close",
         "주": "Week",

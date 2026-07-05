@@ -19,6 +19,7 @@ struct TodayView: View {
     @State private var rowH: [Int: CGFloat] = [:]      // 접히는 위젯 4개 자연 높이(index→height)
     @State private var sharedScrollHour: Int?          // 모든 날 grid가 공유하는 세로 스크롤 위치(슬라이드해도 유지)
     @State private var gridInteracting = false         // 일정 드래그/리사이즈 중 → 좌우 날짜 스와이프 잠금
+    @State private var showSearch = false             // 일정 검색 시트
     private let lang = AppLanguage.shared
     @AppStorage("userType") private var userType = "general"
     #if os(iOS)
@@ -98,6 +99,12 @@ struct TodayView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .oneulShowDay)) { note in
             if let d = note.object as? Date { selectedDay = d }   // 알림 탭 → 해당 일정 날짜로
+        }
+        .sheet(isPresented: $showSearch) {
+            EventSearchSheet(events: events) { day in selectedDay = day }
+            #if os(macOS)
+                .frame(minWidth: 440, minHeight: 500)
+            #endif
         }
     }
 
@@ -302,6 +309,11 @@ struct TodayView: View {
                 Text(selectedDay, format: .dateTime.day().weekday(.wide))
                     .font(.largeTitle).bold()
                 Spacer()
+                Button { showSearch = true } label: {   // 일정 검색(제목·장소)
+                    Image(systemName: "magnifyingglass")
+                        .font(.title3).foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
             }
             if let holiday = Holidays.name(for: selectedDay) {
                 Text(holiday)
@@ -781,6 +793,65 @@ struct MacWeekGrid: View {
     }
 }
 #endif
+
+// MARK: - 일정 검색 시트 — 제목·장소 매칭, 결과 탭 → 그 날짜로 이동
+private struct EventSearchSheet: View {
+    let events: [ScheduleEvent]
+    var onPick: (Date) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var query = ""
+    private let lang = AppLanguage.shared
+
+    private var results: [ScheduleEvent] {
+        let q = query.trimmingCharacters(in: .whitespaces)
+        guard !q.isEmpty else { return [] }
+        return Array(events
+            .filter { $0.title.localizedStandardContains(q) || $0.location.localizedStandardContains(q) }
+            .sorted { abs($0.start.timeIntervalSinceNow) < abs($1.start.timeIntervalSinceNow) }   // 지금과 가까운 순
+            .prefix(80))
+    }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                AppBackground()
+                if query.trimmingCharacters(in: .whitespaces).isEmpty {
+                    Text(lang.tr("제목이나 장소로 일정을 찾아요"))
+                        .font(.subheadline).foregroundStyle(.secondary)
+                } else if results.isEmpty {
+                    Text(lang.tr("검색 결과가 없어요"))
+                        .font(.subheadline).foregroundStyle(.secondary)
+                } else {
+                    List(results) { e in
+                        Button { onPick(e.start); dismiss() } label: {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(e.title.isEmpty ? lang.tr("제목 없음") : e.title)
+                                    .font(.body).bold().lineLimit(1)
+                                HStack(spacing: 6) {
+                                    Text(e.start, format: .dateTime.year().month().day().weekday(.abbreviated)
+                                        .hour().minute().locale(lang.locale))
+                                    if !e.location.isEmpty { Text("· " + e.location).lineLimit(1) }
+                                }
+                                .font(.caption).foregroundStyle(.secondary)
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .scrollContentBackground(.hidden)
+                }
+            }
+            .navigationTitle(lang.tr("일정 검색"))
+            .navBarInline()
+            .searchable(text: $query, prompt: lang.tr("제목이나 장소"))
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(lang.tr("닫기")) { dismiss() }
+                }
+            }
+        }
+    }
+}
 
 #Preview {
     TodayView()
