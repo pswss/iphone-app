@@ -53,7 +53,7 @@ struct OneulApp: App {
         MenuBarExtra("Oneul AI", systemImage: "sparkles") {
             AIScheduleView()
                 .modelContainer(container)
-                .frame(width: 440, height: 520)
+                .frame(width: 420, height: 300)   // 입력+실행 딱 맞게 — 아래 빈 여백 제거
         }
         .menuBarExtraStyle(.window)
         #endif
