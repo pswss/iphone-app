@@ -49,6 +49,7 @@
 		770DBDF8A2340C77EBA48398 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16EF8C9737267FC333CC19EC /* NotificationManager.swift */; };
 		783155D7C75754F18D43303F /* OneulWatchWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 2FE5158FB2F93365DDD57FEC /* OneulWatchWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		78A750E85B9DF3E94FD5F04F /* Glass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A201BB565E9308A6DAAEAB4 /* Glass.swift */; };
+		7D0657F4E7594D9442DEC0E5 /* CalendarImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A8C0BEA6C5E6E763D3C0449 /* CalendarImport.swift */; };
 		7EECDB6EDB6C3DDB90C7302A /* MemoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A4EEDA727963CDA0EA9E88A /* MemoView.swift */; };
 		7FEBFE102F891625DB5A7734 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ACF06EA2A9B63E4872D0D82 /* Theme.swift */; };
 		811D809B7A894889A5E6B9F4 /* AppChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9F7A51A479EF765DCADE7CC /* AppChrome.swift */; };
@@ -68,6 +69,7 @@
 		9AE53CF1AE89239DF3BDC6F7 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = D6485A918A22F530881FA7E2 /* PrivacyInfo.xcprivacy */; };
 		9E7036EDAB19410AF75669FD /* ElectiveSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DDD92EAE062AD8537F2B53E /* ElectiveSetupView.swift */; };
 		A13AE6AE7D3A89DE8C23A3C2 /* NEIS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 741F7445372DEF5858438E89 /* NEIS.swift */; };
+		A18E3127C7D72B0AE089E6A3 /* CalendarImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A8C0BEA6C5E6E763D3C0449 /* CalendarImport.swift */; };
 		A342CC60B0C02D253113EB28 /* MapDirections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E4F2E090381140001B79DD9 /* MapDirections.swift */; };
 		A377868AD6D78D418F337FC4 /* DayGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6455A65474E956EDA02D3D48 /* DayGridView.swift */; };
 		ACF87110036B4C3B2E6DA004 /* TimelineBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28D1C0B69DAE7EC2BFA4E7A8 /* TimelineBar.swift */; };
@@ -187,6 +189,7 @@
 		306B6C9EB3EE7319C5856947 /* OneulWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OneulWatchApp.swift; sourceTree = "<group>"; };
 		3253AE34D7106C8DA64A07E2 /* OneulWatchWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OneulWatchWidgetBundle.swift; sourceTree = "<group>"; };
 		334A2A6B08661B685EF25A76 /* ScheduleAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleAttributes.swift; sourceTree = "<group>"; };
+		3A8C0BEA6C5E6E763D3C0449 /* CalendarImport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarImport.swift; sourceTree = "<group>"; };
 		4945B28361CA4844CD0BE2A0 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		4DF1E264B0D18DCB7B3509C0 /* OneulMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OneulMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		4F7FC0B293541145B57F17CD /* OneulWidget.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = OneulWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -306,6 +309,7 @@
 		7E52B51971BEB27526C6DFEE /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				3A8C0BEA6C5E6E763D3C0449 /* CalendarImport.swift */,
 				1F3E3AE2F482E8821D392598 /* SettingsView.swift */,
 			);
 			path = Settings;
@@ -634,6 +638,7 @@
 				01B03CBFC066FA4AE84FB90F /* AppleIntelligenceClient.swift in Sources */,
 				E4BE9167F1F82BAD05F04366 /* BackgroundRefresh.swift in Sources */,
 				B53B622954D5D8FBD25C5F54 /* CalendarBar.swift in Sources */,
+				A18E3127C7D72B0AE089E6A3 /* CalendarImport.swift in Sources */,
 				C3C8A27FED06E8DF5FDE3D86 /* DayGridView.swift in Sources */,
 				4ADF4B85379FD3B22D3D3DA8 /* DayPlan.swift in Sources */,
 				DA1B100733D4D79C56226FF7 /* ElectiveSetupView.swift in Sources */,
@@ -705,6 +710,7 @@
 				31C3B75836FCEB96DED757F0 /* AppleIntelligenceClient.swift in Sources */,
 				5FAE164704859CE46D50C5A5 /* BackgroundRefresh.swift in Sources */,
 				36A41A45267D82442339B129 /* CalendarBar.swift in Sources */,
+				7D0657F4E7594D9442DEC0E5 /* CalendarImport.swift in Sources */,
 				A377868AD6D78D418F337FC4 /* DayGridView.swift in Sources */,
 				B3DF1BE7CAAB4151B6F4070C /* DayPlan.swift in Sources */,
 				9E7036EDAB19410AF75669FD /* ElectiveSetupView.swift in Sources */,

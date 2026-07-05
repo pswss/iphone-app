@@ -51,6 +51,7 @@ targets:
         NSLocationWhenInUseUsageDescription: 일정 장소를 현재 위치로 지정할 때 사용합니다.
         NSMicrophoneUsageDescription: 음성으로 일정을 입력할 때 마이크를 사용합니다.
         NSSpeechRecognitionUsageDescription: 말한 내용을 일정으로 바꿀 때 음성 인식을 사용합니다.
+        NSCalendarsFullAccessUsageDescription: 애플 캘린더의 일정을 가져올 때 사용합니다.
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
@@ -141,6 +142,7 @@ targets:
         NSLocationWhenInUseUsageDescription: 일정 장소를 현재 위치로 지정할 때 사용합니다.
         NSMicrophoneUsageDescription: 음성으로 일정을 입력할 때 마이크를 사용합니다.
         NSSpeechRecognitionUsageDescription: 말한 내용을 일정으로 바꿀 때 음성 인식을 사용합니다.
+        NSCalendarsFullAccessUsageDescription: 애플 캘린더의 일정을 가져올 때 사용합니다.
         CFBundleURLTypes:
           - CFBundleURLName: com.oneul.app
             CFBundleURLSchemes: [oneul]

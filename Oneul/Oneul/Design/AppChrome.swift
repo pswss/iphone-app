@@ -312,6 +312,11 @@ final class AppLanguage {
         "주말에는 급식이 없어요": "No meals on weekends",
         "메모 %d개 삭제됨": "%d note(s) deleted",
         "실행 취소": "Undo",
+        "가져오기": "Import",
+        "애플 캘린더에서 가져오기": "Import from Apple Calendar",
+        "일정 %d개를 가져왔어요 (오늘부터 90일)": "Imported %d events (next 90 days)",
+        "캘린더 접근이 거부됐어요. 시스템 설정에서 허용해 주세요.":
+            "Calendar access denied. Allow it in System Settings.",
         // 맥 주 그리드/공통
         "닫기": "Close",
         "주": "Week",

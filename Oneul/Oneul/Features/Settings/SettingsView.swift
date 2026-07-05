@@ -30,6 +30,9 @@ struct SettingsView: View {
                         sectionTitle(lang.tr("알림"))
                         notificationCard
 
+                        sectionTitle(lang.tr("가져오기"))
+                        calendarImportCard
+
                         sectionTitle(lang.tr("개인정보"))
                         privacyCard
 
@@ -89,6 +92,42 @@ struct SettingsView: View {
     private func refreshNotifStatus() {
         UNUserNotificationCenter.current().getNotificationSettings { st in
             DispatchQueue.main.async { notifStatus = st.authorizationStatus }
+        }
+    }
+
+    // MARK: 애플 캘린더 가져오기(EventKit) — 기존 일정 이사 경로
+    @State private var importing = false
+    @State private var importMsg: String?
+
+    private var calendarImportCard: some View {
+        HStack {
+            Label(lang.tr("애플 캘린더에서 가져오기"), systemImage: "square.and.arrow.down")
+            Spacer()
+            if importing {
+                ProgressView().controlSize(.small)
+            } else {
+                Button(lang.tr("가져오기")) { runCalendarImport() }
+                    .font(.subheadline.bold()).buttonStyle(.bordered)
+            }
+        }
+        .padding(.horizontal, 14).padding(.vertical, 12)
+        .glassCard(cornerRadius: 22)
+        .alert(importMsg ?? "", isPresented: Binding(get: { importMsg != nil },
+                                                     set: { if !$0 { importMsg = nil } })) {
+            Button(lang.tr("완료"), role: .cancel) {}
+        }
+    }
+
+    private func runCalendarImport() {
+        importing = true
+        Task { @MainActor in
+            defer { importing = false }
+            do {
+                let n = try await CalendarImport.run(context: context)
+                importMsg = String(format: lang.tr("일정 %d개를 가져왔어요 (오늘부터 90일)"), n)
+            } catch {
+                importMsg = lang.tr("캘린더 접근이 거부됐어요. 시스템 설정에서 허용해 주세요.")
+            }
         }
     }
 
