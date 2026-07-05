@@ -288,6 +288,9 @@ final class AppLanguage {
         "제목이나 장소": "Title or location",
         "제목이나 장소로 일정을 찾아요": "Find events by title or location",
         "검색 결과가 없어요": "No results",
+        "시간표를 불러오지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.":
+            "Couldn't load the timetable. Check your connection and try again.",
+        "다시 시도": "Try Again",
         // 맥 주 그리드/공통
         "닫기": "Close",
         "주": "Week",
