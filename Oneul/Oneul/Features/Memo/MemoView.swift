@@ -7,7 +7,8 @@ import UniformTypeIdentifiers
 final class Memo {
     var id: UUID = UUID()
     var title: String = ""
-    var text: String = ""
+    var text: String = ""              // 평문(목록 미리보기·검색·내보내기용, 리치 내용과 동기화)
+    var contentData: Data = Data()     // 리치 텍스트(AttributedString 아카이브) — CloudKit 안전한 Data
     var createdAt: Date = Date()
     var updatedAt: Date = Date()
 
@@ -16,6 +17,18 @@ final class Memo {
         self.text = text
         self.createdAt = .now
         self.updatedAt = .now
+    }
+
+    /// 저장된 리치 텍스트 로드(없으면 평문에서).
+    func loadRich() -> AttributedString {
+        if !contentData.isEmpty, let r = try? JSONDecoder().decode(AttributedString.self, from: contentData) { return r }
+        return AttributedString(text)
+    }
+    /// 리치 텍스트 저장 + 평문 동기화.
+    func saveRich(_ rich: AttributedString) {
+        contentData = (try? JSONEncoder().encode(rich)) ?? Data()
+        text = String(rich.characters)
+        updatedAt = .now
     }
 
     /// 내보내기용 텍스트(제목을 md 헤더로).
@@ -116,6 +129,7 @@ struct MemoEditor: View {
     private let lang = AppLanguage.shared
     @State private var exportTXT = false
     @State private var exportMD = false
+    @State private var rich = AttributedString()
 
     var body: some View {
         ZStack {
@@ -126,14 +140,15 @@ struct MemoEditor: View {
                     .padding(.horizontal, 14).padding(.top, 12)
                     .onChange(of: memo.title) { _, _ in touch() }
                 Divider().padding(.horizontal, 14).padding(.top, 6)
-                TextEditor(text: $memo.text)
+                TextEditor(text: $rich)                        // 리치 텍스트(굵게·기울임·색상 — 시스템 서식 메뉴)
                     .scrollContentBackground(.hidden)
                     .padding(8)
-                    .onChange(of: memo.text) { _, _ in touch() }
+                    .onChange(of: rich) { _, new in memo.saveRich(new); try? context.save() }
             }
         }
         .navigationTitle(memo.title.isEmpty ? lang.tr("메모") : memo.title)
         .navBarInline()
+        .onAppear { rich = memo.loadRich() }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
