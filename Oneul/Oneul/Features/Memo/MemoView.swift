@@ -248,6 +248,9 @@ struct MemoEditor: View {
         .fileImporter(isPresented: $importFiles, allowedContentTypes: [.item],
                       allowsMultipleSelection: true) { importPicked($0) }
         .quickLookPreview($previewURL)
+        .onChange(of: previewURL) { old, new in
+            if new == nil, let old { try? FileManager.default.removeItem(at: old) }   // 미리보기 임시 사본 정리
+        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {

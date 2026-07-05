@@ -24,7 +24,6 @@
 		31C3B75836FCEB96DED757F0 /* AppleIntelligenceClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AEF004D088ABDDA2FD61577 /* AppleIntelligenceClient.swift */; };
 		31E7F27CAE898F1B83FD07B9 /* ScheduleAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 334A2A6B08661B685EF25A76 /* ScheduleAttributes.swift */; };
 		33F2D826536E8CB3514BCF4E /* ScheduleAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 334A2A6B08661B685EF25A76 /* ScheduleAttributes.swift */; };
-		351F425C79906C834932EEA0 /* EventRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7570E900508DF43B3D91D84 /* EventRow.swift */; };
 		36A41A45267D82442339B129 /* CalendarBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C645C9FB29A1DD74C886502 /* CalendarBar.swift */; };
 		44C4487CBA07B9FCB67E0BE3 /* ScheduleAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 334A2A6B08661B685EF25A76 /* ScheduleAttributes.swift */; };
 		44E99C13B7D22A3854B5AA07 /* ScheduleLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6AED8BA9142551D4DADE991 /* ScheduleLiveActivity.swift */; };
@@ -87,7 +86,6 @@
 		CCB5BAF3023A1F25BC6696D7 /* PlaceSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9779CF0E668CEF123968ACE /* PlaceSearch.swift */; };
 		D0A38FC10823361801D6E040 /* ScheduleEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9845203CDC1D337EDEB41376 /* ScheduleEvent.swift */; };
 		D160E04413B46F8E9EBBFECA /* WatchPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = B120768A33C004DCF2F45013 /* WatchPayload.swift */; };
-		D3305C0542ACD7E7E6B6E8B7 /* EventRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7570E900508DF43B3D91D84 /* EventRow.swift */; };
 		D486E703178E6EA656583725 /* WatchSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = A16CFD8B435D3E1D46EF0F09 /* WatchSync.swift */; };
 		D6B9F600EF442C85AC1880A2 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16EF8C9737267FC333CC19EC /* NotificationManager.swift */; };
 		D878F5A8C4ED547EE9A72BD7 /* SchoolSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FE512E0EFCA4922CDD6E120 /* SchoolSetupView.swift */; };
@@ -214,7 +212,6 @@
 		B120768A33C004DCF2F45013 /* WatchPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchPayload.swift; sourceTree = "<group>"; };
 		B875E87DC1AAC7F636AB7E65 /* WidgetTimelineBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetTimelineBar.swift; sourceTree = "<group>"; };
 		BA30100A3889640819877BDE /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		C7570E900508DF43B3D91D84 /* EventRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventRow.swift; sourceTree = "<group>"; };
 		C9F7A51A479EF765DCADE7CC /* AppChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppChrome.swift; sourceTree = "<group>"; };
 		D2A4018B36A49D3884C07100 /* AICommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AICommand.swift; sourceTree = "<group>"; };
 		D5057FFD3739CA0A9C50D19B /* EventEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventEditorView.swift; sourceTree = "<group>"; };
@@ -343,7 +340,6 @@
 			children = (
 				0C645C9FB29A1DD74C886502 /* CalendarBar.swift */,
 				6455A65474E956EDA02D3D48 /* DayGridView.swift */,
-				C7570E900508DF43B3D91D84 /* EventRow.swift */,
 				28D1C0B69DAE7EC2BFA4E7A8 /* TimelineBar.swift */,
 				777161A31B7E4F39C0973C6E /* TodayView.swift */,
 			);
@@ -643,7 +639,6 @@
 				DA1B100733D4D79C56226FF7 /* ElectiveSetupView.swift in Sources */,
 				52D18DA1E0BFF37AFCA77DB0 /* EventEditorView.swift in Sources */,
 				53D7519E7811C519E51F224D /* EventPalette.swift in Sources */,
-				351F425C79906C834932EEA0 /* EventRow.swift in Sources */,
 				BCE7938105033F2E1A16951A /* FastScheduleParser.swift in Sources */,
 				78A750E85B9DF3E94FD5F04F /* Glass.swift in Sources */,
 				E737EB9D49F5A808C1E599A3 /* KeychainStore.swift in Sources */,
@@ -715,7 +710,6 @@
 				9E7036EDAB19410AF75669FD /* ElectiveSetupView.swift in Sources */,
 				B88062FDE5641D40232361F5 /* EventEditorView.swift in Sources */,
 				82A5D9747B70D4941E3BF04B /* EventPalette.swift in Sources */,
-				D3305C0542ACD7E7E6B6E8B7 /* EventRow.swift in Sources */,
 				133F28617D2C44375770E9C8 /* FastScheduleParser.swift in Sources */,
 				1163B5973260DF55E9E1820B /* Glass.swift in Sources */,
 				B3EB716B8CA971117C239BDC /* KeychainStore.swift in Sources */,
