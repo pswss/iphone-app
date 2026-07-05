@@ -53,7 +53,8 @@ struct OneulApp: App {
         MenuBarExtra("Oneul AI", systemImage: "sparkles") {
             AIScheduleView()
                 .modelContainer(container)
-                .frame(width: 420, height: 300)   // 입력+실행 딱 맞게 — 아래 빈 여백 제거
+                .frame(width: 420)
+                .fixedSize(horizontal: false, vertical: true)   // 콘텐츠 높이에 딱 맞춤 — 스크롤·빈 여백 없음
         }
         .menuBarExtraStyle(.window)
         #endif

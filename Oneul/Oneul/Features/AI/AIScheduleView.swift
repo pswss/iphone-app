@@ -28,31 +28,21 @@ struct AIScheduleView: View {
                 if isLoading {                                    // 처리 중일 때만 렌더(무거운 blur 4개를 idle엔 안 그림 → 진입 렉↓)
                     AIThinkingGlow().transition(.opacity)
                 }
+                #if os(iOS)
                 GeometryReader { geo in
                     ScrollView {
-                        VStack(alignment: .leading, spacing: 14) {
-                            inputCard
-                            generateButton
-                            if let errorMessage {
-                                Text(errorMessage)
-                                    .font(.footnote).foregroundStyle(.red)
-                                    .padding(.horizontal, 4)
-                            }
-                            if let reply {
-                                AIReplyCard(text: reply)
-                            }
-                            if let clarifyPrompt { clarifySection(clarifyPrompt) }
-                            if !results.isEmpty { resultsSection }
-                        }
-                        .padding(16)
-                        .frame(maxWidth: 640)
-                        .frame(maxWidth: .infinity)
-                        .frame(minHeight: geo.size.height, alignment: .top)   // 콘텐츠를 화면만큼 채워 빈 곳 어디든 탭 → 키보드 내림
-                        .contentShape(Rectangle())
-                        .onTapGesture { endEditingGlobally() }
+                        contentStack
+                            .padding(16)
+                            .frame(maxWidth: 640).frame(maxWidth: .infinity)
+                            .frame(minHeight: geo.size.height, alignment: .top)   // 빈 곳 어디든 탭 → 키보드 내림
+                            .contentShape(Rectangle())
+                            .onTapGesture { endEditingGlobally() }
                     }
                     .scrollDismissesKeyboard(.interactively)
                 }
+                #else
+                contentStack.padding(16).frame(maxWidth: .infinity)   // 맥: 스크롤/GeometryReader 없이 콘텐츠에 딱 맞게(팝오버가 내용 높이대로)
+                #endif
             }
             .animation(.easeInOut(duration: 0.45), value: isLoading)   // 글로우 페이드 인/아웃
             .navigationTitle("")
@@ -78,6 +68,19 @@ struct AIScheduleView: View {
                     #endif
                 }
             }
+        }
+    }
+
+    @ViewBuilder private var contentStack: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            inputCard
+            generateButton
+            if let errorMessage {
+                Text(errorMessage).font(.footnote).foregroundStyle(.red).padding(.horizontal, 4)
+            }
+            if let reply { AIReplyCard(text: reply) }
+            if let clarifyPrompt { clarifySection(clarifyPrompt) }
+            if !results.isEmpty { resultsSection }
         }
     }
 
