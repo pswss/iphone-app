@@ -317,6 +317,7 @@ final class AppLanguage {
         "일정 %d개를 가져왔어요 (오늘부터 90일)": "Imported %d events (next 90 days)",
         "캘린더 접근이 거부됐어요. 시스템 설정에서 허용해 주세요.":
             "Calendar access denied. Allow it in System Settings.",
+        "할 일": "To-do",
         // 맥 주 그리드/공통
         "닫기": "Close",
         "주": "Week",

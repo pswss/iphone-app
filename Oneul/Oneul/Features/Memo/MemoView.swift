@@ -23,6 +23,10 @@ final class Memo {
     @Relationship(deleteRule: .cascade, inverse: \MemoAttachment.memo)
     var attachments: [MemoAttachment]? = []
 
+    // 체크리스트(준비물·할 일) — 리치 본문과 별도 블록.
+    @Relationship(deleteRule: .cascade, inverse: \MemoCheckItem.memo)
+    var checkItems: [MemoCheckItem]? = []
+
     init(title: String = "", text: String = "") {
         self.title = title
         self.text = text
@@ -42,14 +46,33 @@ final class Memo {
         updatedAt = .now
     }
 
-    /// 내보내기용 텍스트(제목을 md 헤더로).
+    /// 내보내기용 텍스트(제목을 md 헤더로, 체크리스트는 - [ ] 형식).
     func exportText(markdown: Bool) -> String {
         let head = title.isEmpty ? "" : (markdown ? "# \(title)\n\n" : "\(title)\n\n")
-        return head + text
+        let checks = (checkItems ?? []).sorted { $0.order < $1.order }
+        let checkText = checks.isEmpty ? "" : checks.map {
+            markdown ? "- [\($0.done ? "x" : " ")] \($0.text)" : "\($0.done ? "☑" : "☐") \($0.text)"
+        }.joined(separator: "\n") + "\n\n"
+        return head + checkText + text
     }
     var exportName: String {
         let base = title.isEmpty ? (text.split(whereSeparator: \.isNewline).first.map(String.init) ?? "메모") : title
         return String(base.prefix(40))
+    }
+}
+
+/// 체크리스트 한 항목.
+@Model
+final class MemoCheckItem {
+    var id: UUID = UUID()
+    var text: String = ""
+    var done: Bool = false
+    var order: Int = 0
+    var memo: Memo?
+
+    init(text: String = "", order: Int = 0) {
+        self.text = text
+        self.order = order
     }
 }
 
@@ -216,10 +239,12 @@ struct MemoBackup {
     let contentData: Data
     let createdAt: Date
     let attachments: [(data: Data, filename: String, typeIdentifier: String)]
+    let checkItems: [(text: String, done: Bool, order: Int)]
 
     init(_ m: Memo) {
         title = m.title; text = m.text; contentData = m.contentData; createdAt = m.createdAt
         attachments = (m.attachments ?? []).map { ($0.data, $0.filename, $0.typeIdentifier) }
+        checkItems = (m.checkItems ?? []).map { ($0.text, $0.done, $0.order) }
     }
 
     func restore(into context: ModelContext) {
@@ -233,6 +258,14 @@ struct MemoBackup {
             context.insert(att)
             if m.attachments == nil { m.attachments = [] }
             m.attachments?.append(att)
+        }
+        for c in checkItems {
+            let item = MemoCheckItem(text: c.text, order: c.order)
+            item.done = c.done
+            item.memo = m
+            context.insert(item)
+            if m.checkItems == nil { m.checkItems = [] }
+            m.checkItems?.append(item)
         }
     }
 }
@@ -268,6 +301,7 @@ struct MemoEditor: View {
                     .padding(.horizontal, 14).padding(.top, 12)
                     .onChange(of: memo.title) { _, _ in touch() }
                 Divider().padding(.horizontal, 14).padding(.top, 6)
+                checklistSection
                 TextEditor(text: $rich, selection: $selection)   // 리치 텍스트 + 선택 영역(서식 적용용)
                     .font(Self.bodyFont)
                     .scrollContentBackground(.hidden)
@@ -295,7 +329,8 @@ struct MemoEditor: View {
             if !memo.isDeleted { memo.saveRich(rich); try? context.save() }   // 디바운스 잔여분 최종 저장
             // 애플 메모처럼 빈 메모는 나가는 순간 자동 삭제
             if !memo.isDeleted, memo.title.isEmpty, memo.text.isEmpty,
-               (memo.attachments ?? []).isEmpty {
+               (memo.attachments ?? []).isEmpty,
+               (memo.checkItems ?? []).filter({ !$0.text.isEmpty }).isEmpty {
                 context.delete(memo); try? context.save()
             }
         }
@@ -311,6 +346,9 @@ struct MemoEditor: View {
             if new == nil, let old { try? FileManager.default.removeItem(at: old) }   // 미리보기 임시 사본 정리
         }
         .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button { addCheckItem() } label: { Image(systemName: "checklist") }   // 체크리스트 항목 추가
+            }
             ToolbarItem(placement: .primaryAction) {
                 Menu {
                     Button { showPhotos = true }  label: { Label(lang.tr("사진"), systemImage: "photo") }
@@ -345,6 +383,69 @@ struct MemoEditor: View {
         .fileExporter(isPresented: $exportMD,
                       document: TextFileDocument(text: memo.exportText(markdown: true)),
                       contentType: .markdownDoc, defaultFilename: memo.exportName) { _ in }
+    }
+
+    // MARK: 체크리스트(애플 메모식 — 준비물·할 일)
+    private var sortedChecks: [MemoCheckItem] {
+        (memo.checkItems ?? []).sorted { $0.order < $1.order }
+    }
+
+    @ViewBuilder private var checklistSection: some View {
+        let items = sortedChecks
+        if !items.isEmpty {
+            VStack(spacing: 4) {
+                ForEach(items) { item in
+                    checkRow(item)
+                }
+            }
+            .padding(.horizontal, 14).padding(.top, 8)
+            Divider().padding(.horizontal, 14).padding(.top, 8)
+        }
+    }
+
+    private func checkRow(_ item: MemoCheckItem) -> some View {
+        HStack(spacing: 10) {
+            Button {
+                item.done.toggle(); touch(); Haptics.impact(.light)
+            } label: {
+                Image(systemName: item.done ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(item.done ? Color.appAccentText : .secondary)
+            }
+            .buttonStyle(.plain)
+            TextField(lang.tr("할 일"), text: Binding(get: { item.text },
+                                                     set: { item.text = $0; touch() }))
+                .textFieldStyle(.plain)
+                .strikethrough(item.done, color: .secondary)
+                .foregroundStyle(item.done ? .secondary : .primary)
+                .onSubmit { addCheckItem(after: item) }   // 리턴 → 다음 항목(애플 메모식)
+            Button {
+                deleteCheckItem(item)
+            } label: {
+                Image(systemName: "xmark").font(.caption2).foregroundStyle(.tertiary)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func addCheckItem(after: MemoCheckItem? = nil) {
+        let items = sortedChecks
+        let order = after.map { $0.order + 1 } ?? ((items.last?.order ?? -1) + 1)
+        if let after {   // 뒤 항목들 순서 밀기
+            for it in items where it.order > after.order { it.order += 1 }
+        }
+        let item = MemoCheckItem(text: "", order: order)
+        item.memo = memo
+        context.insert(item)
+        if memo.checkItems == nil { memo.checkItems = [] }
+        memo.checkItems?.append(item)
+        touch()
+    }
+
+    private func deleteCheckItem(_ item: MemoCheckItem) {
+        memo.checkItems?.removeAll { $0.id == item.id }
+        context.delete(item)
+        touch()
     }
 
     // MARK: 첨부 스트립(사진·파일 미리보기 썸네일)
