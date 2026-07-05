@@ -310,6 +310,8 @@ final class AppLanguage {
         "허용하기": "Allow",
         "급식을 불러오지 못했어요": "Couldn't load meals",
         "주말에는 급식이 없어요": "No meals on weekends",
+        "메모 %d개 삭제됨": "%d note(s) deleted",
+        "실행 취소": "Undo",
         // 맥 주 그리드/공통
         "닫기": "Close",
         "주": "Week",

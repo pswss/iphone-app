@@ -12,8 +12,8 @@ struct CalendarBar: View {
     @State private var monthIndex = 0
 
     private let cal = Calendar.current
-    private let weekRange = -60...60
-    private let monthRange = -30...30
+    private let weekRange = -260...260
+    private let monthRange = -120...120
     private let lang = AppLanguage.shared
     private var weekdaySymbols: [String] {
         lang.isEnglish ? ["S", "M", "T", "W", "T", "F", "S"] : ["일", "월", "화", "수", "목", "금", "토"]

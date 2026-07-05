@@ -107,6 +107,8 @@ struct MemoView: View {
     private let lang = AppLanguage.shared
     @State private var path: [Memo] = []       // 작성 버튼 → 새 메모로 즉시 이동
     @State private var search = ""
+    @State private var deletedBackup: [MemoBackup] = []   // 실행 취소용 스냅샷
+    @State private var undoDismissTask: Task<Void, Never>?
 
     private var filtered: [Memo] {
         let q = search.trimmingCharacters(in: .whitespaces)
@@ -145,8 +147,15 @@ struct MemoView: View {
                                 }
                             }
                             .onDelete { idx in
-                                idx.map { filtered[$0] }.forEach(context.delete)
+                                let victims = idx.map { filtered[$0] }
+                                deletedBackup = victims.map { MemoBackup($0) }   // 복원용 스냅샷
+                                victims.forEach(context.delete)
                                 try? context.save()
+                                undoDismissTask?.cancel()
+                                undoDismissTask = Task {                          // 6초 뒤 스낵바 자동 닫힘
+                                    try? await Task.sleep(nanoseconds: 6_000_000_000)
+                                    if !Task.isCancelled { deletedBackup = [] }
+                                }
                             }
                         }
                         .scrollContentBackground(.hidden)
@@ -155,6 +164,8 @@ struct MemoView: View {
             }
             .navigationTitle(lang.tr("메모"))
             .navBarInline()
+            .overlay(alignment: .bottom) { undoSnackbar }
+            .animation(.snappy(duration: 0.25), value: deletedBackup.isEmpty)
             .navigationDestination(for: Memo.self) { MemoEditor(memo: $0) }
             .searchable(text: $search, prompt: lang.tr("메모 검색"))
             #if os(iOS)
@@ -168,6 +179,26 @@ struct MemoView: View {
         }
     }
 
+    // 삭제 직후 실행 취소 스낵바 — 실수 스와이프 한 번에 긴 메모를 잃지 않게
+    @ViewBuilder private var undoSnackbar: some View {
+        if !deletedBackup.isEmpty {
+            HStack(spacing: 12) {
+                Text(String(format: lang.tr("메모 %d개 삭제됨"), deletedBackup.count)).font(.subheadline)
+                Button(lang.tr("실행 취소")) {
+                    for b in deletedBackup { b.restore(into: context) }
+                    try? context.save()
+                    deletedBackup = []
+                    undoDismissTask?.cancel()
+                }
+                .font(.subheadline.bold())
+            }
+            .padding(.horizontal, 16).padding(.vertical, 10)
+            .glassEffect(.regular, in: Capsule())
+            .padding(.bottom, 12)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+    }
+
     private func addMemo() {
         let m = Memo(); context.insert(m); try? context.save()
         path.append(m)                          // 애플 메모처럼 바로 편집기 진입
@@ -175,6 +206,34 @@ struct MemoView: View {
 
     private func firstLine(_ s: String) -> String {
         s.split(whereSeparator: \.isNewline).first.map(String.init) ?? s
+    }
+}
+
+/// 삭제 실행 취소용 스냅샷 — cascade로 함께 지워지는 첨부까지 복원.
+struct MemoBackup {
+    let title: String
+    let text: String
+    let contentData: Data
+    let createdAt: Date
+    let attachments: [(data: Data, filename: String, typeIdentifier: String)]
+
+    init(_ m: Memo) {
+        title = m.title; text = m.text; contentData = m.contentData; createdAt = m.createdAt
+        attachments = (m.attachments ?? []).map { ($0.data, $0.filename, $0.typeIdentifier) }
+    }
+
+    func restore(into context: ModelContext) {
+        let m = Memo(title: title, text: text)
+        m.contentData = contentData
+        m.createdAt = createdAt
+        context.insert(m)
+        for a in attachments {
+            let att = MemoAttachment(data: a.data, filename: a.filename, typeIdentifier: a.typeIdentifier)
+            att.memo = m
+            context.insert(att)
+            if m.attachments == nil { m.attachments = [] }
+            m.attachments?.append(att)
+        }
     }
 }
 
@@ -268,7 +327,9 @@ struct MemoEditor: View {
                     }
                     Divider()
                     Button { applyBold() }   label: { Label(lang.tr("굵게"),   systemImage: "bold") }
+                        .disabled(!hasRangeSelection)
                     Button { applyItalic() } label: { Label(lang.tr("기울임"), systemImage: "italic") }
+                        .disabled(!hasRangeSelection)
                 } label: { Image(systemName: "textformat") }
             }
             ToolbarItem(placement: .primaryAction) {
@@ -383,10 +444,36 @@ struct MemoEditor: View {
         return "doc"
     }
 
-    // MARK: 서식 적용(선택 영역에)
+    // MARK: 서식 적용
+    /// 단락 스타일 — 선택 범위가 있으면 그 범위, 캐럿만 있으면 캐럿이 놓인 문단 전체(애플 메모식).
     private func applyFont(_ font: Font) {
-        rich.transformAttributes(in: &selection) { $0.font = font }
+        if case .insertionPoint(let idx) = selection.indices(in: rich) {
+            let r = paragraphRange(around: idx)
+            guard !r.isEmpty else { return }
+            rich[r].font = font
+        } else {
+            rich.transformAttributes(in: &selection) { $0.font = font }
+        }
         persist()
+    }
+
+    /// idx가 속한 문단(양쪽 개행 사이) 범위.
+    private func paragraphRange(around idx: AttributedString.Index) -> Range<AttributedString.Index> {
+        let chars = rich.characters
+        var lo = idx, hi = idx
+        while lo > chars.startIndex {
+            let p = chars.index(before: lo)
+            if chars[p] == "\n" { break }
+            lo = p
+        }
+        while hi < chars.endIndex, chars[hi] != "\n" { hi = chars.index(after: hi) }
+        return lo..<hi
+    }
+
+    /// 굵게/기울임은 범위 선택이 있을 때만 의미 있음(캐럿뿐이면 메뉴 비활성).
+    private var hasRangeSelection: Bool {
+        if case .insertionPoint = selection.indices(in: rich) { return false }
+        return true
     }
     private func applyBold() {
         rich.transformAttributes(in: &selection) { $0.font = ($0.font ?? Self.bodyFont).bold() }
