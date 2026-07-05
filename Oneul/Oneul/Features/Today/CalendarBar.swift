@@ -49,6 +49,7 @@ struct CalendarBar: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .focusEffectDisabled()   // 맥 파란 포커스 링 제거
         .padding(.horizontal, 4)
     }
 

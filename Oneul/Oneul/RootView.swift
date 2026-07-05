@@ -140,6 +140,7 @@ struct RootView: View {
                 .frame(minWidth: 420, minHeight: 540)
             }
         }
+        .focusEffectDisabled()   // 맥 파란 포커스 링 전역 제거(버튼/셀/월 헤더 등)
         #endif
     }
 
