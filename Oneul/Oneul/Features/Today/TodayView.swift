@@ -234,11 +234,10 @@ struct TodayView: View {
         }
     }
 
-    /// 그 날이 속한 주의 월요일(주 그리드 시작).
+    /// 그 날이 속한 주의 시작 — 시스템 '주 시작 요일' 설정(firstWeekday)을 따름.
     private func weekStart(of day: Date) -> Date {
         let c = Calendar.current
-        let daysFromMon = (c.component(.weekday, from: day) + 5) % 7   // 월=0
-        return c.date(byAdding: .day, value: -daysFromMon, to: c.startOfDay(for: day)) ?? c.startOfDay(for: day)
+        return c.dateInterval(of: .weekOfYear, for: day)?.start ?? c.startOfDay(for: day)
     }
     #endif
 
@@ -666,10 +665,9 @@ struct MacWeekGrid: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 0) {                              // 요일 헤더는 고정(스크롤 안 함)
-                ForEach(Array(days.enumerated()), id: \.offset) { i, d in
+                ForEach(Array(days.enumerated()), id: \.offset) { _, d in
                     dayHeader(d)
-                        .frame(maxWidth: .infinity)
-                        .padding(.leading, i == 0 ? 52 : 0)   // 첫 열은 시각축 폭만큼 밀어 정렬
+                        .frame(maxWidth: .infinity)   // 열과 동일한 7등분 — 첫 열만 넓히면 모든 헤더가 어긋남
                 }
             }
             .padding(.bottom, 4)

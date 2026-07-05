@@ -7,6 +7,7 @@ extension Notification.Name {
     static let oneulShiftDay = Notification.Name("oneul.shiftDay")   // ⌘←/→ (object: Int -1/+1)
     static let oneulNewMemo = Notification.Name("oneul.newMemo")     // 메모 섹션에서 + → 새 메모
     static let oneulShowDay = Notification.Name("oneul.showDay")      // 알림 탭 → 그 날짜로 이동 (object: Date)
+    static let oneulSelectSection = Notification.Name("oneul.selectSection") // ⌘1~3 (object: Int 0=오늘 1=메모 2=급식)
 }
 
 @main
@@ -26,12 +27,22 @@ struct OneulApp: App {
         }
         .modelContainer(container)
         #if os(macOS)
+        .defaultSize(width: 1080, height: 720)
         .commands {
-            CommandGroup(replacing: .newItem) {
+            CommandGroup(before: .newItem) {   // replacing이면 'New Window'(⌘N 기본)가 사라짐 → before로 보존
                 Button("새 일정") { NotificationCenter.default.post(name: .oneulNewEvent, object: nil) }
                     .keyboardShortcut("n")
+                Button("새 메모") { NotificationCenter.default.post(name: .oneulNewMemo, object: nil) }
+                    .keyboardShortcut("n", modifiers: [.command, .shift])
             }
             CommandGroup(after: .sidebar) {
+                Button("오늘 보기") { NotificationCenter.default.post(name: .oneulSelectSection, object: 0) }
+                    .keyboardShortcut("1")
+                Button("메모 보기") { NotificationCenter.default.post(name: .oneulSelectSection, object: 1) }
+                    .keyboardShortcut("2")
+                Button("급식 보기") { NotificationCenter.default.post(name: .oneulSelectSection, object: 2) }
+                    .keyboardShortcut("3")
+                Divider()
                 Button("오늘로") { NotificationCenter.default.post(name: .oneulToday, object: nil) }
                     .keyboardShortcut("t")
                 // 맥 화면은 주 그리드 — 하루 이동은 화면 변화가 없어 주 단위로 통일(상단 ‹›와 동일)

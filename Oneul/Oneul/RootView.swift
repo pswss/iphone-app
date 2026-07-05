@@ -36,7 +36,6 @@ struct RootView: View {
     #endif
     #if os(macOS)
     @State private var macSection: MacSection? = .today
-    @State private var showMeal = false
     #endif
     private let lang = AppLanguage.shared
 
@@ -129,29 +128,36 @@ struct RootView: View {
                         Label(macSection == .memo ? lang.tr("새 메모") : lang.tr("새 일정"), systemImage: "plus")
                     }
                 }
-                if userType == "student" {
-                    ToolbarItem(placement: .primaryAction) {
-                        Button { showMeal = true } label: { Label(lang.tr("급식"), systemImage: "fork.knife") }
+                if userType == "student" && macSection != .meal {
+                    ToolbarItem(placement: .primaryAction) {   // 시트 대신 섹션 전환(자기 화면 위에 같은 화면이 겹치던 문제 제거)
+                        Button { macSection = .meal } label: { Label(lang.tr("급식"), systemImage: "fork.knife") }
                     }
                 }
                 ToolbarItem(placement: .primaryAction) {
                     SettingsLink { Label(lang.tr("설정"), systemImage: "gearshape") }
                 }
             }
-            .sheet(isPresented: $showMeal) {
-                NavigationStack {
-                    MealView()
-                        .toolbar {
-                            ToolbarItem(placement: .cancellationAction) {
-                                Button(lang.tr("닫기")) { showMeal = false }
-                            }
-                        }
-                }
-                .focusEffectDisabled()   // 급식 시트 화살표 포커스 링 제거
-                .frame(minWidth: 420, minHeight: 540)
+        }
+        .frame(minWidth: 840, minHeight: 560)   // 7열 주 그리드가 뭉개지지 않는 최소 크기
+        .focusEffectDisabled()   // 맥 파란 포커스 링 전역 제거(버튼/셀/월 헤더 등)
+        // 메뉴/툴바 명령 릴레이 — 대상 뷰가 화면에 없으면(다른 섹션) 섹션을 먼저 바꾸고 다음 런루프에 재발행
+        .onReceive(NotificationCenter.default.publisher(for: .oneulNewEvent)) { _ in
+            if macSection != .today {
+                macSection = .today
+                DispatchQueue.main.async { NotificationCenter.default.post(name: .oneulNewEvent, object: nil) }
             }
         }
-        .focusEffectDisabled()   // 맥 파란 포커스 링 전역 제거(버튼/셀/월 헤더 등)
+        .onReceive(NotificationCenter.default.publisher(for: .oneulNewMemo)) { _ in
+            if macSection != .memo {
+                macSection = .memo
+                DispatchQueue.main.async { NotificationCenter.default.post(name: .oneulNewMemo, object: nil) }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .oneulSelectSection)) { note in
+            guard let i = note.object as? Int else { return }
+            let all: [MacSection] = [.today, .memo, .meal]
+            if i < all.count, macSections.contains(all[i]) { macSection = all[i] }
+        }
         #endif
     }
 
