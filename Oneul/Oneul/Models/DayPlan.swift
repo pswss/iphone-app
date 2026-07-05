@@ -134,7 +134,27 @@ enum Holidays {
         let c = cal.dateComponents([.year, .month, .day], from: day)
         guard let y = c.year, let m = c.month, let d = c.day else { return nil }
         if let s = solar["\(m)-\(d)"] { return s }
-        return lunarHolidays(year: y, cal: cal)[cal.startOfDay(for: day)]
+        if let l = lunarHolidays(year: y, cal: cal)[cal.startOfDay(for: day)] { return l }
+        return substituteName(for: day, cal: cal)
+    }
+
+    /// 대체공휴일 — 대상 공휴일(신정·현충일 제외)이 토/일과 겹치면 다음 월요일.
+    /// 설/추석 연휴 일요일 겹침(연휴 다음날 대체)은 근사로 월요일 규칙에 포함.
+    private static func substituteName(for day: Date, cal: Calendar) -> String? {
+        guard cal.component(.weekday, from: day) == 2 else { return nil }   // 월요일만
+        let noSub: Set<String> = ["신정", "현충일"]
+        for back in 1...2 {   // 어제(일)·그제(토)
+            guard let prev = cal.date(byAdding: .day, value: -back, to: day) else { continue }
+            let pc = cal.dateComponents([.month, .day], from: prev)
+            if let name = solar["\(pc.month ?? 0)-\(pc.day ?? 0)"], !noSub.contains(name) {
+                return "대체공휴일(\(name))"
+            }
+            let y = cal.component(.year, from: prev)
+            if back == 1, let l = lunarHolidays(year: y, cal: cal)[cal.startOfDay(for: prev)] {
+                return "대체공휴일(\(l))"
+            }
+        }
+        return nil
     }
 
     static func isRed(_ day: Date, calendar: Calendar = .current) -> Bool {

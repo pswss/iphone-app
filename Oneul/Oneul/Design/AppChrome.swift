@@ -318,6 +318,8 @@ final class AppLanguage {
         "캘린더 접근이 거부됐어요. 시스템 설정에서 허용해 주세요.":
             "Calendar access denied. Allow it in System Settings.",
         "할 일": "To-do",
+        "새 학년이 시작됐어요 — 설정에서 학년·반을 다시 설정해 주세요":
+            "A new school year has started — update your grade & class in Settings",
         // 맥 주 그리드/공통
         "닫기": "Close",
         "주": "Week",

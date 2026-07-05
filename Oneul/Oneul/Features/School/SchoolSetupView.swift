@@ -23,7 +23,7 @@ struct SchoolSetupView: View {
     private let lang = AppLanguage.shared
 
     private var gradeRange: ClosedRange<Int> { kind.contains("초") ? 1...6 : 1...3 }
-    private var classOptions: [String] { availableClasses.isEmpty ? (1...15).map(String.init) : availableClasses }
+    private var classOptions: [String] { availableClasses.isEmpty ? (1...20).map(String.init) : availableClasses }
 
     private var selected: School? {
         code.isEmpty ? nil : School(office: office, code: code, name: schoolName, kind: kind, address: "")

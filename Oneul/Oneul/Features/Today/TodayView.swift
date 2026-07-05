@@ -336,8 +336,45 @@ struct TodayView: View {
                     .font(.caption).bold()
                     .foregroundStyle(.red)
             }
+            promotionBanner
         }
         .padding(.top, 4)
+    }
+
+    // MARK: 새 학년 안내 — 3월인데 시간표가 작년 학년도면 재설정 유도(자동 진급은 반 배정을 알 수 없어 위험)
+    @AppStorage("promoSnoozeYear") private var promoSnoozeYear = 0
+    private var currentSchoolYear: Int {
+        let c = Calendar.current.dateComponents([.year, .month], from: Date())
+        return (c.month ?? 1) >= 3 ? (c.year ?? 0) : (c.year ?? 1) - 1
+    }
+    private var needsPromotion: Bool {
+        let d = UserDefaults.standard
+        guard d.bool(forKey: "ttSetup") else { return false }
+        let saved = d.integer(forKey: "ttYear")
+        guard saved > 0 else { return false }                       // 기록 없으면(구버전 설정) 오탐 방지
+        return saved < currentSchoolYear && promoSnoozeYear < currentSchoolYear
+    }
+
+    @ViewBuilder private var promotionBanner: some View {
+        if isStudent && needsPromotion {
+            HStack(spacing: 8) {
+                Image(systemName: "graduationcap.fill").font(.caption)
+                Text(lang.tr("새 학년이 시작됐어요 — 설정에서 학년·반을 다시 설정해 주세요"))
+                    .font(.caption).bold()
+                Spacer(minLength: 4)
+                Button {
+                    promoSnoozeYear = currentSchoolYear   // 이번 학년도 동안 숨김
+                } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary) }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 12).padding(.vertical, 8)
+            .background(Color.appAccent.opacity(0.18), in: RoundedRectangle(cornerRadius: 12))
+            .contentShape(Rectangle())
+            #if os(iOS)
+            .onTapGesture { showSettingsSheet = true }
+            #endif
+            .padding(.top, 6)
+        }
     }
 
     // MARK: D-Day (다가오는 시험/수능)
