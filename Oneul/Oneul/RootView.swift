@@ -36,6 +36,7 @@ struct RootView: View {
     #endif
     #if os(macOS)
     @State private var macSection: MacSection? = .today
+    @State private var showAIPopover = false   // 메인 창 AI 진입점(메뉴바 ✨과 별개)
     #endif
     private let lang = AppLanguage.shared
 
@@ -105,7 +106,7 @@ struct RootView: View {
             }
         }
         #else
-        // macOS: 사이드바(Today/급식). AI는 상단 툴바, 설정은 앱 메뉴(⌘,).
+        // macOS: 사이드바(오늘/메모/급식). AI는 툴바 ✨ 팝오버 + 메뉴바 상주, 설정은 툴바 기어/⌘,.
         NavigationSplitView {
             List(macSections, id: \.self, selection: $macSection) { section in
                 Label(lang.tr(section.title), systemImage: section.icon).tag(section)
@@ -127,6 +128,14 @@ struct RootView: View {
                     } label: {
                         Label(macSection == .memo ? lang.tr("새 메모") : lang.tr("새 일정"), systemImage: "plus")
                     }
+                }
+                ToolbarItem(placement: .primaryAction) {   // 대표 기능(AI)이 메뉴바에만 숨어 있던 문제 — 메인 창에도 진입점
+                    Button { showAIPopover = true } label: { Label("AI", systemImage: "sparkles") }
+                        .popover(isPresented: $showAIPopover, arrowEdge: .bottom) {
+                            AIScheduleView()
+                                .frame(width: 420)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                 }
                 if userType == "student" && macSection != .meal {
                     ToolbarItem(placement: .primaryAction) {   // 시트 대신 섹션 전환(자기 화면 위에 같은 화면이 겹치던 문제 제거)
