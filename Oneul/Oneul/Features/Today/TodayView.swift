@@ -619,10 +619,12 @@ struct MacWeekGrid: View {
     private let cal = Calendar.current
     private let lang = AppLanguage.shared
     private var days: [Date] { (0..<7).compactMap { cal.date(byAdding: .day, value: $0, to: weekStart) } }
+    @State private var didInitialScroll = false
+    private var anchorHour: Int { max(0, min(23, cal.component(.hour, from: Date()) - 1)) }   // 첫 진입 위치(현재 시각 한 시간 위)
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 0) {
+            HStack(spacing: 0) {                              // 요일 헤더는 고정(스크롤 안 함)
                 ForEach(Array(days.enumerated()), id: \.offset) { i, d in
                     dayHeader(d)
                         .frame(maxWidth: .infinity)
@@ -630,16 +632,26 @@ struct MacWeekGrid: View {
                 }
             }
             .padding(.bottom, 4)
-            HStack(spacing: 0) {
-                ForEach(Array(days.enumerated()), id: \.offset) { i, d in
-                    DayGridView(plan: dayPlan(d), day: d,
-                                onEdit: onEdit, onAdd: onAdd,
-                                scrollHour: $scrollHour,
-                                showHourLabels: i == 0)
-                        .frame(maxWidth: .infinity)
-                        .overlay(alignment: .leading) {
-                            if i > 0 { Rectangle().fill(.primary.opacity(0.08)).frame(width: 1) }
+            ScrollViewReader { proxy in
+                ScrollView(showsIndicators: false) {          // 7열을 감싸는 단일 스크롤 → 모든 요일이 함께 세로 이동
+                    HStack(spacing: 0) {
+                        ForEach(Array(days.enumerated()), id: \.offset) { i, d in
+                            DayGridView(plan: dayPlan(d), day: d,
+                                        onEdit: onEdit, onAdd: onAdd,
+                                        scrollHour: $scrollHour,
+                                        showHourLabels: i == 0,
+                                        scrollsInternally: false)   // 내부 스크롤 끔 → 바깥 단일 스크롤이 통합 제어
+                                .frame(maxWidth: .infinity)
+                                .overlay(alignment: .leading) {
+                                    if i > 0 { Rectangle().fill(.primary.opacity(0.08)).frame(width: 1) }
+                                }
                         }
+                    }
+                }
+                .onAppear {
+                    guard !didInitialScroll else { return }
+                    didInitialScroll = true
+                    proxy.scrollTo(anchorHour, anchor: .top)   // 모든 열의 같은 시각 행은 같은 Y라 어느 열이든 결과 동일
                 }
             }
         }

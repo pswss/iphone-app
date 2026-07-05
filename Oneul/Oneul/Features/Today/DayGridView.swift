@@ -20,6 +20,7 @@ struct DayGridView: View {
     @Binding var scrollHour: Int?                    // 모든 날이 공유하는 세로 스크롤 위치(애플 캘린더식)
     var onInteractingChange: ((Bool) -> Void)? = nil // 일정 드래그/리사이즈 중 알림 → 페이저 좌우 스와이프 잠금
     var showHourLabels: Bool = true                  // 주 그리드에서 첫 열만 시각 라벨 표시(나머지는 숨김)
+    var scrollsInternally: Bool = true               // false면 내부 ScrollView 없이 전체 높이 렌더 → 외부(주 그리드)가 통합 스크롤
 
     @Environment(\.modelContext) private var context
     private let lang = AppLanguage.shared
@@ -60,55 +61,69 @@ struct DayGridView: View {
         VStack(spacing: 8) {
             if !plan.multiDayEvents.isEmpty { allDayRow }
 
-            GeometryReader { geo in
-                let gridW = geo.size.width - leftInset - 8
-                ZStack(alignment: .bottom) {
-                    ScrollViewReader { proxy in
-                        ScrollView(showsIndicators: false) {
-                            ZStack(alignment: .topLeading) {
-                                VStack(spacing: 0) {
-                                    ForEach(firstHour..<lastHour, id: \.self) { h in
-                                        hourRow(h, width: geo.size.width).id(h)
-                                    }
-                                }
-                                .scrollTargetLayout()                    // 시간 행 = 스크롤 위치 타깃(공유 복원용)
-                                Rectangle().fill(.white.opacity(0.12))   // 시간 ↔ 일정 구분선
-                                    .frame(width: 1, height: gridHeight).offset(x: leftInset)
-                                #if os(iOS)
-                                LongPressArea(minimumDuration: 0.4,                           // 빈 곳 꾹 → 그 위치에 새 일정(스크롤과 동시)
-                                              onBegan: { y in selectedID = nil; addAt(y: y); Haptics.impact(.medium) })
-                                    .frame(width: geo.size.width, height: gridHeight)
-                                    .onTapGesture { selectedID = nil; deleteBubbleID = nil }   // 한 번 탭 → 선택/말풍선 해제
-                                #else
-                                Color.clear                                                   // 맥: 빈 곳 더블클릭 → 새 일정, 한 번 클릭 → 선택 해제
-                                    .frame(width: geo.size.width, height: gridHeight)
-                                    .contentShape(Rectangle())
-                                    .onTapGesture { selectedID = nil; deleteBubbleID = nil }
-                                    .gesture(SpatialTapGesture(count: 2).onEnded { v in selectedID = nil; addAt(y: v.location.y) })
-                                #endif
-                                if cal.isDateInToday(day) { nowLine(width: geo.size.width) }
-                                ForEach(laidOut, id: \.event.id) { eventBlock($0, gridW: gridW) }
-                                if let ps = previewStart { previewBlock(ps, gridW: gridW) }
+            if scrollsInternally {
+                GeometryReader { geo in
+                    let gridW = geo.size.width - leftInset - 8
+                    ZStack(alignment: .bottom) {
+                        ScrollViewReader { proxy in
+                            ScrollView(showsIndicators: false) {
+                                gridContent(width: geo.size.width, gridW: gridW)
                             }
-                            .frame(height: gridHeight, alignment: .topLeading)
+                            .scrollPosition(id: $scrollHour, anchor: .top)            // 모든 날이 공유하는 위치 — 레이아웃 타이밍 무관 동기 복원
+                            .scrollBounceBehavior(.always)                            // 내용이 짧아도 위/아래 오버스크롤 바운스
+                            .scrollDisabled(dragID != nil || resizeID != nil)         // 이동/리사이즈 중에만 스크롤 잠금
+                            .onAppear {
+                                scrollProxy = proxy
+                                if scrollHour == nil { scrollHour = scrollAnchorHour }   // 첫 진입 기준 위치
+                            }
+                            .trackScroll(enabled: onScrollDelta != nil, hourHeight: hourHeight,
+                                         onDelta: onScrollDelta, onHour: { _ in })       // 접힘 진행률만 추적; 위치는 scrollPosition가 공유
                         }
-                        .scrollPosition(id: $scrollHour, anchor: .top)            // 모든 날이 공유하는 위치 — 레이아웃 타이밍 무관 동기 복원
-                        .scrollBounceBehavior(.always)                            // 내용이 짧아도 위/아래 오버스크롤 바운스
-                        .scrollDisabled(dragID != nil || resizeID != nil)         // 이동/리사이즈 중에만 스크롤 잠금
-                        .onAppear {
-                            scrollProxy = proxy
-                            if scrollHour == nil { scrollHour = scrollAnchorHour }   // 첫 진입 기준 위치
-                        }
-                        .trackScroll(enabled: onScrollDelta != nil, hourHeight: hourHeight,
-                                     onDelta: onScrollDelta, onHour: { _ in })       // 접힘 진행률만 추적; 위치는 scrollPosition가 공유
                     }
+                    .coordinateSpace(name: "grid")
+                    .onAppear { viewportH = geo.size.height }
+                    .onChange(of: geo.size.height) { _, h in viewportH = h }
                 }
-                .coordinateSpace(name: "grid")
-                .onAppear { viewportH = geo.size.height }
-                .onChange(of: geo.size.height) { _, h in viewportH = h }
+            } else {
+                // 주 그리드(맥): 내부 스크롤 없이 전체 높이 렌더 → MacWeekGrid의 단일 ScrollView가 7열을 통합 스크롤
+                GeometryReader { geo in
+                    gridContent(width: geo.size.width, gridW: geo.size.width - leftInset - 8)
+                        .coordinateSpace(name: "grid")
+                }
+                .frame(height: gridHeight)
             }
         }
-        .frame(maxHeight: .infinity)
+        .frame(maxHeight: scrollsInternally ? .infinity : nil)   // 통합 스크롤 열은 고정 높이라 확장 금지
+    }
+
+    /// 시간 격자 본체(시각 행 + 구분선 + 빈 곳 제스처 + 현재선 + 일정 블록). 스크롤 유무와 무관하게 재사용.
+    @ViewBuilder private func gridContent(width: CGFloat, gridW: CGFloat) -> some View {
+        ZStack(alignment: .topLeading) {
+            VStack(spacing: 0) {
+                ForEach(firstHour..<lastHour, id: \.self) { h in
+                    hourRow(h, width: width).id(h)
+                }
+            }
+            .scrollTargetLayout()                    // 시간 행 = 스크롤 위치 타깃(공유 복원용)
+            Rectangle().fill(.white.opacity(0.12))   // 시간 ↔ 일정 구분선
+                .frame(width: 1, height: gridHeight).offset(x: leftInset)
+            #if os(iOS)
+            LongPressArea(minimumDuration: 0.4,                           // 빈 곳 꾹 → 그 위치에 새 일정(스크롤과 동시)
+                          onBegan: { y in selectedID = nil; addAt(y: y); Haptics.impact(.medium) })
+                .frame(width: width, height: gridHeight)
+                .onTapGesture { selectedID = nil; deleteBubbleID = nil }   // 한 번 탭 → 선택/말풍선 해제
+            #else
+            Color.clear                                                   // 맥: 빈 곳 더블클릭 → 새 일정, 한 번 클릭 → 선택 해제
+                .frame(width: width, height: gridHeight)
+                .contentShape(Rectangle())
+                .onTapGesture { selectedID = nil; deleteBubbleID = nil }
+                .gesture(SpatialTapGesture(count: 2).onEnded { v in selectedID = nil; addAt(y: v.location.y) })
+            #endif
+            if cal.isDateInToday(day) { nowLine(width: width) }
+            ForEach(laidOut, id: \.event.id) { eventBlock($0, gridW: gridW) }
+            if let ps = previewStart { previewBlock(ps, gridW: gridW) }
+        }
+        .frame(height: gridHeight, alignment: .topLeading)
     }
 
     // MARK: 종일(멀티데이)
