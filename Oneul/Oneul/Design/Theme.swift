@@ -50,7 +50,7 @@ struct AppBackground: View {
     // blur(90) 4개 대신 iOS 18+ MeshGradient(GPU 네이티브) — 색 배치 동일, 화면 진입 렉 제거.
     var body: some View {
         #if os(macOS)
-        Color.clear   // 맥은 표준 창 배경(windowBackground) 사용 — 폰 컬러 메시 그라디언트 제거
+        Rectangle().fill(.background).ignoresSafeArea()   // 앱 외형(시스템/라이트/다크)을 따르는 배경 — 시스템 전환 시 혼합 방지
         #else
         MeshGradient(
             width: 3, height: 3,
