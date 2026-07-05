@@ -249,6 +249,37 @@ final class AppLanguage {
         "실행 중…": "Running…",
         "적용하기": "Apply",
         "예: 내일 9시 팀 회의 추가, 금요일 약속 취소, 점심 1시로 옮겨줘":
-            "e.g. Add a team meeting at 9am tomorrow, cancel Friday's plan, move lunch to 1pm"
+            "e.g. Add a team meeting at 9am tomorrow, cancel Friday's plan, move lunch to 1pm",
+        "예: 매주 월요일 7시 영어학원 · 다음주 월요일 급식 · 내일 뭐 있어? · 다크모드로 바꿔줘":
+            "e.g. English academy every Monday at 7 · Next Monday's lunch · What's on tomorrow? · Switch to dark mode",
+        "무엇을 할지 이해하지 못했어요. 다시 말해 주세요.": "I couldn't understand that. Please try again.",
+        "그 표현은 도와드리기 어려워요. 일정 내용을 부드럽게 바꿔서 다시 말해 주세요.":
+            "I can't help with that phrasing. Please reword your event and try again.",
+        "적용할 대상을 찾지 못했어요.": "Couldn't find anything to apply this to.",
+        "제목이 같은 일정 전부": "All events with this title",
+        "삭제했어요": "Deleted",
+        "모드로 바꿨어요.": "mode enabled.",
+        "일정이 없어요.": "No events.",
+        "다가오는 시험이 없어요.": "No upcoming exams.",
+        "학교를 먼저 등록해 주세요 (설정 → 학생).": "Register your school first (Settings → Student).",
+        // 메모
+        "메모": "Notes",
+        "새 메모": "New Note",
+        "메모가 없어요": "No notes",
+        "텍스트(.txt)로 내보내기": "Export as text (.txt)",
+        "마크다운(.md)으로 내보내기": "Export as Markdown (.md)",
+        "단락 스타일": "Paragraph Style",
+        "제목 2": "Heading",
+        "소제목": "Subheading",
+        "본문": "Body",
+        "굵게": "Bold",
+        "기울임": "Italic",
+        "사진": "Photo",
+        "파일": "File",
+        // 맥 주 그리드/공통
+        "닫기": "Close",
+        "주": "Week",
+        "주요 일정": "Featured",
+        "진행 중": "Ongoing"
     ]
 }
