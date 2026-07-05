@@ -85,6 +85,7 @@ struct AIScheduleView: View {
         // TextEditor(무거운 UITextView) 대신 TextField(axis:.vertical) — 첫 타이핑 렉↓, 플레이스홀더 내장.
         TextField(lang.tr("예: 매주 월요일 7시 영어학원 · 다음주 월요일 급식 · 내일 뭐 있어? · 다크모드로 바꿔줘"),
                   text: $inputText, axis: .vertical)
+            .textFieldStyle(.plain)          // 맥 기본 파란 포커스 링 제거 → 평범한 입력
             .focused($editorFocused)
             .lineLimit(nil)
             .padding(.horizontal, 14)
