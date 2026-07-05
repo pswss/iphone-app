@@ -35,6 +35,7 @@ struct DayGridView: View {
 
     @State private var dragID: UUID?
     @State private var dragDY: CGFloat = 0
+    @State private var dragDX: CGFloat = 0                 // 맥: 가로 드래그 → 요일 이동(주 그리드)
     @State private var lastStep = 0
     @State private var viewportH: CGFloat = 600
     @State private var resizeID: UUID?
@@ -129,6 +130,13 @@ struct DayGridView: View {
             if let ps = previewStart { previewBlock(ps, gridW: gridW) }
         }
         .frame(height: gridHeight, alignment: .topLeading)
+        #if os(macOS)
+        .onDeleteCommand {   // 선택된 일정 Delete 키로 삭제(맥 표준 편집 모델)
+            guard let id = selectedID, let e = plan.events.first(where: { $0.id == id }) else { return }
+            EventActions.deleteSingle(e, in: context)
+            selectedID = nil
+        }
+        #endif
     }
 
     // MARK: 종일(멀티데이)
@@ -233,7 +241,7 @@ struct DayGridView: View {
                     y: glowing ? 0 : (lifted ? 6 : 2))
             .overlay(alignment: .topTrailing) { bubble(e, dy: dy, show: dragging) }
             .overlay { if selected { cornerHighlight(shape).allowsHitTesting(false) } }  // 왼쪽 아래 코너 곡선만 흰색
-            .overlay { gestureLayer(e, selected: selected, h: h) }   // 본문=탭/이동, 위·아래 손잡이=리사이즈
+            .overlay { gestureLayer(e, selected: selected, h: h, dayW: leftInset + gridW + 8) }   // 본문=탭/이동, 위·아래 손잡이=리사이즈
             .overlay(alignment: .top) {   // 꾹 눌렀다 떼면 컨텍스트 메뉴 — 화면 밖으로 안 나가게 가로 클램프
                 if deleteBubbleID == e.id {
                     let blockCenter = leftInset + CGFloat(item.col) * (colW + colGap) + colW / 2
@@ -244,7 +252,17 @@ struct DayGridView: View {
                 }
             }
             .scaleEffect(1)   // 확대 없음(하이라이트/이동 시 블록 크기 그대로)
-            .offset(x: leftInset + CGFloat(item.col) * (colW + colGap), y: top + dy)
+            #if os(macOS)
+            // 맥 표준: 우클릭 컨텍스트 메뉴(기존 '가로 드래그 후 릴리즈' 커스텀 메뉴는 발견 불가)
+            .contextMenu {
+                Button(lang.tr("잘라내기")) { EventClipboard.shared.copy(e); EventActions.deleteSingle(e, in: context) }
+                Button(lang.tr("복사")) { EventClipboard.shared.copy(e) }
+                Button(lang.tr("복제")) { duplicate(e) }
+                Divider()
+                Button(lang.tr("삭제"), role: .destructive) { EventActions.deleteSingle(e, in: context) }
+            }
+            #endif
+            .offset(x: leftInset + CGFloat(item.col) * (colW + colGap) + (dragging ? dragDX : 0), y: top + dy)
             .zIndex(dragging || resizing || deleteBubbleID == e.id ? 100000 : (selected ? 10000 : Double(item.order)))
             .animation(.snappy(duration: 0.2), value: deleteBubbleID)
             .animation(.snappy(duration: 0.16), value: dragID)
@@ -269,13 +287,13 @@ struct DayGridView: View {
     /// 위쪽 본문: 탭(하이라이트/수정) + 꾹 눌러 이동.
     /// 아래 손잡이(하이라이트일 때만): 끝 시간만 리사이즈. 영역이 분리돼 손잡이를 당겨도 이동이 끼어들지 않음(시작 시간 고정).
     @ViewBuilder
-    private func gestureLayer(_ e: ScheduleEvent, selected: Bool, h: CGFloat) -> some View {
+    private func gestureLayer(_ e: ScheduleEvent, selected: Bool, h: CGFloat, dayW: CGFloat) -> some View {
         VStack(spacing: 0) {
             if selected && h > 56 {
                 Color.clear.frame(height: 16).contentShape(Rectangle())   // 위 손잡이 — 시작 시간(종일 짧은 일정 제외)
                     .highPriorityGesture(resizeTopGesture(e))
             }
-            bodyZone(e, selected: selected)
+            bodyZone(e, selected: selected, dayW: dayW)
             if selected {
                 Color.clear.frame(height: 16).contentShape(Rectangle())   // 아래 손잡이 — 종료 시간
                     .highPriorityGesture(resizeGesture(e))
@@ -286,7 +304,8 @@ struct DayGridView: View {
     /// 본문: 탭(선택/수정). 이동(꾹 누르기)은 "선택된 일정"에만 붙는다 →
     /// 비선택 일정 위엔 어떤 드래그 제스처도 없어 세로 스크롤이 100% 통과(애플 캘린더 방식).
     @ViewBuilder
-    private func bodyZone(_ e: ScheduleEvent, selected: Bool) -> some View {
+    private func bodyZone(_ e: ScheduleEvent, selected: Bool, dayW: CGFloat) -> some View {
+        #if os(iOS)
         LongPressArea(                                              // 꾹 눌러 이동 — 스크롤과 동시 인식(선택 무관)
             minimumDuration: 0.3,
             onBegan: { _ in beginMove(e) },
@@ -299,6 +318,23 @@ struct DayGridView: View {
             if selected { onEdit(e) }                          // 하이라이트 상태에서 다시 탭 → 수정
             else { selectedID = e.id; Haptics.impact(.light) } // 탭 → 하이라이트(선택)
         }
+        #else
+        LongPressArea(                                              // 맥: 클릭-드래그 즉시 이동, 가로 성분 = 요일 이동
+            minimumDuration: 0.3,
+            onBegan: { _ in beginMove(e) },
+            onChangedXY: { dx, dy in
+                dragDX = dx
+                changeMove(e, dy: dy, topGap: 99_999, bottomGap: 99_999)
+            },
+            onEndedXY: { dx, dy in endMove(e, dy: dy, dx: dx, dayW: dayW) }
+        )
+        .contentShape(Rectangle())
+        .onTapGesture {
+            guard dragID == nil else { return }
+            if selected { onEdit(e) }
+            else { selectedID = e.id; Haptics.impact(.light) }
+        }
+        #endif
     }
 
     @ViewBuilder
@@ -411,13 +447,20 @@ struct DayGridView: View {
             autoScrolling = false; autoScrollDir = 0
         }
     }
-    private func endMove(_ e: ScheduleEvent, dy: CGFloat) {
+    private func endMove(_ e: ScheduleEvent, dy: CGFloat, dx: CGFloat = 0, dayW: CGFloat = 0) {
         guard dragID == e.id else { return }
         autoScrolling = false; autoScrollDir = 0
         let eff = dy + autoScrollDY
-        if dragMinutes(eff) != 0 { commitDrag(e, dy: eff); Haptics.impact(.soft) }
-        else { deleteBubbleID = e.id; Haptics.impact(.medium) }          // 안 움직이고 떼면 → 삭제 말풍선
-        dragID = nil; dragDY = 0; autoScrollDY = 0; lastStep = 0
+        let dayShift = dayW > 0 ? Int((dx / dayW).rounded()) : 0         // 맥 주 그리드: 열 폭 단위 반올림 → ±N일
+        if dragMinutes(eff) != 0 || dayShift != 0 {
+            commitDrag(e, dy: eff, dayShift: dayShift); Haptics.impact(.soft)
+        } else {
+            #if os(iOS)
+            deleteBubbleID = e.id; Haptics.impact(.medium)               // 안 움직이고 떼면 → 컨텍스트 메뉴(iOS)
+            #endif
+            // 맥: 우클릭 메뉴가 표준 경로 — 무이동 릴리즈는 아무 것도 안 함
+        }
+        dragID = nil; dragDY = 0; dragDX = 0; autoScrollDY = 0; lastStep = 0
         onInteractingChange?(false)
     }
 
@@ -514,11 +557,13 @@ struct DayGridView: View {
             onAdd(date)
         }
     }
-    private func commitDrag(_ e: ScheduleEvent, dy: CGFloat) {
+    private func commitDrag(_ e: ScheduleEvent, dy: CGFloat, dayShift: Int = 0) {
         let mins = dragMinutes(dy)
         let dur = e.end.timeIntervalSince(e.start)
-        e.start = e.start.addingTimeInterval(mins * 60)
-        e.end = e.start.addingTimeInterval(dur)
+        var ns = e.start.addingTimeInterval(mins * 60)
+        if dayShift != 0, let d = cal.date(byAdding: .day, value: dayShift, to: ns) { ns = d }   // 맥: 옆 요일 열로 이동
+        e.start = ns
+        e.end = ns.addingTimeInterval(dur)
         try? context.save()
     }
     private func dragMinutes(_ dy: CGFloat) -> Double { (Double(dy) / Double(hourHeight) * 60 / 5).rounded() * 5 }
@@ -668,6 +713,8 @@ private struct LongPressArea: View {
     var onBegan: (CGFloat) -> Void = { _ in }                // began 위치 y(콘텐츠 로컬 좌표)
     var onChanged: (_ translationY: CGFloat, _ topGap: CGFloat, _ bottomGap: CGFloat) -> Void = { _, _, _ in }
     var onEnded: (_ translationY: CGFloat) -> Void = { _ in }
+    var onChangedXY: ((_ dx: CGFloat, _ dy: CGFloat) -> Void)? = nil   // 가로 성분 포함(요일 이동)
+    var onEndedXY: ((_ dx: CGFloat, _ dy: CGFloat) -> Void)? = nil
 
     @State private var began = false
 
@@ -678,11 +725,13 @@ private struct LongPressArea: View {
                 DragGesture(minimumDistance: 4, coordinateSpace: .local)   // 4px 넘겨 끌면 시작 → 순수 클릭은 탭으로 통과
                     .onChanged { v in
                         if !began { began = true; onBegan(v.startLocation.y) }
-                        onChanged(v.translation.height, 99_999, 99_999)     // 자동 스크롤 밴드 밖(비활성)
+                        if let xy = onChangedXY { xy(v.translation.width, v.translation.height) }
+                        else { onChanged(v.translation.height, 99_999, 99_999) }
                     }
                     .onEnded { v in
                         began = false
-                        onEnded(v.translation.height)
+                        if let xy = onEndedXY { xy(v.translation.width, v.translation.height) }
+                        else { onEnded(v.translation.height) }
                     }
             )
     }

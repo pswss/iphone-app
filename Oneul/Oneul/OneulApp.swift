@@ -33,9 +33,10 @@ struct OneulApp: App {
             CommandGroup(after: .sidebar) {
                 Button("오늘로") { NotificationCenter.default.post(name: .oneulToday, object: nil) }
                     .keyboardShortcut("t")
-                Button("이전 날") { NotificationCenter.default.post(name: .oneulShiftDay, object: -1) }
+                // 맥 화면은 주 그리드 — 하루 이동은 화면 변화가 없어 주 단위로 통일(상단 ‹›와 동일)
+                Button("이전 주") { NotificationCenter.default.post(name: .oneulShiftDay, object: -7) }
                     .keyboardShortcut(.leftArrow, modifiers: .command)
-                Button("다음 날") { NotificationCenter.default.post(name: .oneulShiftDay, object: 1) }
+                Button("다음 주") { NotificationCenter.default.post(name: .oneulShiftDay, object: 7) }
                     .keyboardShortcut(.rightArrow, modifiers: .command)
             }
         }

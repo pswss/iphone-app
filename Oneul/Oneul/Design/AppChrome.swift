@@ -281,6 +281,9 @@ final class AppLanguage {
         "이 일정만 수정": "Edit This Event Only",
         "이후 일정 모두 수정": "Edit All Future Events",
         "메모 검색": "Search notes",
+        "잘라내기": "Cut",
+        "복사": "Copy",
+        "복제": "Duplicate",
         // 맥 주 그리드/공통
         "닫기": "Close",
         "주": "Week",

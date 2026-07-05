@@ -190,7 +190,8 @@ struct TodayView: View {
                         onAdd: { addStart = $0; showingAdd = true },
                         scrollHour: $sharedScrollHour)   // macOS: 한 주(월~일) 7열을 한눈에
                 .padding(.horizontal, 12)
-                .id(gridToken)
+                // .id(gridToken) 금지 — 데이터 변경마다 뷰 아이덴티티가 바뀌면 드래그/리사이즈 커밋 때
+                // 스크롤이 초기 위치로 점프하고 선택이 풀림. 맥은 상태 기반 갱신으로 충분(미리보기도 안 씀).
             #endif
         }
         .padding(.top, 8)
