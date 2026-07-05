@@ -366,6 +366,11 @@ struct MealView: View {
                         }
                         .buttonStyle(.borderless).padding(.horizontal, 16)
                         ScrollView { MealCard(day: mealDay).padding(16) }
+                            .gesture(DragGesture(minimumDistance: 40).onEnded { v in   // 좌우 슬라이드로 날짜 이동
+                                guard abs(v.translation.width) > 40 else { return }
+                                let n = v.translation.width > 0 ? -1 : 1
+                                mealDay = Calendar.current.date(byAdding: .day, value: n, to: mealDay) ?? mealDay
+                            })
                         #endif
                     }
                     .padding(.top, 8)

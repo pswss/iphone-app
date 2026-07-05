@@ -10,7 +10,7 @@ import SwiftData
 /// (무료 계정/캐퍼빌리티 미설정 환경에서도 크래시 없이 로컬로 동작)
 enum Persistence {
     static func makeContainer() -> ModelContainer {
-        let schema = Schema([ScheduleEvent.self])
+        let schema = Schema([ScheduleEvent.self, Memo.self])
         var configs: [ModelConfiguration] = []
 
         // App Group 사용 가능할 때만(=entitlement 존재) 공유 저장소 + iCloud 동기화 시도.

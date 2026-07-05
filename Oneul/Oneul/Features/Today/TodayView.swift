@@ -224,7 +224,9 @@ struct TodayView: View {
             #if os(iOS)
             chromeRow(index: 2, order: 1) { CalendarBar(selectedDay: $selectedDay) }   // 맥은 주 그리드가 대신함 → 주간 스트립 불필요
             #endif
-            chromeRow(index: 3, order: 0) { timelineCard(plan, live: Calendar.current.isDateInToday(selectedDay)) }
+            #if os(iOS)
+            chromeRow(index: 3, order: 0) { timelineCard(plan, live: Calendar.current.isDateInToday(selectedDay)) }   // 맥은 주 그리드가 타임라인 → 하루짜리 타임라인 카드 불필요
+            #endif
         }
         .padding(.horizontal, 16)
     }

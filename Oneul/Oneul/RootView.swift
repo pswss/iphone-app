@@ -7,16 +7,18 @@ import UIKit
 #if os(macOS)
 /// macOS 사이드바 섹션(아이폰의 탭에 대응).
 enum MacSection: Hashable, CaseIterable {
-    case today, meal
+    case today, memo, meal
     var title: String {
         switch self {
         case .today: return "오늘"
+        case .memo: return "메모"
         case .meal: return "급식"
         }
     }
     var icon: String {
         switch self {
         case .today: return "calendar.day.timeline.left"
+        case .memo: return "note.text"
         case .meal: return "fork.knife"
         }
     }
@@ -71,6 +73,9 @@ struct RootView: View {
             TodayView()
                 .tabItem { Label(lang.tr("오늘"), systemImage: "calendar.day.timeline.left") }
 
+            MemoView()
+                .tabItem { Label(lang.tr("메모"), systemImage: "note.text") }
+
             if userType == "student" {
                 MealView()
                     .tabItem { Label(lang.tr("급식"), systemImage: "fork.knife") }
@@ -110,6 +115,7 @@ struct RootView: View {
             Group {
                 switch macSection ?? .today {
                 case .today: TodayView()
+                case .memo: MemoView()
                 case .meal: MealView()
                 }
             }
