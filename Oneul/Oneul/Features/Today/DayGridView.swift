@@ -523,23 +523,38 @@ struct DayGridView: View {
     }
     private func dragMinutes(_ dy: CGFloat) -> Double { (Double(dy) / Double(hourHeight) * 60 / 5).rounded() * 5 }
 
-    // MARK: 레이아웃 — 기본 풀폭(겹쳐도 안 줄임). 제목 텍스트끼리 세로로 겹칠 때만 그 그룹을 N등분.
+    // MARK: 레이아웃 — 실제 시간 구간이 겹치는 클러스터를 컬럼으로 분할(애플 캘린더식).
+    // 이전 방식(시작 위치 인접만 분할)은 10:00–12:00와 10:30–11:30처럼 시작이 떨어진 겹침을
+    // 풀폭으로 포개 그려 아래 일정이 가려지고 탭도 가로채였음.
     private struct Laid { let event: ScheduleEvent; let col: Int; let cols: Int; let order: Int }
-    private let textBand: CGFloat = 22   // 제목이 겹치는 세로 간격(pt)
     private var laidOut: [Laid] {
         let evs = plan.singleDayEvents.sorted { $0.start < $1.start }
+        // 최소 표시 높이(26pt)만큼은 시간상 안 겹쳐도 시각적으로 겹침 → 유효 종료로 보정
+        let minVisualSec = Double(26) / Double(hourHeight) * 3600
+        func effEnd(_ e: ScheduleEvent) -> Date { max(e.end, e.start.addingTimeInterval(minVisualSec)) }
+
         var result: [Laid] = []
         var i = 0
         while i < evs.count {
-            // 시작 위치가 textBand 이내로 인접한 것들 = 제목 충돌 그룹
-            var group = [evs[i]]
-            var lastY = yOffset(for: clamp(evs[i].start))
+            // 서로 연결돼 겹치는 클러스터 수집
+            var clusterEnd = effEnd(evs[i])
             var j = i + 1
-            while j < evs.count {
-                let y = yOffset(for: clamp(evs[j].start))
-                if y - lastY < textBand { group.append(evs[j]); lastY = y; j += 1 } else { break }
+            while j < evs.count, evs[j].start < clusterEnd {
+                clusterEnd = max(clusterEnd, effEnd(evs[j]))
+                j += 1
             }
-            for (ci, e) in group.enumerated() { result.append(Laid(event: e, col: ci, cols: group.count, order: result.count)) }
+            // 그리디 컬럼 배정 — 비어 있는 첫 컬럼에 넣기
+            var colEnds: [Date] = []
+            var assigned: [(e: ScheduleEvent, col: Int)] = []
+            for k in i..<j {
+                let e = evs[k]
+                var c = 0
+                while c < colEnds.count, colEnds[c] > e.start { c += 1 }
+                if c == colEnds.count { colEnds.append(effEnd(e)) } else { colEnds[c] = effEnd(e) }
+                assigned.append((e, c))
+            }
+            let cols = colEnds.count
+            for (e, c) in assigned { result.append(Laid(event: e, col: c, cols: cols, order: result.count)) }
             i = j
         }
         return result
