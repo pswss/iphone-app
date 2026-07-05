@@ -241,6 +241,12 @@ struct DayGridView: View {
                     y: glowing ? 0 : (lifted ? 6 : 2))
             .overlay(alignment: .topTrailing) { bubble(e, dy: dy, show: dragging) }
             .overlay { if selected { cornerHighlight(shape).allowsHitTesting(false) } }  // 왼쪽 아래 코너 곡선만 흰색
+            .overlay(alignment: .top) {      // 리사이즈 핸들 가시화(투명 존만으론 어포던스 없음)
+                if selected && h > 56 { handleDot.offset(y: -4).allowsHitTesting(false) }
+            }
+            .overlay(alignment: .bottom) {
+                if selected { handleDot.offset(y: 4).allowsHitTesting(false) }
+            }
             .overlay { gestureLayer(e, selected: selected, h: h, dayW: leftInset + gridW + 8) }   // 본문=탭/이동, 위·아래 손잡이=리사이즈
             .overlay(alignment: .top) {   // 꾹 눌렀다 떼면 컨텍스트 메뉴 — 화면 밖으로 안 나가게 가로 클램프
                 if deleteBubbleID == e.id {
@@ -275,6 +281,14 @@ struct DayGridView: View {
             .accessibilityAction(named: lang.tr("삭제")) { EventActions.deleteSingle(e, in: context) }
     }
 
+    /// 리사이즈 핸들 도트 — 애플 캘린더식 작은 원.
+    private var handleDot: some View {
+        Circle().fill(.white)
+            .overlay(Circle().strokeBorder(.black.opacity(0.3), lineWidth: 1))
+            .frame(width: 9, height: 9)
+            .shadow(color: .black.opacity(0.25), radius: 1.5, y: 0.5)
+    }
+
     /// 선택 시 좌하단 코너에만 보이는 순수 흰색 곡선.
     /// 블록과 같은 연속곡률 shape를 strokeBorder(안쪽 stroke)로 그려 블록 내부 불투명 영역에만 떨어지게 하고,
     /// 마스크로 좌하단 1/4만 노출해 코너 곡선처럼 보이게 한다. (회색 합성 방지)
@@ -298,11 +312,13 @@ struct DayGridView: View {
             if selected && h > 56 {
                 Color.clear.frame(height: 16).contentShape(Rectangle())   // 위 손잡이 — 시작 시간(종일 짧은 일정 제외)
                     .highPriorityGesture(resizeTopGesture(e))
+                    .hoverCursorResize()
             }
             bodyZone(e, selected: selected, dayW: dayW)
             if selected {
                 Color.clear.frame(height: 16).contentShape(Rectangle())   // 아래 손잡이 — 종료 시간
                     .highPriorityGesture(resizeGesture(e))
+                    .hoverCursorResize()
             }
         }
     }
@@ -743,6 +759,19 @@ private struct LongPressArea: View {
     }
 }
 #endif
+
+// MARK: - 맥 호버 커서(리사이즈 핸들)
+private extension View {
+    @ViewBuilder func hoverCursorResize() -> some View {
+        #if os(macOS)
+        self.onHover { inside in
+            if inside { NSCursor.resizeUpDown.push() } else { NSCursor.pop() }
+        }
+        #else
+        self
+        #endif
+    }
+}
 
 // MARK: - 스크롤 진행량 추적(앵커 대비) — 타임라인 연속 접기. iOS 18+에서만, 그 이하는 그대로
 private extension View {

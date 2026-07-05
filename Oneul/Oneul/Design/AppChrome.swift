@@ -304,6 +304,12 @@ final class AppLanguage {
         "제목이 같은 일정 %d개 삭제": "Deletes %d events with this title",
         "하루 전": "1 day before",
         "메모 (선택)": "Notes (optional)",
+        "일정 알림": "Event alerts",
+        "켜짐": "On",
+        "설정에서 켜기": "Enable in Settings",
+        "허용하기": "Allow",
+        "급식을 불러오지 못했어요": "Couldn't load meals",
+        "주말에는 급식이 없어요": "No meals on weekends",
         // 맥 주 그리드/공통
         "닫기": "Close",
         "주": "Week",

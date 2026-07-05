@@ -1,5 +1,9 @@
 import SwiftUI
 import SwiftData
+import UserNotifications
+#if canImport(UIKit)
+import UIKit
+#endif
 
 struct SettingsView: View {
     @Environment(\.modelContext) private var context
@@ -22,6 +26,9 @@ struct SettingsView: View {
 
                         sectionTitle(lang.tr("외형"))
                         appearanceCard
+
+                        sectionTitle(lang.tr("알림"))
+                        notificationCard
 
                         sectionTitle(lang.tr("개인정보"))
                         privacyCard
@@ -46,6 +53,49 @@ struct SettingsView: View {
                 Text(lang.tr("이 기기의 모든 일정·학교 설정이 삭제됩니다. 되돌릴 수 없어요."))
             }
         }
+    }
+
+    // MARK: 알림 — 권한 상태 표시 + 거부 시 시스템 설정으로(앱 안에서 복구 경로 제공)
+    @State private var notifStatus: UNAuthorizationStatus = .notDetermined
+
+    private var notificationCard: some View {
+        HStack {
+            Label(lang.tr("일정 알림"), systemImage: "bell.badge")
+            Spacer()
+            switch notifStatus {
+            case .authorized, .provisional, .ephemeral:
+                Text(lang.tr("켜짐")).font(.subheadline).foregroundStyle(.secondary)
+            case .denied:
+                Button(lang.tr("설정에서 켜기")) { openSystemNotificationSettings() }
+                    .font(.subheadline.bold()).buttonStyle(.bordered)
+            default:
+                Button(lang.tr("허용하기")) {
+                    UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in
+                        refreshNotifStatus()
+                    }
+                }
+                .font(.subheadline.bold()).buttonStyle(.bordered)
+            }
+        }
+        .padding(.horizontal, 14).padding(.vertical, 12)
+        .glassCard(cornerRadius: 22)
+        .task { refreshNotifStatus() }
+    }
+
+    private func refreshNotifStatus() {
+        UNUserNotificationCenter.current().getNotificationSettings { st in
+            DispatchQueue.main.async { notifStatus = st.authorizationStatus }
+        }
+    }
+
+    private func openSystemNotificationSettings() {
+        #if os(iOS)
+        if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+        #elseif os(macOS)
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.notifications") {
+            NSWorkspace.shared.open(url)
+        }
+        #endif
     }
 
     // MARK: 개인정보 (처리방침 · 데이터 초기화)

@@ -248,6 +248,7 @@ struct MealCard: View {
 
     @State private var meals: [Meal] = []
     @State private var loading = false
+    @State private var failed = false          // 네트워크 실패(데이터 없음과 구분)
 
     private var school: School? {
         code.isEmpty ? nil : School(office: office, code: code, name: name, kind: kind, address: "")
@@ -262,8 +263,16 @@ struct MealCard: View {
                 ProgressView().frame(maxWidth: .infinity).padding(.top, 50)
             } else if meals.isEmpty {
                 VStack(spacing: 10) {
-                    Image(systemName: "tray").font(.largeTitle).foregroundStyle(.secondary)
-                    Text(AppLanguage.shared.tr("급식 정보가 없어요")).font(.subheadline).foregroundStyle(.secondary)
+                    Image(systemName: failed ? "wifi.exclamationmark"
+                          : (Calendar.current.isDateInWeekend(day) ? "figure.walk" : "tray"))
+                        .font(.largeTitle).foregroundStyle(.secondary)
+                    Text(AppLanguage.shared.tr(failed ? "급식을 불러오지 못했어요"
+                         : (Calendar.current.isDateInWeekend(day) ? "주말에는 급식이 없어요" : "급식 정보가 없어요")))
+                        .font(.subheadline).foregroundStyle(.secondary)
+                    if failed {
+                        Button(AppLanguage.shared.tr("다시 시도")) { Task { await load() } }
+                            .font(.subheadline.bold()).buttonStyle(.bordered)
+                    }
                 }
                 .frame(maxWidth: .infinity).padding(.top, 50)
             } else {
@@ -321,7 +330,11 @@ struct MealCard: View {
         guard let s = school else { return }
         loading = true
         defer { loading = false }
-        meals = (try? await NEISClient.shared.fetchMeal(school: s, date: day)) ?? []
+        if let r = try? await NEISClient.shared.fetchMeal(school: s, date: day) {
+            meals = r; failed = false
+        } else {
+            meals = []; failed = true
+        }
     }
 }
 
