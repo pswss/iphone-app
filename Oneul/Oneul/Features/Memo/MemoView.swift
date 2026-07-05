@@ -122,7 +122,7 @@ struct MemoView: View {
     }
 }
 
-/// 메모 편집 — 제목 + 본문, 변경 시 자동 저장, txt/md 내보내기.
+/// 메모 편집 — 제목 + 리치 본문(애플 메모식 제목/소제목/본문 단락 스타일), 자동 저장, txt/md 내보내기.
 struct MemoEditor: View {
     @Bindable var memo: Memo
     @Environment(\.modelContext) private var context
@@ -130,6 +130,13 @@ struct MemoEditor: View {
     @State private var exportTXT = false
     @State private var exportMD = false
     @State private var rich = AttributedString()
+    @State private var selection = AttributedTextSelection()
+
+    // 애플 메모식 단락 스타일 프리셋.
+    private static let titleFont   = Font.system(size: 26, weight: .bold)
+    private static let headingFont = Font.system(size: 20, weight: .bold)
+    private static let subheadFont = Font.system(size: 17, weight: .semibold)
+    private static let bodyFont    = Font.system(size: 15, weight: .regular)
 
     var body: some View {
         ZStack {
@@ -140,7 +147,8 @@ struct MemoEditor: View {
                     .padding(.horizontal, 14).padding(.top, 12)
                     .onChange(of: memo.title) { _, _ in touch() }
                 Divider().padding(.horizontal, 14).padding(.top, 6)
-                TextEditor(text: $rich)                        // 리치 텍스트(굵게·기울임·색상 — 시스템 서식 메뉴)
+                TextEditor(text: $rich, selection: $selection)   // 리치 텍스트 + 선택 영역(서식 적용용)
+                    .font(Self.bodyFont)
                     .scrollContentBackground(.hidden)
                     .padding(8)
                     .onChange(of: rich) { _, new in memo.saveRich(new); try? context.save() }
@@ -150,6 +158,19 @@ struct MemoEditor: View {
         .navBarInline()
         .onAppear { rich = memo.loadRich() }
         .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Section(lang.tr("단락 스타일")) {
+                        Button { applyFont(Self.titleFont) }   label: { Label(lang.tr("제목"),   systemImage: "textformat.size.larger") }
+                        Button { applyFont(Self.headingFont) } label: { Label(lang.tr("제목 2"), systemImage: "textformat") }
+                        Button { applyFont(Self.subheadFont) } label: { Label(lang.tr("소제목"), systemImage: "textformat.size.smaller") }
+                        Button { applyFont(Self.bodyFont) }    label: { Label(lang.tr("본문"),   systemImage: "text.alignleft") }
+                    }
+                    Divider()
+                    Button { applyBold() }   label: { Label(lang.tr("굵게"),   systemImage: "bold") }
+                    Button { applyItalic() } label: { Label(lang.tr("기울임"), systemImage: "italic") }
+                } label: { Image(systemName: "textformat") }
+            }
             ToolbarItem(placement: .primaryAction) {
                 Menu {
                     Button(lang.tr("텍스트(.txt)로 내보내기")) { exportTXT = true }
@@ -164,6 +185,21 @@ struct MemoEditor: View {
                       document: TextFileDocument(text: memo.exportText(markdown: true)),
                       contentType: .markdownDoc, defaultFilename: memo.exportName) { _ in }
     }
+
+    // MARK: 서식 적용(선택 영역에)
+    private func applyFont(_ font: Font) {
+        rich.transformAttributes(in: &selection) { $0.font = font }
+        persist()
+    }
+    private func applyBold() {
+        rich.transformAttributes(in: &selection) { $0.font = ($0.font ?? Self.bodyFont).bold() }
+        persist()
+    }
+    private func applyItalic() {
+        rich.transformAttributes(in: &selection) { $0.font = ($0.font ?? Self.bodyFont).italic() }
+        persist()
+    }
+    private func persist() { memo.saveRich(rich); try? context.save() }
 
     private func touch() { memo.updatedAt = .now; try? context.save() }
 }
