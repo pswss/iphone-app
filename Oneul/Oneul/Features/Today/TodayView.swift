@@ -158,7 +158,13 @@ struct TodayView: View {
             }
             #else
             macDayNav
-            gridPage(selectedDay).id(gridToken)   // macOS: 선택한 하루만 표시(‹ 오늘 › + 좌/우 화살표로 이동)
+            MacWeekGrid(weekStart: weekStart(of: selectedDay),
+                        dayPlan: { dayPlan(for: $0) },
+                        onEdit: { editing = $0 },
+                        onAdd: { addStart = $0; showingAdd = true },
+                        scrollHour: $sharedScrollHour)   // macOS: 한 주(월~일) 7열을 한눈에
+                .padding(.horizontal, 12)
+                .id(gridToken)
             #endif
         }
         .padding(.top, 8)
@@ -187,6 +193,13 @@ struct TodayView: View {
         if let d = Calendar.current.date(byAdding: .day, value: n, to: selectedDay) {
             selectedDay = d
         }
+    }
+
+    /// 그 날이 속한 주의 월요일(주 그리드 시작).
+    private func weekStart(of day: Date) -> Date {
+        let c = Calendar.current
+        let daysFromMon = (c.component(.weekday, from: day) + 5) % 7   // 월=0
+        return c.date(byAdding: .day, value: -daysFromMon, to: c.startOfDay(for: day)) ?? c.startOfDay(for: day)
     }
     #endif
 
@@ -585,6 +598,57 @@ struct FeaturedBand: View {
         return d <= 0 ? "D-DAY" : "D-\(d)"
     }
 }
+
+#if os(macOS)
+/// 맥 주 그리드 — 한 주(월~일) 7일을 가로로 나란히. 첫 열만 시각축, 세로 스크롤 공유.
+struct MacWeekGrid: View {
+    let weekStart: Date
+    let dayPlan: (Date) -> DayPlan
+    var onEdit: (ScheduleEvent) -> Void
+    var onAdd: (Date) -> Void
+    @Binding var scrollHour: Int?
+
+    private let cal = Calendar.current
+    private let lang = AppLanguage.shared
+    private var days: [Date] { (0..<7).compactMap { cal.date(byAdding: .day, value: $0, to: weekStart) } }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 0) {
+                ForEach(Array(days.enumerated()), id: \.offset) { i, d in
+                    dayHeader(d)
+                        .frame(maxWidth: .infinity)
+                        .padding(.leading, i == 0 ? 52 : 0)   // 첫 열은 시각축 폭만큼 밀어 정렬
+                }
+            }
+            .padding(.bottom, 4)
+            HStack(spacing: 0) {
+                ForEach(Array(days.enumerated()), id: \.offset) { i, d in
+                    DayGridView(plan: dayPlan(d), day: d,
+                                onEdit: onEdit, onAdd: onAdd,
+                                scrollHour: $scrollHour,
+                                showHourLabels: i == 0)
+                        .frame(maxWidth: .infinity)
+                        .overlay(alignment: .leading) {
+                            if i > 0 { Rectangle().fill(.primary.opacity(0.08)).frame(width: 1) }
+                        }
+                }
+            }
+        }
+    }
+
+    private func dayHeader(_ d: Date) -> some View {
+        let today = cal.isDateInToday(d)
+        return VStack(spacing: 1) {
+            Text(d, format: .dateTime.weekday(.short).locale(lang.locale))
+                .font(.caption2).foregroundStyle(today ? Color.appAccentText : .secondary)
+            Text(d, format: .dateTime.day())
+                .font(.callout).bold()
+                .foregroundStyle(today ? Color.appAccentText : .primary)
+        }
+    }
+}
+#endif
 
 #Preview {
     TodayView()

@@ -19,12 +19,13 @@ struct DayGridView: View {
     var previewStart: Date? = nil                    // 탭으로 추가 중인 새 일정 미리보기(1시간)
     @Binding var scrollHour: Int?                    // 모든 날이 공유하는 세로 스크롤 위치(애플 캘린더식)
     var onInteractingChange: ((Bool) -> Void)? = nil // 일정 드래그/리사이즈 중 알림 → 페이저 좌우 스와이프 잠금
+    var showHourLabels: Bool = true                  // 주 그리드에서 첫 열만 시각 라벨 표시(나머지는 숨김)
 
     @Environment(\.modelContext) private var context
     private let lang = AppLanguage.shared
     private let cal = Calendar.current
     private let hourHeight: CGFloat = 70      // 세로로 늘림(일정이 덜 빽빽하게)
-    private let leftInset: CGFloat = 52
+    private var leftInset: CGFloat { showHourLabels ? 52 : 6 }
     private let colGap: CGFloat = 2           // 겹치는 일정 간 가로 간격(틈새 축소)
 
     @State private var dragID: UUID?
@@ -128,10 +129,12 @@ struct DayGridView: View {
         ZStack(alignment: .topLeading) {
             Rectangle().fill(.primary.opacity(0.14)).frame(height: 1)   // 적응형 — 라이트/다크 모두 보이게
                 .padding(.leading, leftInset)                            // 시간 라벨 영역은 비우고 일정 영역만
-            Text(hourLabel(h))
-                .font(.caption2).foregroundStyle(.secondary)
-                .frame(width: leftInset - 8, alignment: .leading)
-                .offset(y: -7)
+            if showHourLabels {
+                Text(hourLabel(h))
+                    .font(.caption2).foregroundStyle(.secondary)
+                    .frame(width: leftInset - 8, alignment: .leading)
+                    .offset(y: -7)
+            }
         }
         .frame(width: width, height: hourHeight, alignment: .topLeading)
     }

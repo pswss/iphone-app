@@ -124,6 +124,9 @@ struct RootView: View {
                         Button { showMeal = true } label: { Label(lang.tr("급식"), systemImage: "fork.knife") }
                     }
                 }
+                ToolbarItem(placement: .primaryAction) {
+                    SettingsLink { Label(lang.tr("설정"), systemImage: "gearshape") }
+                }
             }
             .sheet(isPresented: $showMeal) {
                 NavigationStack {
