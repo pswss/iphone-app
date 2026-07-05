@@ -96,6 +96,9 @@ struct TodayView: View {
             if let n = note.object as? Int,
                let d = Calendar.current.date(byAdding: .day, value: n, to: selectedDay) { selectedDay = d }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .oneulShowDay)) { note in
+            if let d = note.object as? Date { selectedDay = d }   // 알림 탭 → 해당 일정 날짜로
+        }
     }
 
     private func grid(_ p: DayPlan, _ d: Date,
