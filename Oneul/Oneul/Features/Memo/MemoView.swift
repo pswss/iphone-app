@@ -1,6 +1,13 @@
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
+import PhotosUI
+import QuickLook
+#if canImport(UIKit)
+import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 
 /// 일정과 무관한 독립 메모(빠른 기록). SwiftData + CloudKit 동기화.
 @Model
@@ -11,6 +18,10 @@ final class Memo {
     var contentData: Data = Data()     // 리치 텍스트(AttributedString 아카이브) — CloudKit 안전한 Data
     var createdAt: Date = Date()
     var updatedAt: Date = Date()
+
+    // 첨부(사진·파일). CloudKit 동기화 위해 관계는 옵셔널, 메모 삭제 시 함께 삭제.
+    @Relationship(deleteRule: .cascade, inverse: \MemoAttachment.memo)
+    var attachments: [MemoAttachment]? = []
 
     init(title: String = "", text: String = "") {
         self.title = title
@@ -39,6 +50,36 @@ final class Memo {
     var exportName: String {
         let base = title.isEmpty ? (text.split(whereSeparator: \.isNewline).first.map(String.init) ?? "메모") : title
         return String(base.prefix(40))
+    }
+}
+
+/// 메모 첨부(사진·파일). CloudKit 동기화를 위해 관계는 옵셔널, 바이너리는 Data로 저장.
+@Model
+final class MemoAttachment {
+    var id: UUID = UUID()
+    var data: Data = Data()
+    var filename: String = ""
+    var typeIdentifier: String = ""   // UTType.identifier
+    var createdAt: Date = Date()
+    var memo: Memo?
+
+    init(data: Data, filename: String, typeIdentifier: String) {
+        self.data = data
+        self.filename = filename
+        self.typeIdentifier = typeIdentifier
+        self.createdAt = .now
+    }
+
+    var utType: UTType { UTType(typeIdentifier) ?? .data }
+    var isImage: Bool { utType.conforms(to: .image) }
+
+    /// 미리보기용 임시 파일로 써서 URL 반환(QuickLook용).
+    func writeTempFile() -> URL? {
+        let ext = utType.preferredFilenameExtension ?? (filename as NSString).pathExtension
+        let base = filename.isEmpty ? id.uuidString : (filename as NSString).deletingPathExtension
+        let name = ext.isEmpty ? base : "\(base).\(ext)"
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
+        do { try data.write(to: url); return url } catch { return nil }
     }
 }
 
@@ -131,6 +172,10 @@ struct MemoEditor: View {
     @State private var exportMD = false
     @State private var rich = AttributedString()
     @State private var selection = AttributedTextSelection()
+    @State private var showPhotos = false
+    @State private var photoItems: [PhotosPickerItem] = []
+    @State private var importFiles = false
+    @State private var previewURL: URL?
 
     // 애플 메모식 단락 스타일 프리셋.
     private static let titleFont   = Font.system(size: 26, weight: .bold)
@@ -152,12 +197,27 @@ struct MemoEditor: View {
                     .scrollContentBackground(.hidden)
                     .padding(8)
                     .onChange(of: rich) { _, new in memo.saveRich(new); try? context.save() }
+                attachmentStrip
             }
         }
         .navigationTitle(memo.title.isEmpty ? lang.tr("메모") : memo.title)
         .navBarInline()
         .onAppear { rich = memo.loadRich() }
+        .photosPicker(isPresented: $showPhotos, selection: $photoItems, matching: .images)
+        .onChange(of: photoItems) { _, items in
+            guard !items.isEmpty else { return }
+            Task { await loadPhotos(items) }
+        }
+        .fileImporter(isPresented: $importFiles, allowedContentTypes: [.item],
+                      allowsMultipleSelection: true) { importPicked($0) }
+        .quickLookPreview($previewURL)
         .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Button { showPhotos = true }  label: { Label(lang.tr("사진"), systemImage: "photo") }
+                    Button { importFiles = true } label: { Label(lang.tr("파일"), systemImage: "doc") }
+                } label: { Image(systemName: "paperclip") }
+            }
             ToolbarItem(placement: .primaryAction) {
                 Menu {
                     Section(lang.tr("단락 스타일")) {
@@ -184,6 +244,103 @@ struct MemoEditor: View {
         .fileExporter(isPresented: $exportMD,
                       document: TextFileDocument(text: memo.exportText(markdown: true)),
                       contentType: .markdownDoc, defaultFilename: memo.exportName) { _ in }
+    }
+
+    // MARK: 첨부 스트립(사진·파일 미리보기 썸네일)
+    @ViewBuilder private var attachmentStrip: some View {
+        let atts = (memo.attachments ?? []).sorted { $0.createdAt < $1.createdAt }
+        if !atts.isEmpty {
+            Divider().padding(.horizontal, 14)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(atts) { att in
+                        attachmentThumb(att)
+                            .onTapGesture { previewURL = att.writeTempFile() }   // 탭 → QuickLook
+                            .contextMenu {
+                                Button(role: .destructive) { delete(att) } label: {
+                                    Label(lang.tr("삭제"), systemImage: "trash")
+                                }
+                            }
+                    }
+                }
+                .padding(.horizontal, 14).padding(.vertical, 10)
+            }
+            .frame(height: 96)
+        }
+    }
+
+    private func attachmentThumb(_ att: MemoAttachment) -> some View {
+        VStack(spacing: 4) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10, style: .continuous).fill(.gray.opacity(0.15))
+                if att.isImage, let img = Self.thumbnail(att.data) {
+                    img.resizable().scaledToFill()
+                } else {
+                    Image(systemName: Self.iconName(att.utType)).font(.title2).foregroundStyle(.secondary)
+                }
+            }
+            .frame(width: 62, height: 62)
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(.primary.opacity(0.08)))
+            Text(att.filename).font(.caption2).lineLimit(1).frame(width: 66)
+        }
+    }
+
+    // MARK: 첨부 추가/삭제
+    private func loadPhotos(_ items: [PhotosPickerItem]) async {
+        for item in items {
+            guard let data = try? await item.loadTransferable(type: Data.self) else { continue }
+            let ut = item.supportedContentTypes.first ?? .image
+            let ext = ut.preferredFilenameExtension ?? "jpg"
+            addAttachment(data: data, filename: "\(lang.tr("사진"))-\(shortStamp()).\(ext)", type: ut)
+        }
+        photoItems = []
+    }
+
+    private func importPicked(_ result: Result<[URL], Error>) {
+        guard case .success(let urls) = result else { return }
+        for url in urls {
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+            guard let data = try? Data(contentsOf: url) else { continue }
+            let ut = UTType(filenameExtension: url.pathExtension) ?? .data
+            addAttachment(data: data, filename: url.lastPathComponent, type: ut)
+        }
+    }
+
+    private func addAttachment(data: Data, filename: String, type: UTType) {
+        let att = MemoAttachment(data: data, filename: filename, typeIdentifier: type.identifier)
+        att.memo = memo
+        context.insert(att)
+        if memo.attachments == nil { memo.attachments = [] }
+        memo.attachments?.append(att)
+        touch()
+    }
+
+    private func delete(_ att: MemoAttachment) {
+        memo.attachments?.removeAll { $0.id == att.id }
+        context.delete(att)
+        touch()
+    }
+
+    private func shortStamp() -> String { String(UUID().uuidString.prefix(6)) }
+
+    /// 데이터 → 플랫폼 이미지 → SwiftUI Image(썸네일).
+    private static func thumbnail(_ data: Data) -> Image? {
+        #if canImport(UIKit)
+        if let ui = UIImage(data: data) { return Image(uiImage: ui) }
+        #elseif canImport(AppKit)
+        if let ns = NSImage(data: data) { return Image(nsImage: ns) }
+        #endif
+        return nil
+    }
+
+    private static func iconName(_ t: UTType) -> String {
+        if t.conforms(to: .pdf) { return "doc.richtext" }
+        if t.conforms(to: .movie) || t.conforms(to: .audiovisualContent) { return "film" }
+        if t.conforms(to: .audio) { return "waveform" }
+        if t.conforms(to: .text) { return "doc.text" }
+        return "doc"
     }
 
     // MARK: 서식 적용(선택 영역에)
