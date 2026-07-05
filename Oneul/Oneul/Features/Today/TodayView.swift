@@ -176,16 +176,16 @@ struct TodayView: View {
     }
 
     #if os(macOS)
-    // macOS 날짜 이동 컨트롤 — ‹ / 오늘 / › + Left/Right 화살표 단축키.
+    // macOS 주 이동 컨트롤 — ‹ / 오늘 / › + Left/Right 화살표 단축키(주 그리드라 한 주씩 이동).
     private var macDayNav: some View {
         HStack(spacing: 12) {
-            Button { shiftDay(-1) } label: { Image(systemName: "chevron.left") }
+            Button { shiftWeek(-1) } label: { Image(systemName: "chevron.left") }
                 .keyboardShortcut(.leftArrow, modifiers: [])
             Spacer()
             Button(lang.tr("오늘")) { selectedDay = .now }
                 .font(.subheadline).bold()
             Spacer()
-            Button { shiftDay(1) } label: { Image(systemName: "chevron.right") }
+            Button { shiftWeek(1) } label: { Image(systemName: "chevron.right") }
                 .keyboardShortcut(.rightArrow, modifiers: [])
         }
         .buttonStyle(.borderless)
@@ -193,8 +193,9 @@ struct TodayView: View {
         .padding(.bottom, 4)
     }
 
-    private func shiftDay(_ n: Int) {
-        if let d = Calendar.current.date(byAdding: .day, value: n, to: selectedDay) {
+    /// 한 주(±7일)씩 이동 — 주 그리드 전체가 다음/이전 주로 넘어감.
+    private func shiftWeek(_ n: Int) {
+        if let d = Calendar.current.date(byAdding: .day, value: n * 7, to: selectedDay) {
             selectedDay = d
         }
     }
