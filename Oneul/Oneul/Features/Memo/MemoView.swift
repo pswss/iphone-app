@@ -132,8 +132,14 @@ struct MemoView: View {
                                         Text(memo.title.isEmpty ? (memo.text.isEmpty ? lang.tr("새 메모") : firstLine(memo.text)) : memo.title)
                                             .font(.body).bold().lineLimit(1)
                                             .foregroundStyle((memo.title.isEmpty && memo.text.isEmpty) ? .secondary : .primary)
-                                        Text(memo.updatedAt, format: .dateTime.month().day().hour().minute().locale(lang.locale))
-                                            .font(.caption2).foregroundStyle(.secondary)
+                                        if !memo.title.isEmpty, !memo.text.isEmpty {   // 제목 있으면 본문 첫 줄 미리보기
+                                            Text(firstLine(memo.text)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                        }
+                                        HStack(spacing: 4) {
+                                            Text(memo.updatedAt, format: .dateTime.month().day().hour().minute().locale(lang.locale))
+                                            if !(memo.attachments ?? []).isEmpty { Image(systemName: "paperclip") }
+                                        }
+                                        .font(.caption2).foregroundStyle(.secondary)
                                     }
                                     .padding(.vertical, 2)
                                 }
@@ -181,6 +187,8 @@ struct MemoEditor: View {
     @State private var exportMD = false
     @State private var rich = AttributedString()
     @State private var selection = AttributedTextSelection()
+    @State private var saveTask: Task<Void, Never>?      // 자동저장 디바운스
+    @State private var loadedOnce = false                // onAppear 로드가 onChange를 오염시키지 않게
     @State private var showPhotos = false
     @State private var photoItems: [PhotosPickerItem] = []
     @State private var importFiles = false
@@ -205,14 +213,28 @@ struct MemoEditor: View {
                     .font(Self.bodyFont)
                     .scrollContentBackground(.hidden)
                     .padding(8)
-                    .onChange(of: rich) { _, new in memo.saveRich(new); try? context.save() }
+                    .onChange(of: rich) { _, new in
+                        guard loadedOnce else { return }             // 열람만으로 updatedAt 갱신 방지
+                        saveTask?.cancel()
+                        saveTask = Task {                            // 0.6초 디바운스 — 키 입력마다 전체 재인코딩 방지
+                            try? await Task.sleep(nanoseconds: 600_000_000)
+                            guard !Task.isCancelled else { return }
+                            memo.saveRich(new); try? context.save()
+                        }
+                    }
                 attachmentStrip
             }
         }
         .navigationTitle(memo.title.isEmpty ? lang.tr("메모") : memo.title)
         .navBarInline()
-        .onAppear { rich = memo.loadRich() }
-        .onDisappear {   // 애플 메모처럼 빈 메모는 나가는 순간 자동 삭제
+        .onAppear {
+            rich = memo.loadRich()
+            DispatchQueue.main.async { loadedOnce = true }
+        }
+        .onDisappear {
+            saveTask?.cancel()
+            if !memo.isDeleted { memo.saveRich(rich); try? context.save() }   // 디바운스 잔여분 최종 저장
+            // 애플 메모처럼 빈 메모는 나가는 순간 자동 삭제
             if !memo.isDeleted, memo.title.isEmpty, memo.text.isEmpty,
                (memo.attachments ?? []).isEmpty {
                 context.delete(memo); try? context.save()

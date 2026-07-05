@@ -302,6 +302,8 @@ final class AppLanguage {
         "일반 — 일정·메모만": "General — events & notes only",
         "설정에서 언제든 바꿀 수 있어요": "You can change this anytime in Settings",
         "제목이 같은 일정 %d개 삭제": "Deletes %d events with this title",
+        "하루 전": "1 day before",
+        "메모 (선택)": "Notes (optional)",
         // 맥 주 그리드/공통
         "닫기": "Close",
         "주": "Week",

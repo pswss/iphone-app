@@ -11,6 +11,7 @@ struct EventEditorView: View {
 
     @State private var title = ""
     @State private var location = ""
+    @State private var notes = ""
     @State private var start = Date()
     @State private var end = Date()
     @State private var reminderMinutes = 10
@@ -33,7 +34,7 @@ struct EventEditorView: View {
     private var isEditing: Bool { event != nil }
 
     private let reminderOptions: [(label: String, value: Int)] = [
-        ("없음", -1), ("정시", 0), ("5분 전", 5), ("10분 전", 10), ("30분 전", 30), ("1시간 전", 60)
+        ("없음", -1), ("정시", 0), ("5분 전", 5), ("10분 전", 10), ("30분 전", 30), ("1시간 전", 60), ("하루 전", 1440)
     ]
 
     var body: some View {
@@ -104,6 +105,15 @@ struct EventEditorView: View {
                         field(lang.tr("주요 일정")) {
                             Toggle("", isOn: $pinned).labelsHidden().tint(Color.appAccent)
                         }
+
+                        // 메모 — 모델에 있었지만 UI가 없던 필드
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(lang.tr("메모")).foregroundStyle(.secondary)
+                            TextField(lang.tr("메모 (선택)"), text: $notes, axis: .vertical)
+                                .lineLimit(2...5).textFieldStyle(.plain)
+                        }
+                        .padding(.horizontal, 14).padding(.vertical, 12)
+                        .glassCard(cornerRadius: 22)
 
                         if isEditing { deleteSection }
                     }
@@ -233,6 +243,7 @@ struct EventEditorView: View {
         if let event {
             title = event.title
             location = event.location
+            notes = event.notes
             start = event.start
             end = event.end
             reminderMinutes = event.reminderMinutes
@@ -295,7 +306,7 @@ struct EventEditorView: View {
                 event.start = start; event.end = end
                 event.reminderMinutes = reminderMinutes
                 event.reminderMinutes2 = reminderMinutes != -1 ? reminderMinutes2 : -1
-                event.pinned = pinned
+                event.pinned = pinned; event.notes = notes
                 try? context.save()
             } else if recurrence != .none || event.isRecurring {
                 // 반복 설정/변경/해제 → 이 일정(+이후 시리즈)을 지우고 새 규칙으로 재생성
@@ -313,7 +324,7 @@ struct EventEditorView: View {
                 event.start = start; event.end = end
                 event.reminderMinutes = reminderMinutes
                 event.reminderMinutes2 = reminderMinutes != -1 ? reminderMinutes2 : -1
-                event.pinned = pinned
+                event.pinned = pinned; event.notes = notes
                 try? context.save()
             }
         } else {
