@@ -5,6 +5,7 @@ import SwiftUI
 /// - 헤더(월 이름/▼) 탭 → 월 달력으로 펼침. 펼침에서 좌우 스와이프=이전/다음 달, 날짜 탭=선택 후 접힘.
 struct CalendarBar: View {
     @Binding var selectedDay: Date
+    var hasEvents: (Date) -> Bool = { _ in false }   // 날짜 아래 점 — 바쁜 날 한눈에
 
     @State private var expanded = false
     @State private var weekIndex = 0
@@ -146,6 +147,8 @@ struct CalendarBar: View {
                     .frame(width: 32, height: 32)
                     .background { highlight(selected: selected, today: today) }
                     .foregroundStyle(dateColor(date, selected: selected))
+                Circle().fill(hasEvents(date) ? Color.appAccentText.opacity(selected ? 0 : 0.8) : .clear)
+                    .frame(width: 4, height: 4)   // 일정 있는 날 점(선택 시 원이 대신함)
             }
             .frame(maxWidth: .infinity)
         }
@@ -167,12 +170,16 @@ struct CalendarBar: View {
         let selected = cal.isDate(date, inSameDayAs: selectedDay)
         let today = cal.isDateInToday(date)
         return Button { select(date) } label: {
-            Text(verbatim: "\(cal.component(.day, from: date))")
-                .font(.subheadline)
-                .frame(width: 34, height: 34)
-                .background { highlight(selected: selected, today: today) }
-                .foregroundStyle(dateColor(date, selected: selected))
-                .frame(maxWidth: .infinity)
+            VStack(spacing: 2) {
+                Text(verbatim: "\(cal.component(.day, from: date))")
+                    .font(.subheadline)
+                    .frame(width: 34, height: 30)
+                    .background { highlight(selected: selected, today: today) }
+                    .foregroundStyle(dateColor(date, selected: selected))
+                Circle().fill(hasEvents(date) ? Color.appAccentText.opacity(selected ? 0 : 0.8) : .clear)
+                    .frame(width: 4, height: 4)
+            }
+            .frame(maxWidth: .infinity)
         }
         .buttonStyle(.plain)
     }

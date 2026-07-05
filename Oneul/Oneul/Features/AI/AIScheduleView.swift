@@ -109,10 +109,10 @@ struct AIScheduleView: View {
             .contentShape(Circle())
             .padding(10)
             .animation(.easeInOut(duration: 0.18), value: speech.isRecording)
-            .onLongPressGesture(minimumDuration: 0.35) {   // 확실히 꾹 눌러야 토글(오작동 방지)
+            .onTapGesture {                                 // 탭 = 토글(롱프레스 전용은 고장으로 오인됨) — 재탭으로 즉시 취소
                 editorFocused = false
                 speech.toggle()
-                Haptics.impact(.heavy)                      // 강한 햅틱
+                Haptics.impact(.medium)
             }
     }
 
@@ -135,13 +135,13 @@ struct AIScheduleView: View {
             .padding(.vertical, 14)
             .background(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(active ? Color.blue : Color.gray.opacity(0.22))
+                    .fill(active ? Color.appAccent : Color.gray.opacity(0.22))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .strokeBorder(.white.opacity(active ? 0.25 : 0), lineWidth: 1)
             )
-            .shadow(color: active ? Color.blue.opacity(0.55) : .clear, radius: 14, y: 5)
+            .shadow(color: active ? Color.appAccent.opacity(0.55) : .clear, radius: 14, y: 5)
         }
         .buttonStyle(.plain)
         .disabled(!canGenerate)
@@ -174,11 +174,12 @@ struct AIScheduleView: View {
                                     Text(repeatLabel(e))
                                         .font(.caption2).bold().foregroundStyle(.white)
                                         .padding(.horizontal, 6).padding(.vertical, 1)
-                                        .background(Color.blue, in: Capsule())
+                                        .background(Color.appAccent, in: Capsule())
                                 }
                             }
                             if e.action == .delete && e.targetID == nil {
-                                Text(lang.tr("제목이 같은 일정 전부")).font(.caption2).foregroundStyle(.secondary)
+                                Text(String(format: lang.tr("제목이 같은 일정 %d개 삭제"), bulkDeleteCount(e.title)))
+                                    .font(.caption2).foregroundStyle(.red)
                             } else {
                                 Text("\(timeText(e.start)) – \(timeText(e.end))" +
                                      (e.location.isEmpty ? "" : " · \(e.location)"))
@@ -382,9 +383,8 @@ struct AIScheduleView: View {
                 if let id = e.targetID {
                     if let t = find(id) { context.delete(t); applied += 1 }
                 } else {
-                    // bulk: 제목에 키워드가 든 일정을 전부 삭제(과거·미래·시간표 포함, 개수 제한 없음)
-                    let all = (try? context.fetch(FetchDescriptor<ScheduleEvent>())) ?? []
-                    for t in all where !e.title.isEmpty && t.title.contains(e.title) { context.delete(t); applied += 1 }
+                    // bulk: 정확히 같은 제목 우선, 없을 때만 부분 일치("수학"이 "수학여행"을 지우는 오폭 방지)
+                    for t in bulkDeleteTargets(e.title) { context.delete(t); applied += 1 }
                 }
             }
         }
@@ -396,6 +396,15 @@ struct AIScheduleView: View {
             errorMessage = "저장 오류: \(error.localizedDescription)"
         }
     }
+
+    /// 대량 삭제 대상 — 정확 일치 우선, 없으면 부분 일치.
+    private func bulkDeleteTargets(_ title: String) -> [ScheduleEvent] {
+        guard !title.isEmpty else { return [] }
+        let all = (try? context.fetch(FetchDescriptor<ScheduleEvent>())) ?? []
+        let exact = all.filter { $0.title == title }
+        return exact.isEmpty ? all.filter { $0.title.contains(title) } : exact
+    }
+    private func bulkDeleteCount(_ title: String) -> Int { bulkDeleteTargets(title).count }
 
     private func find(_ id: UUID?) -> ScheduleEvent? {
         guard let id else { return nil }

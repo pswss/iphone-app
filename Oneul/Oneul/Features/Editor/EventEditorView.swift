@@ -25,6 +25,7 @@ struct EventEditorView: View {
     @State private var originalEndDate: Date?
     @State private var showPlaceSheet = false
     @State private var pinned = false            // 주요 일정(상단 스와이프 밴드)
+    @State private var loadedOnce = false        // load() 이후에만 시작-종료 연동(초기 세팅 오염 방지)
     @FocusState private var focusedField: Field?
     private let lang = AppLanguage.shared
 
@@ -65,6 +66,10 @@ struct EventEditorView: View {
                         }
                         field(lang.tr("시작")) {
                             DatePicker("", selection: $start).labelsHidden()
+                                .onChange(of: start) { old, new in
+                                    guard loadedOnce else { return }
+                                    end = end.addingTimeInterval(new.timeIntervalSince(old))   // 길이 유지(애플 캘린더식)
+                                }
                         }
                         field(lang.tr("종료")) {
                             DatePicker("", selection: $end, in: start...).labelsHidden()
@@ -264,6 +269,7 @@ struct EventEditorView: View {
             weekdays = [cal.component(.weekday, from: hour)]
             endDate = cal.date(byAdding: .month, value: 3, to: hour) ?? hour
         }
+        DispatchQueue.main.async { loadedOnce = true }   // 초기 세팅 트랜잭션 이후부터 연동
     }
 
     private func save() {
