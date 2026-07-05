@@ -126,7 +126,15 @@ struct RootView: View {
                 }
             }
             .sheet(isPresented: $showMeal) {
-                NavigationStack { MealView() }.frame(minWidth: 420, minHeight: 540)
+                NavigationStack {
+                    MealView()
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button(lang.tr("닫기")) { showMeal = false }
+                            }
+                        }
+                }
+                .frame(minWidth: 420, minHeight: 540)
             }
         }
         #endif
