@@ -71,6 +71,8 @@ struct RootView: View {
     @ViewBuilder
     private var content: some View {
         #if os(iOS)
+        // 3탭 고정 — 설정·급식이 최상위 탭을 차지하고 학생 전환 시 탭 위치가 밀리던 문제.
+        // 설정/급식은 오늘 화면 헤더 아이콘(시트)으로 이동.
         TabView {
             TodayView()
                 .tabItem { Label(lang.tr("오늘"), systemImage: "calendar.day.timeline.left") }
@@ -78,16 +80,8 @@ struct RootView: View {
             MemoView()
                 .tabItem { Label(lang.tr("메모"), systemImage: "note.text") }
 
-            if userType == "student" {
-                MealView()
-                    .tabItem { Label(lang.tr("급식"), systemImage: "fork.knife") }
-            }
-
             AIScheduleView()
                 .tabItem { Label(lang.tr("AI"), systemImage: "sparkles") }
-
-            SettingsView()
-                .tabItem { Label(lang.tr("설정"), systemImage: "gearshape") }
         }
         .overlay {
             // 이전 외형 스냅샷을 위에 깔았다가 페이드아웃 → 새 외형이 서서히 드러남(크로스페이드)

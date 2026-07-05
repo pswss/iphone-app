@@ -20,6 +20,10 @@ struct TodayView: View {
     @State private var sharedScrollHour: Int?          // 모든 날 grid가 공유하는 세로 스크롤 위치(슬라이드해도 유지)
     @State private var gridInteracting = false         // 일정 드래그/리사이즈 중 → 좌우 날짜 스와이프 잠금
     @State private var showSearch = false             // 일정 검색 시트
+    #if os(iOS)
+    @State private var showMealSheet = false          // 급식(학생) — 탭에서 헤더 아이콘으로 이동
+    @State private var showSettingsSheet = false      // 설정 — 탭에서 헤더 아이콘으로 이동
+    #endif
     private let lang = AppLanguage.shared
     @AppStorage("userType") private var userType = "general"
     #if os(iOS)
@@ -106,6 +110,10 @@ struct TodayView: View {
                 .frame(minWidth: 440, minHeight: 500)
             #endif
         }
+        #if os(iOS)
+        .sheet(isPresented: $showMealSheet) { MealView() }
+        .sheet(isPresented: $showSettingsSheet) { SettingsView() }
+        #endif
     }
 
     private func grid(_ p: DayPlan, _ d: Date,
@@ -309,10 +317,18 @@ struct TodayView: View {
                 Text(selectedDay, format: .dateTime.day().weekday(.wide))
                     .font(.largeTitle).bold()
                 Spacer()
-                Button { showSearch = true } label: {   // 일정 검색(제목·장소)
-                    Image(systemName: "magnifyingglass")
-                        .font(.title3).foregroundStyle(.secondary)
+                HStack(spacing: 18) {
+                    Button { showSearch = true } label: {   // 일정 검색(제목·장소)
+                        Image(systemName: "magnifyingglass")
+                    }
+                    #if os(iOS)
+                    if isStudent {
+                        Button { showMealSheet = true } label: { Image(systemName: "fork.knife") }
+                    }
+                    Button { showSettingsSheet = true } label: { Image(systemName: "gearshape") }
+                    #endif
                 }
+                .font(.title3).foregroundStyle(.secondary)
                 .buttonStyle(.plain)
             }
             if let holiday = Holidays.name(for: selectedDay) {
