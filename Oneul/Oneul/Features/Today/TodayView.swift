@@ -633,6 +633,7 @@ struct MacWeekGrid: View {
                 }
             }
             .padding(.bottom, 4)
+            allDayBand   // 요일 아래 고정 밴드 — 여러 날 걸친 종일 일정을 연속 바로(스크롤해도 보임)
             ScrollViewReader { proxy in
                 ScrollView(showsIndicators: false) {          // 7열을 감싸는 단일 스크롤 → 모든 요일이 함께 세로 이동
                     HStack(spacing: 0) {
@@ -667,6 +668,91 @@ struct MacWeekGrid: View {
                 .font(.callout).bold()
                 .foregroundStyle(today ? Color.appAccentText : .primary)
         }
+    }
+
+    // MARK: 종일 밴드(연속 스팬 바)
+    private let gutter: CGFloat = 52   // 첫 열 시각축 폭(DayGridView leftInset과 동일)
+    private let barH: CGFloat = 22
+    private let barVGap: CGFloat = 4
+
+    /// 이번 주에 걸치는 종일/멀티데이 일정을 연속 바로 배치(겹치면 아래 행으로 패킹).
+    private var allDayBars: [PackedBar] {
+        var uniq: [UUID: ScheduleEvent] = [:]
+        for d in days { for e in dayPlan(d).multiDayEvents { uniq[e.id] = e } }
+        let events = uniq.values.sorted { $0.start < $1.start }
+        guard !events.isEmpty, days.count == 7 else { return [] }
+
+        let weekEnd = cal.date(byAdding: .day, value: 7, to: days[0]) ?? days[0]
+        var rowEnds: [Int] = []        // 각 행이 채운 마지막 열
+        var packed: [PackedBar] = []
+        for (i, e) in events.enumerated() {
+            let cols = (0..<7).filter { e.occurs(on: days[$0]) }
+            guard let s = cols.first, let en = cols.last else { continue }
+            var row = 0
+            while row < rowEnds.count && rowEnds[row] >= s { row += 1 }   // s 이전에 끝난 행 찾기
+            if row == rowEnds.count { rowEnds.append(en) } else { rowEnds[row] = en }
+            packed.append(PackedBar(
+                id: e.id, event: e, startCol: s, endCol: en, row: row,
+                color: EventPalette.color(i, of: events.count),
+                openLeft: s == 0 && cal.startOfDay(for: e.start) < days[0],   // 지난 주부터 이어짐
+                openRight: en == 6 && e.end > weekEnd))                        // 다음 주로 이어짐
+        }
+        return packed
+    }
+
+    @ViewBuilder private var allDayBand: some View {
+        let bars = allDayBars
+        if !bars.isEmpty {
+            let rows = (bars.map { $0.row }.max() ?? 0) + 1
+            GeometryReader { geo in
+                let colW = geo.size.width / 7
+                ZStack(alignment: .topLeading) {
+                    ForEach(bars) { bar in
+                        let x0 = bar.startCol == 0 ? gutter : colW * CGFloat(bar.startCol)
+                        let x1 = colW * CGFloat(bar.endCol + 1)
+                        allDayPill(bar)
+                            .frame(width: max(x1 - x0 - 6, 24), height: barH)
+                            .offset(x: x0 + 3, y: CGFloat(bar.row) * (barH + barVGap))
+                    }
+                }
+            }
+            .frame(height: CGFloat(rows) * (barH + barVGap) - barVGap)
+            .padding(.top, 2).padding(.bottom, 8)
+        }
+    }
+
+    private func allDayPill(_ bar: PackedBar) -> some View {
+        let shape = UnevenRoundedRectangle(
+            topLeadingRadius: bar.openLeft ? 3 : 9, bottomLeadingRadius: bar.openLeft ? 3 : 9,
+            bottomTrailingRadius: bar.openRight ? 3 : 9, topTrailingRadius: bar.openRight ? 3 : 9,
+            style: .continuous)
+        return Button { onEdit(bar.event) } label: {
+            HStack(spacing: 5) {
+                if bar.openLeft { Image(systemName: "chevron.compact.left").font(.caption2).opacity(0.85) }
+                Text(bar.event.title.isEmpty ? lang.tr("제목 없음") : bar.event.title)
+                    .font(.caption).bold().lineLimit(1)
+                Spacer(minLength: 0)
+                if bar.openRight { Image(systemName: "chevron.compact.right").font(.caption2).opacity(0.85) }
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 10)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .background(bar.color, in: shape)
+            .shadow(color: .black.opacity(0.14), radius: 3, y: 1)   // 위젯처럼 살짝 떠 보이게
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// 종일 밴드에 배치된 한 개의 연속 바.
+    struct PackedBar: Identifiable {
+        let id: UUID
+        let event: ScheduleEvent
+        let startCol: Int
+        let endCol: Int
+        let row: Int
+        let color: Color
+        let openLeft: Bool
+        let openRight: Bool
     }
 }
 #endif

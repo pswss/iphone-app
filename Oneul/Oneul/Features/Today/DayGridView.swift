@@ -59,7 +59,8 @@ struct DayGridView: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            if !plan.multiDayEvents.isEmpty { allDayRow }
+            // 주 그리드(맥)에서는 종일 일정을 열마다 넣지 않음 — MacWeekGrid의 연속 스팬 밴드가 대신 그려 격자 정렬을 맞춤
+            if scrollsInternally, !plan.multiDayEvents.isEmpty { allDayRow }
 
             if scrollsInternally {
                 GeometryReader { geo in
