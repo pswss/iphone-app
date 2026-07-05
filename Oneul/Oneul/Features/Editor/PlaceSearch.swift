@@ -66,9 +66,9 @@ final class LocationOneShot: NSObject, ObservableObject, CLLocationManagerDelega
 
     /// iOS 26: CLGeocoder(deprecated) 대신 MapKit 역지오코딩.
     private static func placeName(for loc: CLLocation) async -> String {
-        guard let request = MKReverseGeocodingRequest(location: loc) else { return "현재 위치" }
+        guard let request = MKReverseGeocodingRequest(location: loc) else { return AppLanguage.shared.tr("현재 위치") }
         let items = try? await request.mapItems
-        return items?.first?.name ?? "현재 위치"
+        return items?.first?.name ?? AppLanguage.shared.tr("현재 위치")
     }
     func locationManager(_ m: CLLocationManager, didFailWithError error: Error) { finish(nil) }
 
@@ -84,6 +84,7 @@ struct PlaceSearchSheet: View {
     @StateObject private var completer = PlaceCompleter()
     @StateObject private var loc = LocationOneShot()
     @State private var query = ""
+    private let lang = AppLanguage.shared
 
     var body: some View {
         NavigationStack {
@@ -93,7 +94,7 @@ struct PlaceSearchSheet: View {
                 } label: {
                     HStack(spacing: 10) {
                         Image(systemName: "location.fill").foregroundStyle(.blue)
-                        Text("현재 위치 사용")
+                        Text(lang.tr("현재 위치 사용"))
                         Spacer()
                         if loc.busy { ProgressView() }
                     }
@@ -104,7 +105,7 @@ struct PlaceSearchSheet: View {
                         Button {
                             location = query; dismiss()
                         } label: {
-                            Label("\"\(query)\" 직접 입력", systemImage: "pencil")
+                            Label(String(format: lang.tr("\"%@\" 직접 입력"), query), systemImage: "pencil")
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -124,14 +125,14 @@ struct PlaceSearchSheet: View {
                 }
             }
             #if os(iOS)
-            .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "장소 검색")
+            .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: lang.tr("장소 검색"))
             #else
-            .searchable(text: $query, prompt: "장소 검색")
+            .searchable(text: $query, prompt: lang.tr("장소 검색"))
             #endif
             .onChange(of: query) { _, q in completer.search(q) }
-            .navigationTitle("장소")
+            .navigationTitle(lang.tr("장소"))
             .navBarInline()
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("취소") { dismiss() } } }
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button(lang.tr("취소")) { dismiss() } } }
         }
     }
 }

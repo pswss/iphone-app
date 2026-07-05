@@ -40,7 +40,7 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
                 let fire = e.start.addingTimeInterval(TimeInterval(-mins * 60))
                 guard fire > now else { continue }
                 add(id: "\(e.id.uuidString)-r\(i)",
-                    title: e.title.isEmpty ? "일정" : e.title,
+                    title: e.title.isEmpty ? (AppLanguage.shared.isEnglish ? "Event" : "일정") : e.title,
                     body: Self.subtitle(for: e), at: fire, eventStart: e.start)
                 count += 1
             }
@@ -53,8 +53,10 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
                   let fire = cal.date(bySettingHour: 20, minute: 0, second: 0, of: prevDay),
                   fire > now else { continue }
             let items = e.examKind.checklist.joined(separator: ", ")
-            let body = "준비물: \(items)\n\(Self.cheer(for: e.start))"
-            add(id: "\(e.id.uuidString)-exam", title: "내일 \(e.title)", body: body, at: fire, eventStart: e.start)
+            let en = AppLanguage.shared.isEnglish
+            let body = en ? "Bring: \(items)" : "준비물: \(items)\n\(Self.cheer(for: e.start))"
+            add(id: "\(e.id.uuidString)-exam", title: en ? "Tomorrow: \(e.title)" : "내일 \(e.title)",
+                body: body, at: fire, eventStart: e.start)
             count += 1
         }
     }

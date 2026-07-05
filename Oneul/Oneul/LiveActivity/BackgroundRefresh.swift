@@ -48,8 +48,9 @@ enum BackgroundRefresh {
 
     private static func label(for day: Date) -> String {
         let f = DateFormatter()
-        f.locale = Locale(identifier: "ko_KR")
-        f.dateFormat = "M월 d일 EEEE"
+        let en = AppLanguage.shared.isEnglish
+        f.locale = Locale(identifier: en ? "en_US" : "ko_KR")
+        f.dateFormat = en ? "EEEE, MMM d" : "M월 d일 EEEE"
         return f.string(from: day)
     }
 }
