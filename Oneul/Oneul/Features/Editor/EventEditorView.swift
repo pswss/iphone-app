@@ -20,6 +20,9 @@ struct EventEditorView: View {
     @State private var hasEndDate = false
     @State private var endDate = Date()
     @State private var showDeleteOptions = false
+    @State private var showScopeOptions = false          // 반복 일정 저장 시 '이 일정만/이후 전체'
+    @State private var originalWeekdays: Set<Int> = []   // 규칙 변경 감지용(변경 시 시리즈 재생성)
+    @State private var originalEndDate: Date?
     @State private var showPlaceSheet = false
     @State private var pinned = false            // 주요 일정(상단 스와이프 밴드)
     @FocusState private var focusedField: Field?
@@ -123,6 +126,11 @@ struct EventEditorView: View {
                 #endif
             }
             .sheet(isPresented: $showPlaceSheet) { PlaceSearchSheet(location: $location) }
+            .confirmationDialog(lang.tr("반복 일정 수정"), isPresented: $showScopeOptions, titleVisibility: .visible) {
+                Button(lang.tr("이 일정만 수정")) { performSave(singleOnly: true) }
+                Button(lang.tr("이후 일정 모두 수정")) { performSave(singleOnly: false) }
+                Button(lang.tr("취소"), role: .cancel) {}
+            }
             .onAppear(perform: load)
         }
     }
@@ -228,6 +236,23 @@ struct EventEditorView: View {
             pinned = event.pinned
             weekdays = [Calendar.current.component(.weekday, from: event.start)]
             endDate = Calendar.current.date(byAdding: .month, value: 3, to: event.start) ?? event.start
+            // 반복 시리즈면 실제 인스턴스들에서 요일·종료일을 복원 — 이 회차 요일 1개로 리셋돼
+            // 저장 시 나머지 요일 회차가 통째로 사라지던 데이터 유실 방지
+            if event.isRecurring {
+                let sid = event.seriesID
+                let d = FetchDescriptor<ScheduleEvent>(predicate: #Predicate { $0.seriesID == sid })
+                if let series = try? context.fetch(d), !series.isEmpty {
+                    if recurrence == .weekly {
+                        weekdays = Set(series.map { Calendar.current.component(.weekday, from: $0.start) })
+                    }
+                    if let last = series.map(\.start).max() {
+                        endDate = last
+                        hasEndDate = true
+                    }
+                }
+                originalWeekdays = weekdays
+                originalEndDate = endDate
+            }
         } else {
             let cal = Calendar.current
             let base = cal.isDateInToday(day) ? Date() : day
@@ -242,9 +267,32 @@ struct EventEditorView: View {
     }
 
     private func save() {
+        // 반복 일정에서 규칙(반복 종류·요일·종료일)이 그대로면 '이 일정만 / 이후 전체' 선택 제공(애플 캘린더식)
+        // 규칙 자체를 바꿨으면 선택 없이 시리즈 재생성(회차별 적용이 성립 안 함)
+        if let event, event.isRecurring,
+           recurrence.rawValue == event.recurrenceRaw,
+           recurrence != .none,
+           weekdays == originalWeekdays,
+           endDate == originalEndDate {
+            showScopeOptions = true
+            return
+        }
+        performSave(singleOnly: false)
+    }
+
+    private func performSave(singleOnly: Bool) {
         if let event {
-            if recurrence != .none || event.isRecurring {
+            if singleOnly {
+                // 이 회차만: 필드만 갱신, 시리즈(다른 회차)는 그대로
+                event.title = title; event.location = location
+                event.start = start; event.end = end
+                event.reminderMinutes = reminderMinutes
+                event.reminderMinutes2 = reminderMinutes != -1 ? reminderMinutes2 : -1
+                event.pinned = pinned
+                try? context.save()
+            } else if recurrence != .none || event.isRecurring {
                 // 반복 설정/변경/해제 → 이 일정(+이후 시리즈)을 지우고 새 규칙으로 재생성
+                // (weekdays·endDate는 load()에서 시리즈 전체 기준으로 복원돼 있어 유실 없음)
                 EventActions.deleteFutureSeries(from: event, in: context)
                 EventActions.create(title: title, start: start, end: end, location: location,
                                     reminderMinutes: reminderMinutes,

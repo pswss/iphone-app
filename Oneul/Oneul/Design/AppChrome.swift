@@ -277,6 +277,9 @@ final class AppLanguage {
         "사진": "Photo",
         "파일": "File",
         "일정 복사됨 · 빈 곳을 눌러 붙여넣기": "Event copied · tap empty space to paste",
+        "반복 일정 수정": "Edit Repeating Event",
+        "이 일정만 수정": "Edit This Event Only",
+        "이후 일정 모두 수정": "Edit All Future Events",
         // 맥 주 그리드/공통
         "닫기": "Close",
         "주": "Week",
