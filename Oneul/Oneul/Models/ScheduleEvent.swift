@@ -89,6 +89,9 @@ extension ScheduleEvent {
     /// 제목 키워드로 시험 유형 판별. (수능만 csat, 나머지 시험·모의·평가는 school)
     var examKind: ExamKind {
         let t = title
+        // '시험공부'·'시험 준비'처럼 시험을 준비하는 일정은 시험 자체가 아님 → 전날 준비물 알림 오탐 방지
+        let studyWords = ["공부", "준비", "대비", "복습", "특강", "학습"]
+        if studyWords.contains(where: t.contains) { return .none }
         let isMock = t.contains("모의") || t.contains("학력평가") || t.contains("연합")
         if !isMock && (t.contains("수학능력시험") || t.contains("수능")) { return .csat }
         let school = ["모의", "학력평가", "연합", "지필", "중간고사", "기말고사", "고사", "시험", "평가"]
