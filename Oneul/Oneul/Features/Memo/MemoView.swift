@@ -57,7 +57,7 @@ final class Memo {
 @Model
 final class MemoAttachment {
     var id: UUID = UUID()
-    var data: Data = Data()
+    @Attribute(.externalStorage) var data: Data = Data()   // 원본은 외부 파일로 — 스토어 비대·CloudKit 부담 방지
     var filename: String = ""
     var typeIdentifier: String = ""   // UTType.identifier
     var createdAt: Date = Date()
@@ -105,9 +105,17 @@ struct MemoView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \Memo.updatedAt, order: .reverse) private var memos: [Memo]
     private let lang = AppLanguage.shared
+    @State private var path: [Memo] = []       // 작성 버튼 → 새 메모로 즉시 이동
+    @State private var search = ""
+
+    private var filtered: [Memo] {
+        let q = search.trimmingCharacters(in: .whitespaces)
+        guard !q.isEmpty else { return memos }
+        return memos.filter { $0.title.localizedStandardContains(q) || $0.text.localizedStandardContains(q) }
+    }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             ZStack {
                 AppBackground()
                 Group {
@@ -118,10 +126,8 @@ struct MemoView: View {
                         }
                     } else {
                         List {
-                            ForEach(memos) { memo in
-                                NavigationLink {
-                                    MemoEditor(memo: memo)
-                                } label: {
+                            ForEach(filtered) { memo in
+                                NavigationLink(value: memo) {
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(memo.title.isEmpty ? (memo.text.isEmpty ? lang.tr("새 메모") : firstLine(memo.text)) : memo.title)
                                             .font(.body).bold().lineLimit(1)
@@ -133,7 +139,7 @@ struct MemoView: View {
                                 }
                             }
                             .onDelete { idx in
-                                idx.map { memos[$0] }.forEach(context.delete)
+                                idx.map { filtered[$0] }.forEach(context.delete)
                                 try? context.save()
                             }
                         }
@@ -143,6 +149,8 @@ struct MemoView: View {
             }
             .navigationTitle(lang.tr("메모"))
             .navBarInline()
+            .navigationDestination(for: Memo.self) { MemoEditor(memo: $0) }
+            .searchable(text: $search, prompt: lang.tr("메모 검색"))
             #if os(iOS)
             .toolbar {                                   // 아이폰: 탭 자체 툴바의 작성 버튼
                 ToolbarItem(placement: .primaryAction) {
@@ -156,6 +164,7 @@ struct MemoView: View {
 
     private func addMemo() {
         let m = Memo(); context.insert(m); try? context.save()
+        path.append(m)                          // 애플 메모처럼 바로 편집기 진입
     }
 
     private func firstLine(_ s: String) -> String {
@@ -203,6 +212,12 @@ struct MemoEditor: View {
         .navigationTitle(memo.title.isEmpty ? lang.tr("메모") : memo.title)
         .navBarInline()
         .onAppear { rich = memo.loadRich() }
+        .onDisappear {   // 애플 메모처럼 빈 메모는 나가는 순간 자동 삭제
+            if !memo.isDeleted, memo.title.isEmpty, memo.text.isEmpty,
+               (memo.attachments ?? []).isEmpty {
+                context.delete(memo); try? context.save()
+            }
+        }
         .photosPicker(isPresented: $showPhotos, selection: $photoItems, matching: .images)
         .onChange(of: photoItems) { _, items in
             guard !items.isEmpty else { return }

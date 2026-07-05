@@ -280,6 +280,7 @@ final class AppLanguage {
         "반복 일정 수정": "Edit Repeating Event",
         "이 일정만 수정": "Edit This Event Only",
         "이후 일정 모두 수정": "Edit All Future Events",
+        "메모 검색": "Search notes",
         // 맥 주 그리드/공통
         "닫기": "Close",
         "주": "Week",
