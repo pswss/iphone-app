@@ -128,7 +128,32 @@ enum Recurrence: String, CaseIterable, Identifiable {
     }
 }
 
-// MARK: - 생성/삭제 동작
+// MARK: - 자동 갱신 원복 방지 톰스톤
+// 사용자가 시간표/학사일정(source != "") 일정을 삭제·수정하면 그 인스턴스 키를 기록해,
+// 일일 자동 재가져오기가 같은 자리에 다시 만들어 조용히 원복하는 것을 막는다.
+enum SourceTombstones {
+    private static let key = "sourceTombstones"
+
+    private static func instanceKey(source: String, title: String, start: Date) -> String {
+        "\(source)|\(title)|\(Int(start.timeIntervalSince1970))"
+    }
+
+    static func record(source: String, title: String, start: Date) {
+        guard !source.isEmpty else { return }
+        var all = Set(UserDefaults.standard.stringArray(forKey: key) ?? [])
+        all.insert(instanceKey(source: source, title: title, start: start))
+        // 60일 지난 과거 키는 정리(재가져오기 범위 밖)
+        let cutoff = Int(Date().addingTimeInterval(-60 * 86400).timeIntervalSince1970)
+        all = Set(all.filter { Int($0.split(separator: "|").last.map(String.init) ?? "") ?? 0 >= cutoff })
+        UserDefaults.standard.set(Array(all), forKey: key)
+    }
+
+    static func contains(source: String, title: String, start: Date) -> Bool {
+        guard !source.isEmpty else { return false }
+        let all = UserDefaults.standard.stringArray(forKey: key) ?? []
+        return all.contains(instanceKey(source: source, title: title, start: start))
+    }
+}
 
 enum EventActions {
     /// 일정 생성.
@@ -143,10 +168,12 @@ enum EventActions {
         let duration = max(0, end.timeIntervalSince(start))
 
         guard recurrence != .none else {
-            context.insert(ScheduleEvent(title: title, start: start, end: end,
-                                         location: location, reminderMinutes: reminderMinutes,
-                                         reminderMinutes2: reminderMinutes2, source: source, pinned: pinned))
-            try? context.save()
+            if !SourceTombstones.contains(source: source, title: title, start: start) {
+                context.insert(ScheduleEvent(title: title, start: start, end: end,
+                                             location: location, reminderMinutes: reminderMinutes,
+                                             reminderMinutes2: reminderMinutes2, source: source, pinned: pinned))
+                try? context.save()
+            }
             return
         }
 
@@ -164,7 +191,8 @@ enum EventActions {
             let endDay = cal.startOfDay(for: horizon)
             while day <= endDay && count < cap {
                 if weekdays.contains(cal.component(.weekday, from: day)), !excludeDays.contains(day),
-                   let s = cal.date(bySettingHour: h, minute: m, second: 0, of: day), s >= start {
+                   let s = cal.date(bySettingHour: h, minute: m, second: 0, of: day), s >= start,
+                   !SourceTombstones.contains(source: source, title: title, start: s) {
                     context.insert(ScheduleEvent(
                         title: title, start: s, end: s.addingTimeInterval(duration),
                         location: location, reminderMinutes: reminderMinutes,
@@ -178,6 +206,10 @@ enum EventActions {
         } else if let step = recurrence.step {
             var date = start
             while date <= horizon && count < cap {
+                if SourceTombstones.contains(source: source, title: title, start: date) {
+                    guard let next = cal.date(byAdding: step.component, value: step.value, to: date) else { break }
+                    date = next; continue
+                }
                 context.insert(ScheduleEvent(
                     title: title, start: date, end: date.addingTimeInterval(duration),
                     location: location, reminderMinutes: reminderMinutes,
@@ -192,6 +224,7 @@ enum EventActions {
     }
 
     static func deleteSingle(_ event: ScheduleEvent, in context: ModelContext) {
+        SourceTombstones.record(source: event.source, title: event.title, start: event.start)   // 자동 갱신이 되살리지 않게
         context.delete(event)
         try? context.save()
     }
@@ -230,8 +263,12 @@ enum EventActions {
             predicate: #Predicate<ScheduleEvent> { $0.seriesID == sid && $0.start >= start }
         )
         if let items = try? context.fetch(descriptor), !items.isEmpty {
-            for e in items { context.delete(e) }
+            for e in items {
+                SourceTombstones.record(source: e.source, title: e.title, start: e.start)
+                context.delete(e)
+            }
         } else {
+            SourceTombstones.record(source: event.source, title: event.title, start: event.start)
             context.delete(event)
         }
         try? context.save()

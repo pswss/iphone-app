@@ -284,6 +284,7 @@ struct EventEditorView: View {
         if let event {
             if singleOnly {
                 // 이 회차만: 필드만 갱신, 시리즈(다른 회차)는 그대로
+                claimFromSource(event)   // 시간표 일정이면 원본에 톰스톤 + 사용자 소유로(자동 갱신 원복 방지)
                 event.title = title; event.location = location
                 event.start = start; event.end = end
                 event.reminderMinutes = reminderMinutes
@@ -301,6 +302,7 @@ struct EventEditorView: View {
                                     weekdays: recurrence == .weekly ? weekdays : [],
                                     endDate: hasEndDate ? endDate : nil, source: event.source, pinned: pinned, into: context)
             } else {
+                claimFromSource(event)   // 시간표 일정이면 원본에 톰스톤 + 사용자 소유로
                 event.title = title; event.location = location
                 event.start = start; event.end = end
                 event.reminderMinutes = reminderMinutes
@@ -317,5 +319,13 @@ struct EventEditorView: View {
                                 endDate: hasEndDate ? endDate : nil, pinned: pinned, into: context)
         }
         dismiss()
+    }
+
+    /// 시간표/학사일정(source != "") 일정을 사용자가 고치면: 원본 자리 톰스톤 기록 + source 비움.
+    /// → 일일 자동 재가져오기가 이 일정을 지우지도, 원래 내용으로 되살리지도 않는다.
+    private func claimFromSource(_ event: ScheduleEvent) {
+        guard !event.source.isEmpty else { return }
+        SourceTombstones.record(source: event.source, title: event.title, start: event.start)
+        event.source = ""
     }
 }
