@@ -295,6 +295,12 @@ final class AppLanguage {
         "현재 위치 사용": "Use current location",
         "장소 검색": "Search places",
         "\"%@\" 직접 입력": "Use \"%@\" as typed",
+        "어떻게 사용하시나요?": "How will you use Oneul?",
+        "학생을 선택하면 학교 시간표·급식·학사일정을 자동으로 불러올 수 있어요.":
+            "Choose Student to auto-import your school timetable, meals and calendar.",
+        "학생 — 시간표·급식 사용": "Student — timetable & meals",
+        "일반 — 일정·메모만": "General — events & notes only",
+        "설정에서 언제든 바꿀 수 있어요": "You can change this anytime in Settings",
         // 맥 주 그리드/공통
         "닫기": "Close",
         "주": "Week",

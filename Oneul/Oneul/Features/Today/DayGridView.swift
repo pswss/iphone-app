@@ -267,6 +267,12 @@ struct DayGridView: View {
             .animation(.snappy(duration: 0.2), value: deleteBubbleID)
             .animation(.snappy(duration: 0.16), value: dragID)
             .animation(.snappy(duration: 0.16), value: selectedID)
+            // VoiceOver: 블록 전체를 하나의 요소로, 제목·시간 낭독 + 수정/삭제 액션
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(e.title.isEmpty ? lang.tr("제목 없음") : e.title), \(timeText(e.start)) – \(timeText(e.end))")
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction { onEdit(e) }
+            .accessibilityAction(named: lang.tr("삭제")) { EventActions.deleteSingle(e, in: context) }
     }
 
     /// 선택 시 좌하단 코너에만 보이는 순수 흰색 곡선.
@@ -344,7 +350,7 @@ struct DayGridView: View {
                 .font(.caption).bold().foregroundStyle(blockText).lineLimit(1)
             if h > 36 {
                 Text(timeText(start) + " – " + timeText(end))   // 이동/리사이즈 중 실시간 갱신
-                    .font(.system(size: 10)).foregroundStyle(blockSubText).lineLimit(1)
+                    .font(.caption2).foregroundStyle(blockSubText).lineLimit(1)
             }
         }
         .padding(.horizontal, 9).padding(.vertical, 5)

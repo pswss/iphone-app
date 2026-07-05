@@ -175,6 +175,7 @@ struct TodayView: View {
         }
         .padding(.trailing, 22)
         .padding(.bottom, 22)
+        .accessibilityLabel(lang.tr("새 일정"))
     }
 
     // MARK: 아이폰(세로) — 손가락 좌우 스와이프로 날짜 이동(애플 캘린더식)

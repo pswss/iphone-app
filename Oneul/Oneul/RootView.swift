@@ -28,6 +28,7 @@ enum MacSection: Hashable, CaseIterable {
 struct RootView: View {
     @AppStorage("appearance") private var appearanceRaw = Appearance.system.rawValue
     @AppStorage("userType") private var userType = "general"
+    @AppStorage("didOnboardUserType") private var didOnboard = false   // 첫 실행: 학생 기능 안내
     @Environment(\.modelContext) private var context
     @Environment(\.scenePhase) private var scenePhase
     #if os(iOS)
@@ -48,6 +49,7 @@ struct RootView: View {
             .tint(Color.appAccentText)
             .preferredColorScheme(colorScheme)
             .environment(\.locale, lang.locale)
+            .sheet(isPresented: .constant(!didOnboard)) { onboardSheet }
             .task {
                 AppleIntelligenceClient.prewarm()                  // 앱 시작 시 온디바이스 모델 워밍업(AI 첫 입력 렉↓)
                 #if canImport(WatchConnectivity)
@@ -150,6 +152,41 @@ struct RootView: View {
             }
         }
         .focusEffectDisabled()   // 맥 파란 포커스 링 전역 제거(버튼/셀/월 헤더 등)
+        #endif
+    }
+
+    // 첫 실행 — 사용자 유형 선택(학생 기능이 설정 토글 뒤에 숨어 발견 불가하던 문제)
+    private var onboardSheet: some View {
+        VStack(spacing: 18) {
+            Image(systemName: "sparkles").font(.system(size: 40)).foregroundStyle(Color.appAccentText)
+            Text(lang.tr("어떻게 사용하시나요?")).font(.title2).bold()
+            Text(lang.tr("학생을 선택하면 학교 시간표·급식·학사일정을 자동으로 불러올 수 있어요."))
+                .font(.subheadline).foregroundStyle(.secondary)
+                .multilineTextAlignment(.center).padding(.horizontal, 8)
+            VStack(spacing: 10) {
+                Button {
+                    userType = "student"; didOnboard = true
+                } label: {
+                    Label(lang.tr("학생 — 시간표·급식 사용"), systemImage: "graduationcap.fill")
+                        .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 14)
+                }
+                .buttonStyle(.borderedProminent)
+                Button {
+                    userType = "general"; didOnboard = true
+                } label: {
+                    Text(lang.tr("일반 — 일정·메모만"))
+                        .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 14)
+                }
+                .buttonStyle(.bordered)
+            }
+            Text(lang.tr("설정에서 언제든 바꿀 수 있어요")).font(.caption2).foregroundStyle(.secondary)
+        }
+        .padding(28)
+        .interactiveDismissDisabled()
+        #if os(macOS)
+        .frame(width: 420)
+        #else
+        .presentationDetents([.medium])
         #endif
     }
 
