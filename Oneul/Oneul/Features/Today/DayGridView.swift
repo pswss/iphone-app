@@ -23,7 +23,11 @@ struct DayGridView: View {
     var scrollsInternally: Bool = true               // false면 내부 ScrollView 없이 전체 높이 렌더 → 외부(주 그리드)가 통합 스크롤
 
     @Environment(\.modelContext) private var context
+    @Environment(\.colorScheme) private var scheme
     private let lang = AppLanguage.shared
+    // 라이트모드: 파스텔 배경 위 흰 글자는 대비가 무너짐 → 어두운 글자로 적응
+    private var blockText: Color { scheme == .dark ? .white : .black.opacity(0.78) }
+    private var blockSubText: Color { scheme == .dark ? .white.opacity(0.85) : .black.opacity(0.55) }
     private let cal = Calendar.current
     private let hourHeight: CGFloat = 70      // 세로로 늘림(일정이 덜 빽빽하게)
     private var leftInset: CGFloat { showHourLabels ? 52 : 6 }
@@ -106,7 +110,7 @@ struct DayGridView: View {
                 }
             }
             .scrollTargetLayout()                    // 시간 행 = 스크롤 위치 타깃(공유 복원용)
-            Rectangle().fill(.white.opacity(0.12))   // 시간 ↔ 일정 구분선
+            Rectangle().fill(.primary.opacity(0.12))   // 시간 ↔ 일정 구분선(적응형)
                 .frame(width: 1, height: gridHeight).offset(x: leftInset)
             #if os(iOS)
             LongPressArea(minimumDuration: 0.4,                           // 빈 곳 꾹 → 그 위치에 새 일정(스크롤과 동시)
@@ -140,8 +144,8 @@ struct DayGridView: View {
                     }
                     .padding(.horizontal, 12).padding(.vertical, 8)
                     .frame(maxWidth: .infinity)
-                    .background(.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.white.opacity(0.18)))
+                    .background(.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.primary.opacity(0.15)))
                 }
                 .buttonStyle(.plain)
             }
@@ -164,10 +168,10 @@ struct DayGridView: View {
     }
 
     private func nowLine(width: CGFloat) -> some View {
-        ZStack(alignment: .leading) {
-            Circle().fill(.white).frame(width: 7, height: 7).offset(x: leftInset - 3)
-            Rectangle().fill(.white).frame(height: 2)
-                .shadow(color: .white.opacity(0.8), radius: 3).padding(.leading, leftInset)
+        ZStack(alignment: .leading) {   // 애플 캘린더식 빨간 현재선 — 라이트/다크 모두 또렷
+            Circle().fill(.red).frame(width: 7, height: 7).offset(x: leftInset - 3)
+            Rectangle().fill(.red).frame(height: 2)
+                .shadow(color: .red.opacity(0.5), radius: 3).padding(.leading, leftInset)
         }
         .frame(width: width)
         .offset(y: yOffset(for: Date()) - 1)
@@ -181,14 +185,14 @@ struct DayGridView: View {
         let h = max(26, yOffset(for: clamp(end)) - top)
         let shape = RoundedRectangle(cornerRadius: 11, style: .continuous)
         return VStack(alignment: .leading, spacing: 1) {
-            Text(lang.tr("새 일정")).font(.caption).bold().foregroundStyle(.white).lineLimit(1)
+            Text(lang.tr("새 일정")).font(.caption).bold().foregroundStyle(blockText).lineLimit(1)
             Text(timeText(start) + " – " + timeText(end))
-                .font(.system(size: 10)).foregroundStyle(.white.opacity(0.85)).lineLimit(1)
+                .font(.system(size: 10)).foregroundStyle(blockSubText).lineLimit(1)
         }
         .padding(.horizontal, 9).padding(.vertical, 5)
         .frame(width: gridW, height: h, alignment: .topLeading)
         .background(Color.appAccent.opacity(0.4), in: shape)
-        .overlay(shape.strokeBorder(.white.opacity(0.85), style: StrokeStyle(lineWidth: 1.5, dash: [5, 3])))
+        .overlay(shape.strokeBorder(Color.primary.opacity(0.85), style: StrokeStyle(lineWidth: 1.5, dash: [5, 3])))
         .shadow(color: Color.appAccent.opacity(0.5), radius: 10)
         .offset(x: leftInset, y: top)
         .allowsHitTesting(false)
@@ -222,7 +226,7 @@ struct DayGridView: View {
             .frame(width: colW, height: h, alignment: .topLeading)
             // 하이라이트: 원래 모습 유지하되 색만 진하게 + 은은한 색 글로우(유리 느낌). 두꺼운 흰 테두리 X
             .background(color.opacity(lifted ? 0.9 : (selected ? 0.72 : 0.5)), in: shape)
-            .overlay(shape.strokeBorder(.white.opacity(lifted ? 0.6 : (selected ? 0.4 : 0.22)),
+            .overlay(shape.strokeBorder(Color.primary.opacity(lifted ? 0.6 : (selected ? 0.4 : 0.22)),
                                         lineWidth: lifted ? 1.5 : 1))
             .shadow(color: glowing ? color.opacity(0.7) : .black.opacity(lifted ? 0.4 : 0.12),
                     radius: glowing ? 13 : (lifted ? 10 : 3),
@@ -252,7 +256,7 @@ struct DayGridView: View {
     /// 마스크로 좌하단 1/4만 노출해 코너 곡선처럼 보이게 한다. (회색 합성 방지)
     private func cornerHighlight(_ shape: RoundedRectangle) -> some View {
         shape
-            .strokeBorder(.white, lineWidth: 2.5)
+            .strokeBorder(Color.primary, lineWidth: 2.5)
             .mask {
                 ZStack {   // 아래 손잡이=좌하단, 위 손잡이=우상단(반대쪽) 코너 곡선만 노출 — 대각선 배치
                     Rectangle().frame(width: 18, height: 18).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
@@ -301,10 +305,10 @@ struct DayGridView: View {
     private func blockContent(_ e: ScheduleEvent, h: CGFloat, start: Date, end: Date) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(e.title.isEmpty ? lang.tr("제목 없음") : e.title)
-                .font(.caption).bold().foregroundStyle(.white).lineLimit(1)
+                .font(.caption).bold().foregroundStyle(blockText).lineLimit(1)
             if h > 36 {
                 Text(timeText(start) + " – " + timeText(end))   // 이동/리사이즈 중 실시간 갱신
-                    .font(.system(size: 10)).foregroundStyle(.white.opacity(0.85)).lineLimit(1)
+                    .font(.system(size: 10)).foregroundStyle(blockSubText).lineLimit(1)
             }
         }
         .padding(.horizontal, 9).padding(.vertical, 5)

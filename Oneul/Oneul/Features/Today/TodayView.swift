@@ -759,8 +759,8 @@ struct MacWeekGrid: View {
             }
             .padding(.horizontal, 12)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .background(.white.opacity(0.10), in: shape)
-            .overlay(shape.strokeBorder(.white.opacity(0.18)))
+            .background(.primary.opacity(0.06), in: shape)
+            .overlay(shape.strokeBorder(.primary.opacity(0.15)))
         }
         .buttonStyle(.plain)
     }

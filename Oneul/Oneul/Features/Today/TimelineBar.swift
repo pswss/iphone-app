@@ -32,7 +32,7 @@ struct TimelineBar: View {
             VStack(spacing: 5) {
                 ZStack(alignment: .leading) {
                     Capsule()
-                        .fill(.white.opacity(0.08))
+                        .fill(.primary.opacity(0.08))
                         .frame(height: height)
                         .frame(maxHeight: .infinity, alignment: .center)
 
@@ -56,7 +56,7 @@ struct TimelineBar: View {
                                 .overlay {
                                     if multi {   // 각 유리판 윤곽 → '두 개'임이 보이게
                                         RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                            .strokeBorder(.white.opacity(0.35), lineWidth: 0.5)
+                                            .strokeBorder(.primary.opacity(0.35), lineWidth: 0.5)
                                     }
                                 }
                                 .shadow(color: isCurrent ? color.opacity(0.6) : .clear, radius: 6, y: 3)
@@ -68,10 +68,10 @@ struct TimelineBar: View {
                     if !single.isEmpty && live {
                         let px = frac * w
                         Capsule()
-                            .fill(.white)
+                            .fill(.primary)
                             .frame(width: 2, height: height + 12)
                             .opacity(waiting ? 0.55 : 1)
-                            .shadow(color: .white.opacity(0.85), radius: 4)
+                            .shadow(color: .primary.opacity(0.6), radius: 4)
                             .offset(x: px - 1)
                             .frame(maxHeight: .infinity, alignment: .center)
                     }
