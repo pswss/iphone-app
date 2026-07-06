@@ -9,6 +9,9 @@ extension Notification.Name {
     static let oneulShowDay = Notification.Name("oneul.showDay")      // 알림 탭 → 그 날짜로 이동 (object: Date)
     static let oneulSelectSection = Notification.Name("oneul.selectSection") // ⌘1~3 (object: Int 0=오늘 1=메모 2=급식)
     static let oneulSyncLA = Notification.Name("oneul.syncLA")       // 설정 진단 카드 → Live Activity 재시작
+    static let oneulSearch = Notification.Name("oneul.search")       // ⌘F 일정 검색
+    static let oneulAI = Notification.Name("oneul.ai")               // ⇧⌘A AI 입력
+    static let oneulRefresh = Notification.Name("oneul.refresh")     // ⌘R 시간표·학사 새로 고침
 }
 
 @main
@@ -36,6 +39,15 @@ struct OneulApp: App {
                     .keyboardShortcut("n")
                 Button("새 메모") { NotificationCenter.default.post(name: .oneulNewMemo, object: nil) }
                     .keyboardShortcut("n", modifiers: [.command, .shift])
+                Divider()
+                Button("AI로 일정 입력…") { NotificationCenter.default.post(name: .oneulAI, object: nil) }
+                    .keyboardShortcut("a", modifiers: [.command, .shift])
+                Button("시간표·학사 새로 고침") { NotificationCenter.default.post(name: .oneulRefresh, object: nil) }
+                    .keyboardShortcut("r")
+            }
+            CommandGroup(after: .textEditing) {
+                Button("일정 검색…") { NotificationCenter.default.post(name: .oneulSearch, object: nil) }
+                    .keyboardShortcut("f")
             }
             CommandGroup(after: .sidebar) {
                 Button("오늘 보기") { NotificationCenter.default.post(name: .oneulSelectSection, object: 0) }

@@ -186,6 +186,11 @@ struct RootView: View {
                 DispatchQueue.main.async { NotificationCenter.default.post(name: .oneulNewMemo, object: nil) }
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .oneulAI)) { _ in showAIPopover = true }   // ⇧⌘A
+        .onReceive(NotificationCenter.default.publisher(for: .oneulRefresh)) { _ in                      // ⌘R
+            UserDefaults.standard.removeObject(forKey: "lastSchoolRefresh")   // 하루 1회 가드 해제 → 즉시 갱신
+            Task { await SchoolAutoRefresh.runIfDue(context: context) }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .oneulSelectSection)) { note in
             guard let i = note.object as? Int else { return }
             let all: [MacSection] = [.today, .memo, .meal]

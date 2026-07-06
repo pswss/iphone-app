@@ -106,6 +106,9 @@ struct TodayView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .oneulSyncLA)) { _ in syncLiveActivity() }
         #if os(macOS)
+        .onReceive(NotificationCenter.default.publisher(for: .oneulSearch)) { _ in showSearch = true }   // ⌘F
+        #endif
+        #if os(macOS)
         .sheet(isPresented: $showSearch) {
             EventSearchSheet(events: events) { day in selectedDay = day }
                 .frame(minWidth: 440, minHeight: 500)
