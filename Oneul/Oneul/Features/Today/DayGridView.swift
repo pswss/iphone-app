@@ -50,8 +50,6 @@ struct DayGridView: View {
     @State private var autoScrollInterval: Double = 0.7   // 당긴 정도에 따라 빨라짐(작을수록 빠름)
     @State private var scrollProxy: ScrollViewProxy?
     @State private var deleteBubbleID: UUID?              // 꾹 누르고 안 움직이고 떼면 뜨는 삭제 말풍선
-    @State private var ghostStart: Date?                   // 빈 곳 탭 → 고스트 '+ 새 일정'(숨은 롱프레스 발견 유도)
-    @State private var ghostTask: Task<Void, Never>?
     @State private var menuW: CGFloat = 280               // 컨텍스트 메뉴 실측 폭(화면 밖으로 안 나가게 클램프용)
 
     private let firstHour = 0
@@ -116,15 +114,9 @@ struct DayGridView: View {
             .scrollTargetLayout()                    // 시간 행 = 스크롤 위치 타깃(공유 복원용)
             #if os(iOS)
             LongPressArea(minimumDuration: 0.4,                           // 빈 곳 꾹 → 그 위치에 새 일정(스크롤과 동시)
-                          onBegan: { y in selectedID = nil; ghostStart = nil; addAt(y: y); Haptics.impact(.medium) })
+                          onBegan: { y in selectedID = nil; addAt(y: y); Haptics.impact(.medium) })
                 .frame(width: width, height: gridHeight)
-                .gesture(SpatialTapGesture().onEnded { v in
-                    if selectedID != nil || deleteBubbleID != nil {
-                        selectedID = nil; deleteBubbleID = nil            // 한 번 탭 → 선택/말풍선 해제
-                    } else {
-                        showGhost(y: v.location.y)                        // 아무것도 없으면 → 고스트 '+'로 추가 가능함을 알림
-                    }
-                })
+                .onTapGesture { selectedID = nil; deleteBubbleID = nil }   // 한 번 탭 → 선택/말풍선 해제(추가는 롱프레스만)
             #else
             Color.clear                                                   // 맥: 빈 곳 더블클릭 → 새 일정, 한 번 클릭 → 선택 해제
                 .frame(width: width, height: gridHeight)
@@ -135,7 +127,6 @@ struct DayGridView: View {
             if cal.isDateInToday(day) { nowLine(width: width) }
             ForEach(laidOut, id: \.event.id) { eventBlock($0, gridW: gridW) }
             if let ps = previewStart { previewBlock(ps, gridW: gridW) }
-            if let g = ghostStart { ghostBlock(g, gridW: gridW) }
         }
         .frame(height: gridHeight, alignment: .topLeading)
         #if os(macOS)
@@ -558,43 +549,6 @@ struct DayGridView: View {
             autoScrollDY += CGFloat(autoScrollDir) * hourHeight
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + dur) { autoScrollTick(e) }
-    }
-
-    // MARK: 고스트 블록 — 탭한 슬롯에 잠깐 떠서 '여기에 추가'를 보여줌(애플 캘린더식)
-    private func showGhost(y: CGFloat) {
-        ghostStart = slotDate(y: y)
-        Haptics.impact(.light)
-        ghostTask?.cancel()
-        ghostTask = Task {
-            try? await Task.sleep(nanoseconds: 2_500_000_000)
-            if !Task.isCancelled { ghostStart = nil }
-        }
-    }
-
-    private func ghostBlock(_ start: Date, gridW: CGFloat) -> some View {
-        let top = yOffset(for: clamp(start))
-        let h = max(26, hourHeight - 4)
-        let shape = RoundedRectangle(cornerRadius: 11, style: .continuous)
-        return Button {
-            ghostTask?.cancel(); ghostStart = nil
-            addAt(y: top + 1)
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "plus.circle.fill")
-                Text(lang.tr("새 일정")).font(.caption).bold()
-                Spacer()
-            }
-            .foregroundStyle(Color.appAccentText)
-            .padding(.horizontal, 9)
-            .frame(width: gridW, height: h, alignment: .leading)
-            .background(Color.appAccent.opacity(0.14), in: shape)
-            .overlay(shape.strokeBorder(Color.appAccent.opacity(0.6),
-                                        style: StrokeStyle(lineWidth: 1.2, dash: [5, 3])))
-        }
-        .buttonStyle(.plain)
-        .offset(x: leftInset, y: top)
-        .zIndex(50)
-        .transition(.opacity)
     }
 
     private func slotDate(y: CGFloat) -> Date {
