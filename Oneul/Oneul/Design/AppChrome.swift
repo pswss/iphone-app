@@ -323,6 +323,10 @@ final class AppLanguage {
             "Google Calendar → Settings → your calendar → paste the 'Secret address in iCal format'.",
         "일정 %d개를 가져왔어요 · 반복 일정 %d개는 아직 지원하지 않아요":
             "Imported %d events · %d repeating events not supported yet",
+        "Apple 캘린더에서 가져올까요?": "Import from Apple Calendar?",
+        "Google 캘린더에서 가져올까요?": "Import from Google Calendar?",
+        "오늘부터 90일치 일정을 추가해요. 이미 있는 일정(같은 제목·시각)은 건너뜁니다.":
+            "Adds the next 90 days of events. Duplicates (same title & time) are skipped.",
         "가져오지 못했어요 — 주소를 확인해 주세요 (iCal 비공개 주소여야 해요).":
             "Import failed — check the address (must be the secret iCal URL).",
         "일정 %d개를 가져왔어요 (오늘부터 90일)": "Imported %d events (next 90 days)",

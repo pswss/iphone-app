@@ -71,6 +71,8 @@ struct SettingsView: View {
 
     @State private var showImportSheet = false
     @AppStorage("googleICSURL") private var googleURL = ""
+    private enum ImportSource { case apple, google }
+    @State private var confirmSource: ImportSource?   // 실행 전 확인
 
     private var calendarImportCard: some View {
         Button { showImportSheet = true } label: {
@@ -103,7 +105,7 @@ struct SettingsView: View {
                         importSourceRow(icon: "applelogo", tint: .primary,
                                         title: lang.tr("Apple 캘린더"),
                                         subtitle: lang.tr("이 기기의 캘린더에서 90일치")) {
-                            runAppleImport()
+                            confirmSource = .apple   // 실행 전 한 번 더 확인
                         }
 
                         VStack(alignment: .leading, spacing: 10) {
@@ -123,7 +125,7 @@ struct SettingsView: View {
                             Text(lang.tr("구글 캘린더 → 설정 → 내 캘린더 → 'iCal 형식의 비공개 주소'를 붙여넣으세요."))
                                 .font(.caption2).foregroundStyle(.secondary)
                             Button {
-                                runGoogleImport()
+                                confirmSource = .google   // 실행 전 한 번 더 확인
                             } label: {
                                 if importing { ProgressView().controlSize(.small).frame(maxWidth: .infinity) }
                                 else { Text(lang.tr("가져오기")).font(.subheadline.bold()).frame(maxWidth: .infinity) }
@@ -131,7 +133,7 @@ struct SettingsView: View {
                             .buttonStyle(.borderedProminent)
                             .disabled(googleURL.trimmingCharacters(in: .whitespaces).isEmpty || importing)
                         }
-                        .padding(14)
+                        .padding(18)   // Apple 행과 동일 — 두 카드 아이콘 선두 정렬
                         .glassCard(cornerRadius: 22)
                     }
                     .padding(16)
@@ -144,6 +146,21 @@ struct SettingsView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(lang.tr("닫기")) { showImportSheet = false }
                 }
+            }
+            .confirmationDialog(
+                confirmSource == .google ? lang.tr("Google 캘린더에서 가져올까요?")
+                                         : lang.tr("Apple 캘린더에서 가져올까요?"),
+                isPresented: Binding(get: { confirmSource != nil },
+                                     set: { if !$0 { confirmSource = nil } }),
+                titleVisibility: .visible
+            ) {
+                Button(lang.tr("가져오기")) {
+                    let src = confirmSource; confirmSource = nil
+                    if src == .google { runGoogleImport() } else { runAppleImport() }
+                }
+                Button(lang.tr("취소"), role: .cancel) { confirmSource = nil }
+            } message: {
+                Text(lang.tr("오늘부터 90일치 일정을 추가해요. 이미 있는 일정(같은 제목·시각)은 건너뜁니다."))
             }
         }
         #if os(macOS)
