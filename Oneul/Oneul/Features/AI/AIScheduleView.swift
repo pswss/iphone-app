@@ -136,13 +136,13 @@ struct AIScheduleView: View {
             .padding(.vertical, 14)
             .background(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(active ? Color.appAccent : Color.gray.opacity(0.22))
+                    .fill(active ? Color.appAccentStrong : Color.gray.opacity(0.22))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .strokeBorder(.white.opacity(active ? 0.25 : 0), lineWidth: 1)
             )
-            .shadow(color: active ? Color.appAccent.opacity(0.55) : .clear, radius: 14, y: 5)
+            .shadow(color: active ? Color.appAccentStrong.opacity(0.55) : .clear, radius: 14, y: 5)
         }
         .buttonStyle(.plain)
         .disabled(!canGenerate)
