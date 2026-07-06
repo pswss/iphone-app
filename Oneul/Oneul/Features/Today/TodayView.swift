@@ -461,18 +461,32 @@ struct TodayView: View {
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))   // 한 장씩 스와이프(점 없이 깔끔하게)
                 #else
-                ScrollView(.horizontal, showsIndicators: false) {   // 맥: 페이징 스크롤(TabView는 탭 UI가 됨)
-                    LazyHStack(spacing: 0) {
-                        ForEach(items) { bandCard($0).containerRelativeFrame(.horizontal) }
+                ScrollView(.horizontal, showsIndicators: false) {   // 맥: 칩 나열(평소대로) — 한눈에 전부
+                    HStack(spacing: 8) {
+                        ForEach(items) { macBandChip($0) }
                     }
-                    .scrollTargetLayout()
                 }
-                .scrollTargetBehavior(.paging)
                 #endif
             }
             .frame(height: 46)
         }
     }
+
+    #if os(macOS)
+    // 맥 칩 — 제목 + D-Day 배지 나란히(예전 D-Day 바 스타일)
+    private func macBandChip(_ it: BandItem) -> some View {
+        HStack(spacing: 7) {
+            Text(it.title).font(.subheadline).bold().lineLimit(1)
+            Text(it.badge)
+                .font(.caption2).bold().monospacedDigit()
+                .foregroundStyle(Color.appOnAccent)
+                .padding(.horizontal, 8).padding(.vertical, 2)
+                .background(it.urgent ? Color.red : Color.appAccent, in: Capsule())
+        }
+        .padding(.horizontal, 12).padding(.vertical, 8)
+        .glassCard(cornerRadius: 14)
+    }
+    #endif
 
     private func bandCard(_ it: BandItem) -> some View {
         HStack(spacing: 8) {
