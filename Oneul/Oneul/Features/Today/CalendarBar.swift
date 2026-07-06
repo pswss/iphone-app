@@ -147,8 +147,6 @@ struct CalendarBar: View {
                     .frame(width: 32, height: 32)
                     .background { highlight(selected: selected, today: today) }
                     .foregroundStyle(dateColor(date, selected: selected))
-                Circle().fill(hasEvents(date) ? Color.appAccentText.opacity(selected ? 0 : 0.8) : .clear)
-                    .frame(width: 4, height: 4)   // 일정 있는 날 점(선택 시 원이 대신함)
             }
             .frame(maxWidth: .infinity)
         }

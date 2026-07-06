@@ -109,6 +109,8 @@ struct TodayView: View {
             EventSearchSheet(events: events) { day in selectedDay = day }
             #if os(macOS)
                 .frame(minWidth: 440, minHeight: 500)
+            #else
+                .presentationDetents([.medium, .large])   // 메모 검색처럼 화면 일부만
             #endif
         }
         #if os(iOS)
@@ -264,7 +266,7 @@ struct TodayView: View {
     private var collapsingChrome: some View {
         VStack(spacing: 0) {
             chromeRow(index: 0, order: 3) { header }
-            chromeRow(index: 1, order: 2) { dDayBar }
+            chromeRow(index: 1, order: 2) { unifiedBand }   // 시험 D-Day + 방학·주요 일정 통합(한 장씩 슬라이드)
             #if os(iOS)
             chromeRow(index: 2, order: 1) { CalendarBar(selectedDay: $selectedDay, hasEvents: { !(eventsByDay[Calendar.current.startOfDay(for: $0)] ?? []).isEmpty }) }   // 맥은 주 그리드가 대신함 → 주간 스트립 불필요
             #endif
@@ -319,19 +321,14 @@ struct TodayView: View {
                 Text(selectedDay, format: .dateTime.day().weekday(.wide))
                     .font(.largeTitle).bold()
                 Spacer()
-                HStack(spacing: 18) {
-                    Button { showSearch = true } label: {   // 일정 검색(제목·장소)
-                        Image(systemName: "magnifyingglass")
-                    }
+                HStack(spacing: 10) {
+                    headerGlassButton("magnifyingglass") { showSearch = true }   // 일정 검색
                     #if os(iOS)
                     if isStudent {
-                        Button { showMealSheet = true } label: { Image(systemName: "fork.knife") }
+                        headerGlassButton("fork.knife") { showMealSheet = true }
                     }
-                    Button { showSettingsSheet = true } label: { Image(systemName: "gearshape") }
                     #endif
                 }
-                .font(.title3).foregroundStyle(.secondary)
-                .buttonStyle(.plain)
             }
             if let holiday = Holidays.name(for: selectedDay) {
                 Text(holiday)
@@ -379,6 +376,18 @@ struct TodayView: View {
         }
     }
 
+    // 헤더 아이콘 — 리퀴드 글래스 원형
+    private func headerGlassButton(_ symbol: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.body.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 36, height: 36)
+                .glassEffect(.regular.interactive(), in: Circle())
+        }
+        .buttonStyle(.plain)
+    }
+
     // MARK: D-Day (다가오는 시험/수능)
     private var dDays: [(title: String, days: Int)] {
         let today = Calendar.current.startOfDay(for: Date())
@@ -398,32 +407,73 @@ struct TodayView: View {
             .prefix(3).map { $0 }
     }
 
+    // 시험 D-Day + 방학·주요 일정을 하나의 밴드로 — 위젯 전폭, 한 장씩 페이지 슬라이드
+    private struct BandItem: Identifiable {
+        let id: String
+        let badge: String        // "D-58" / "D-DAY" / "진행 중"
+        let urgent: Bool         // 7일 이내 → 빨강
+        let title: String
+        let trailing: String     // 날짜
+    }
+
+    private var bandItems: [BandItem] {
+        let cal = Calendar.current
+        let now = Date()
+        let today = cal.startOfDay(for: now)
+        var seen = Set<String>()
+        var out: [(days: Int, item: BandItem)] = []
+
+        func add(days: Int, badge: String, title: String, date: Date) {
+            guard seen.insert(title).inserted else { return }
+            out.append((days, BandItem(id: title, badge: badge, urgent: days >= 0 && days <= 7,
+                                       title: title,
+                                       trailing: date.formatted(.dateTime.month().day().locale(lang.locale)))))
+        }
+        for d in dDays {   // 시험 D-Day
+            if let date = cal.date(byAdding: .day, value: d.days, to: today) {
+                add(days: d.days, badge: d.days <= 0 ? "D-DAY" : "D-\(d.days)", title: d.title, date: date)
+            }
+        }
+        let horizon = cal.date(byAdding: .day, value: 365, to: now) ?? now
+        for e in events where (e.pinned || e.isMultiDay()) && e.end >= now && e.start <= horizon {
+            let days = cal.dateComponents([.day], from: today, to: cal.startOfDay(for: e.start)).day ?? 0
+            let badge = (e.isMultiDay() && e.start <= now) ? lang.tr("진행 중") : (days <= 0 ? "D-DAY" : "D-\(days)")
+            add(days: max(days, 0), badge: badge, title: e.title, date: e.start)
+        }
+        return out.sorted { $0.days < $1.days }.map(\.item)
+    }
+
     @ViewBuilder
-    private var dDayBar: some View {
-        let items = dDays
+    private var unifiedBand: some View {
+        let items = bandItems
         if !items.isEmpty {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(items, id: \.title) { item in
-                        HStack(spacing: 6) {
-                            Text(item.title).font(.caption2).bold().lineLimit(1)
-                            Text(item.days == 0 ? "D-DAY" : "D-\(item.days)")
-                                .font(.caption2).bold().foregroundStyle(Color.appOnAccent)
-                                .padding(.horizontal, 7).padding(.vertical, 2)
-                                .background(item.days <= 7 ? Color.red : Color.appAccent, in: Capsule())
-                        }
-                        .padding(.horizontal, 11).padding(.vertical, 7)
-                        .glassEffect(.regular, in: Capsule())   // D-Day 칩을 진짜 유리 캡슐로
+            TabView {
+                ForEach(items) { it in
+                    HStack(spacing: 8) {
+                        Text(it.badge)
+                            .font(.caption).bold().monospacedDigit()
+                            .foregroundStyle(Color.appOnAccent)
+                            .padding(.horizontal, 9).padding(.vertical, 3)
+                            .background(it.urgent ? Color.red : Color.appAccent, in: Capsule())
+                        Text(it.title).font(.subheadline).bold().lineLimit(1)
+                        Spacer(minLength: 6)
+                        Text(it.trailing).font(.caption2).foregroundStyle(.secondary)
                     }
+                    .padding(.horizontal, 14)
+                    .frame(maxWidth: .infinity, minHeight: 46, alignment: .leading)
+                    .glassCard(cornerRadius: 18)
                 }
             }
+            #if os(iOS)
+            .tabViewStyle(.page(indexDisplayMode: .never))   // 한 장씩 스와이프(점 없이 깔끔하게)
+            #endif
+            .frame(height: 50)
         }
     }
 
     // MARK: 타임라인 카드
     private func timelineCard(_ p: DayPlan, live: Bool) -> some View {
         VStack(alignment: .leading, spacing: 7) {   // 제목·바·상태를 촘촘히 붙임
-            if live { FeaturedBand(events: events, lang: lang) }   // 주요 일정 스와이프 밴드(남은 일자 순)
             HStack {
                 Text(live ? lang.tr("오늘 타임라인")
                           : selectedDay.formatted(.dateTime.month().day().locale(lang.locale)) + " " + lang.tr("타임라인"))
@@ -439,6 +489,8 @@ struct TodayView: View {
             }
 
             if p.isEmpty {
+                Capsule().fill(.gray.opacity(0.22))                  // 빈 날도 같은 높이의 바 → 슬라이드 시 카드 크기 통일
+                    .frame(height: wide ? 26 : 19)
                 Text(lang.tr("일정 없음"))
                     .font(.subheadline).bold()
                     .foregroundStyle(.secondary)
@@ -607,7 +659,7 @@ struct DayPager<Content: View>: UIViewControllerRepresentable {
                                 previousViewControllers: [UIViewController], transitionCompleted completed: Bool) {
             guard completed, let h = p.viewControllers?.first as? Host,
                   !Calendar.current.isDate(parent.selectedDay, inSameDayAs: h.day) else { return }
-            parent.selectedDay = h.day                                // 슬라이드 끝나면 선택일 갱신
+            withAnimation(.snappy(duration: 0.3)) { parent.selectedDay = h.day }   // 탭 이동과 동일한 자연 전환
         }
     }
 
@@ -636,74 +688,6 @@ private extension View {
     }
 }
 
-/// 상단 '주요 일정' 스와이프 밴드 — pinned 또는 여러 날 일정 중 지나지 않은 것을 남은 일자(D-day) 순으로 하나씩.
-struct FeaturedBand: View {
-    let events: [ScheduleEvent]
-    var lang: AppLanguage
-
-    private var items: [ScheduleEvent] {
-        let now = Date()
-        let cal = Calendar.current
-        let horizon = cal.date(byAdding: .day, value: 365, to: now) ?? now   // 수년 뒤 방학까지 노출 방지
-        return events
-            .filter { ($0.pinned || $0.isMultiDay()) && $0.end >= now && $0.start <= horizon }
-            .sorted { daysLeft($0, cal, now) < daysLeft($1, cal, now) }
-    }
-
-    private func daysLeft(_ e: ScheduleEvent, _ cal: Calendar, _ now: Date) -> Int {
-        cal.dateComponents([.day], from: cal.startOfDay(for: now), to: cal.startOfDay(for: e.start)).day ?? 0
-    }
-
-    var body: some View {
-        let list = items
-        if !list.isEmpty {
-            #if os(iOS)
-            TabView {
-                ForEach(list, id: \.id) { e in card(e) }
-            }
-            .tabViewStyle(.page(indexDisplayMode: list.count > 1 ? .automatic : .never))
-            .frame(height: 44)
-            #else
-            // macOS: PageTabViewStyle 미지원 → 가로 페이징 스크롤로 대체.
-            ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(spacing: 0) {
-                    ForEach(list, id: \.id) { e in
-                        card(e).containerRelativeFrame(.horizontal)
-                    }
-                }
-                .scrollTargetLayout()
-            }
-            .scrollTargetBehavior(.paging)
-            .frame(height: 44)
-            #endif
-        }
-    }
-
-    @ViewBuilder
-    private func card(_ e: ScheduleEvent) -> some View {
-        let now = Date()
-        let cal = Calendar.current
-        HStack(spacing: 8) {
-            Text(dLabel(e, cal, now))
-                .font(.caption).bold().monospacedDigit()
-                .foregroundStyle(Color.appOnAccent)
-                .padding(.horizontal, 8).padding(.vertical, 3)
-                .background(Color.appAccent, in: Capsule())
-            Text(e.title).font(.subheadline).bold().lineLimit(1)
-            Spacer(minLength: 6)
-            Text(e.start.formatted(.dateTime.month().day().locale(lang.locale)))
-                .font(.caption2).foregroundStyle(.secondary)
-        }
-        .padding(.horizontal, 12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func dLabel(_ e: ScheduleEvent, _ cal: Calendar, _ now: Date) -> String {
-        if e.isMultiDay() && e.start <= now && e.end >= now { return lang.tr("진행 중") }
-        let d = daysLeft(e, cal, now)
-        return d <= 0 ? "D-DAY" : "D-\(d)"
-    }
-}
 
 #if os(macOS)
 /// 맥 주 그리드 — 한 주(월~일) 7일을 가로로 나란히. 첫 열만 시각축, 세로 스크롤 공유.

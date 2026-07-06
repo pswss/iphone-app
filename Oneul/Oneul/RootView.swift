@@ -82,6 +82,9 @@ struct RootView: View {
 
             AIScheduleView()
                 .tabItem { Label(lang.tr("AI"), systemImage: "sparkles") }
+
+            SettingsView()
+                .tabItem { Label(lang.tr("설정"), systemImage: "gearshape") }
         }
         .overlay {
             // 이전 외형 스냅샷을 위에 깔았다가 페이드아웃 → 새 외형이 서서히 드러남(크로스페이드)

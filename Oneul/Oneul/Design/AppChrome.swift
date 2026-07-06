@@ -319,7 +319,6 @@ final class AppLanguage {
             "Calendar access denied. Allow it in System Settings.",
         "할 일": "To-do",
         "AI 일정": "AI Events",
-        "새 메모 작성": "New Note",
         "학교 설정하기": "Set up school",
         "실시간 활동 (잠금화면·다이나믹 아일랜드)": "Live Activity (Lock Screen · Dynamic Island)",
         "지금 시작": "Start now",

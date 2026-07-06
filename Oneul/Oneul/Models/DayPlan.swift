@@ -75,10 +75,15 @@ struct DayPlan {
 
     #if os(iOS)
     /// Live Activity로 넘길 스냅샷 묶음(ActivityKit 런타임이 있는 iOS에서만 — macOS엔 없음).
+    /// ActivityKit 콘텐츠는 4KB 제한 — 초과하면 'ActivityInput error 0'으로 시작 실패.
+    /// 시간표로 이벤트가 많은 날을 위해 스냅샷 개수·제목 길이를 캡.
     func contentState(at now: Date = .now) -> ScheduleActivityAttributes.ContentState {
-        let snaps = events.enumerated().map { index, e in
-            EventSnapshot(id: e.id, title: e.title, start: e.start, end: e.end,
-                          colorIndex: index, isMultiDay: e.isMultiDay())
+        let cap = 14
+        let upcoming = events.filter { $0.end >= now }
+        let picked = upcoming.isEmpty ? Array(events.suffix(cap)) : Array(upcoming.prefix(cap))
+        let snaps = picked.map { e in
+            EventSnapshot(id: e.id, title: String(e.title.prefix(20)), start: e.start, end: e.end,
+                          colorIndex: colorIndex(of: e), isMultiDay: e.isMultiDay())
         }
         let cur = current(at: now)
         let nxt = next(at: now)

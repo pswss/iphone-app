@@ -145,14 +145,9 @@ struct MemoView: View {
                 AppBackground()
                 Group {
                     if memos.isEmpty {
-                        VStack(spacing: 12) {
+                        VStack(spacing: 8) {
                             Image(systemName: "note.text").font(.largeTitle).foregroundStyle(.secondary)
                             Text(lang.tr("메모가 없어요")).font(.subheadline).foregroundStyle(.secondary)
-                            Button { addMemo() } label: {          // 빈 상태에서 바로 행동 유도
-                                Label(lang.tr("새 메모 작성"), systemImage: "square.and.pencil")
-                                    .font(.subheadline.bold())
-                            }
-                            .buttonStyle(.borderedProminent)
                         }
                     } else {
                         List {
@@ -204,6 +199,7 @@ struct MemoView: View {
             }
             #endif
             .onReceive(NotificationCenter.default.publisher(for: .oneulNewMemo)) { _ in addMemo() }   // 맥: 창 툴바 '+'
+            .onAppear { purgeEmptyMemos() }   // 편집기 onDisappear를 놓친 빈 메모 청소(탭 전환·강제 종료 등)
         }
     }
 
@@ -225,6 +221,18 @@ struct MemoView: View {
             .padding(.bottom, 12)
             .transition(.move(edge: .bottom).combined(with: .opacity))
         }
+    }
+
+    /// 제목·본문·첨부·체크리스트 모두 빈 메모 일괄 삭제(편집 중이 아닐 때만).
+    private func purgeEmptyMemos() {
+        guard path.isEmpty else { return }
+        var changed = false
+        for m in memos where m.title.isEmpty && m.text.isEmpty
+            && (m.attachments ?? []).isEmpty
+            && (m.checkItems ?? []).filter({ !$0.text.isEmpty }).isEmpty {
+            context.delete(m); changed = true
+        }
+        if changed { try? context.save() }
     }
 
     private func addMemo() {
