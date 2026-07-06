@@ -361,11 +361,19 @@ struct MealView: View {
                         Image(systemName: "fork.knife").font(.largeTitle).foregroundStyle(.secondary)
                         Text(lang.tr("설정 → 학생 → 학교 설정에서\n학교를 먼저 등록하세요"))
                             .multilineTextAlignment(.center).font(.subheadline).foregroundStyle(.secondary)
+                        #if os(macOS)
+                        SettingsLink {   // 맥: 시트 위 시트로 겹치지 않게 설정 창으로
+                            Label(lang.tr("학교 설정하기"), systemImage: "graduationcap")
+                                .font(.subheadline.bold())
+                        }
+                        .buttonStyle(.borderedProminent)
+                        #else
                         Button { showSchoolSetup = true } label: {   // 빈 상태 CTA
                             Label(lang.tr("학교 설정하기"), systemImage: "graduationcap")
                                 .font(.subheadline.bold())
                         }
                         .buttonStyle(.borderedProminent)
+                        #endif
                     }
                     .padding(40)
                 } else {

@@ -64,23 +64,55 @@ struct OneulApp: App {
                 .focusEffectDisabled()   // 설정 창(별도 씬) 파란 포커스 링 제거
         }
 
-        // 타임라인 = 메뉴바 아이콘 (클릭→오늘 일정 한눈에)
+        // 타임라인 = 메뉴바 아이콘 (클릭→오늘 일정 한눈에) — 위에서 미끄러져 내려오는 등장
         MenuBarExtra("Oneul 타임라인", systemImage: "calendar.day.timeline.left") {
             MenuBarTimelineView()
                 .modelContainer(container)
                 .frame(width: 340)
                 .fixedSize(horizontal: false, vertical: true)
+                .menuBarPopIn(.slideDown)
         }
         .menuBarExtraStyle(.window)
 
-        // AI = 메뉴바 상단 ✨ (클릭→자연어 입력 팝오버, 바깥 클릭으로 닫힘)
+        // AI = 메뉴바 상단 ✨ (클릭→자연어 입력 팝오버, 바깥 클릭으로 닫힘) — 반짝 튀어나오는 등장
         MenuBarExtra("Oneul AI", systemImage: "sparkles") {
             AIScheduleView()
                 .modelContainer(container)
                 .frame(width: 420)
                 .fixedSize(horizontal: false, vertical: true)   // 콘텐츠 높이에 딱 맞춤 — 스크롤·빈 여백 없음
+                .menuBarPopIn(.sparklePop)
         }
         .menuBarExtraStyle(.window)
         #endif
     }
 }
+
+#if os(macOS)
+// 메뉴바 팝오버 등장 애니메이션 — 아이콘 성격에 맞는 두 가지
+enum MenuBarPopStyle { case slideDown, sparklePop }
+
+private struct MenuBarPopIn: ViewModifier {
+    let style: MenuBarPopStyle
+    @State private var shown = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(shown ? 1 : 0)
+            .scaleEffect(style == .sparklePop ? (shown ? 1 : 0.88) : 1, anchor: .top)
+            .offset(y: style == .slideDown ? (shown ? 0 : -14) : 0)
+            .onAppear {
+                shown = false
+                withAnimation(style == .sparklePop
+                              ? .spring(response: 0.32, dampingFraction: 0.62)   // ✨ 통통 튀는 팝
+                              : .spring(response: 0.30, dampingFraction: 0.85)) { // 타임라인: 차분한 슬라이드
+                    shown = true
+                }
+            }
+            .onDisappear { shown = false }
+    }
+}
+
+extension View {
+    func menuBarPopIn(_ style: MenuBarPopStyle) -> some View { modifier(MenuBarPopIn(style: style)) }
+}
+#endif

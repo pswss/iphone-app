@@ -266,7 +266,9 @@ struct TodayView: View {
     private var collapsingChrome: some View {
         VStack(spacing: 0) {
             chromeRow(index: 0, order: 3) { header }
-            chromeRow(index: 1, order: 2) { unifiedBand }   // 시험 D-Day + 방학·주요 일정 통합(한 장씩 슬라이드)
+            #if os(macOS)
+            chromeRow(index: 1, order: 2) { unifiedBand }   // 맥: 타임라인 카드가 없어 밴드는 독립 행
+            #endif
             #if os(iOS)
             chromeRow(index: 2, order: 1) { CalendarBar(selectedDay: $selectedDay, hasEvents: { !(eventsByDay[Calendar.current.startOfDay(for: $0)] ?? []).isEmpty }) }   // 맥은 주 그리드가 대신함 → 주간 스트립 불필요
             #endif
@@ -447,28 +449,40 @@ struct TodayView: View {
     private var unifiedBand: some View {
         let items = bandItems
         if !items.isEmpty {
-            TabView {
-                ForEach(items) { it in
-                    HStack(spacing: 8) {
-                        Text(it.badge)
-                            .font(.caption).bold().monospacedDigit()
-                            .foregroundStyle(Color.appOnAccent)
-                            .padding(.horizontal, 9).padding(.vertical, 3)
-                            .background(it.urgent ? Color.red : Color.appAccent, in: Capsule())
-                        Text(it.title).font(.subheadline).bold().lineLimit(1)
-                        Spacer(minLength: 6)
-                        Text(it.trailing).font(.caption2).foregroundStyle(.secondary)
-                    }
-                    .padding(.horizontal, 14)
-                    .frame(maxWidth: .infinity, minHeight: 46, alignment: .leading)
-                    .glassCard(cornerRadius: 18)
+            Group {
+                #if os(iOS)
+                TabView {
+                    ForEach(items) { bandCard($0) }
                 }
+                .tabViewStyle(.page(indexDisplayMode: .never))   // 한 장씩 스와이프(점 없이 깔끔하게)
+                #else
+                ScrollView(.horizontal, showsIndicators: false) {   // 맥: 페이징 스크롤(TabView는 탭 UI가 됨)
+                    LazyHStack(spacing: 0) {
+                        ForEach(items) { bandCard($0).containerRelativeFrame(.horizontal) }
+                    }
+                    .scrollTargetLayout()
+                }
+                .scrollTargetBehavior(.paging)
+                #endif
             }
-            #if os(iOS)
-            .tabViewStyle(.page(indexDisplayMode: .never))   // 한 장씩 스와이프(점 없이 깔끔하게)
-            #endif
-            .frame(height: 50)
+            .frame(height: 42)
         }
+    }
+
+    private func bandCard(_ it: BandItem) -> some View {
+        HStack(spacing: 8) {
+            Text(it.badge)
+                .font(.caption).bold().monospacedDigit()
+                .foregroundStyle(Color.appOnAccent)
+                .padding(.horizontal, 9).padding(.vertical, 3)
+                .background(it.urgent ? Color.red : Color.appAccent, in: Capsule())
+            Text(it.title).font(.subheadline).bold().lineLimit(1)
+            Spacer(minLength: 6)
+            Text(it.trailing).font(.caption2).foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 10)
+        .frame(maxWidth: .infinity, minHeight: 38, alignment: .leading)
+        .background(.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: 타임라인 카드
@@ -500,6 +514,7 @@ struct TodayView: View {
                 Text(currentLine(p))
                     .font(.subheadline).bold()
             }
+            unifiedBand   // 주요 알림(시험 D-Day·방학) — 타임라인 위젯 하단부에 통합
         }
         .padding(.horizontal, 14).padding(.vertical, 13)
         .glassCard(cornerRadius: 22)
@@ -705,12 +720,29 @@ struct MacWeekGrid: View {
     @State private var didInitialScroll = false
     private var anchorHour: Int { max(0, min(23, cal.component(.hour, from: Date()) - 1)) }   // 첫 진입 위치(현재 시각 한 시간 위)
 
+    // 고정 규격 — 창 크기에 따라 열이 늘어나지 않고, 좁아지면 월요일부터 잘려 나감
+    private let colW: CGFloat = 150
+    private let gutterW: CGFloat = 52          // 시각축 전용 거터(열과 분리 → 7열 폭 완전 균등)
+    private let hourH: CGFloat = 70            // DayGridView hourHeight와 동일
+    private var totalW: CGFloat { gutterW + colW * 7 }
+
     var body: some View {
+        GeometryReader { geo in
+            let fits = geo.size.width >= totalW
+            fixedGrid
+                .frame(width: totalW)
+                // 넓으면 중앙, 좁으면 오른쪽(일요일) 고정 → 월요일부터 서서히 사라짐
+                .frame(width: geo.size.width, height: geo.size.height, alignment: fits ? .center : .trailing)
+                .clipped()
+        }
+    }
+
+    private var fixedGrid: some View {
         VStack(spacing: 0) {
             HStack(spacing: 0) {                              // 요일 헤더는 고정(스크롤 안 함)
+                Color.clear.frame(width: gutterW, height: 1)
                 ForEach(Array(days.enumerated()), id: \.offset) { _, d in
-                    dayHeader(d)
-                        .frame(maxWidth: .infinity)   // 열과 동일한 7등분 — 첫 열만 넓히면 모든 헤더가 어긋남
+                    dayHeader(d).frame(width: colW)
                 }
             }
             .padding(.bottom, 4)
@@ -718,16 +750,19 @@ struct MacWeekGrid: View {
             ScrollViewReader { proxy in
                 ScrollView(showsIndicators: false) {          // 7열을 감싸는 단일 스크롤 → 모든 요일이 함께 세로 이동
                     HStack(spacing: 0) {
+                        hourGutter                            // 시각 라벨 열(별도) → 7열 폭 균등
                         ForEach(Array(days.enumerated()), id: \.offset) { i, d in
                             DayGridView(plan: dayPlan(d), day: d,
                                         onEdit: onEdit, onAdd: onAdd,
                                         previewStart: previewStart(d),
                                         scrollHour: $scrollHour,
-                                        showHourLabels: i == 0,
+                                        showHourLabels: false,
                                         scrollsInternally: false)   // 내부 스크롤 끔 → 바깥 단일 스크롤이 통합 제어
-                                .frame(maxWidth: .infinity)
+                                .frame(width: colW)
                                 .overlay(alignment: .leading) {
-                                    if i > 0 { Rectangle().fill(.primary.opacity(0.08)).frame(width: 1) }
+                                    if i > 0 {   // 열 구분선 — 가로줄과 같은 헤어라인
+                                        Rectangle().fill(.primary.opacity(0.14)).frame(width: 0.5)
+                                    }
                                 }
                         }
                     }
@@ -739,6 +774,28 @@ struct MacWeekGrid: View {
                 }
             }
         }
+    }
+
+    /// 시각 라벨 전용 거터 — DayGridView hourRow와 같은 규격(70pt/행).
+    private var hourGutter: some View {
+        VStack(spacing: 0) {
+            ForEach(0..<24, id: \.self) { h in
+                Text(hourLabel(h))
+                    .font(.caption2).foregroundStyle(.secondary)
+                    .frame(width: gutterW - 8, alignment: .leading)
+                    .frame(height: hourH, alignment: .top)
+                    .offset(y: -7)   // DayGridView 라벨과 동일 정렬
+            }
+        }
+        .frame(width: gutterW, alignment: .leading)
+        .padding(.leading, 8)
+        .frame(width: gutterW)
+    }
+
+    private func hourLabel(_ h: Int) -> String {
+        let h12 = h % 12 == 0 ? 12 : h % 12
+        if lang.isEnglish { return "\(h12) \(h < 12 || h == 24 ? "AM" : "PM")" }
+        return "\(h < 12 || h == 24 ? "오전" : "오후") \(h12)시"
     }
 
     private func dayHeader(_ d: Date) -> some View {
@@ -753,7 +810,6 @@ struct MacWeekGrid: View {
     }
 
     // MARK: 종일 밴드(연속 스팬 바)
-    private let gutter: CGFloat = 52   // 첫 열 시각축 폭(DayGridView leftInset과 동일)
     private let barH: CGFloat = 22
     private let barVGap: CGFloat = 4
 
@@ -785,19 +841,16 @@ struct MacWeekGrid: View {
         let bars = allDayBars
         if !bars.isEmpty {
             let rows = (bars.map { $0.row }.max() ?? 0) + 1
-            GeometryReader { geo in
-                let colW = geo.size.width / 7
-                ZStack(alignment: .topLeading) {
-                    ForEach(bars) { bar in
-                        let x0 = bar.startCol == 0 ? gutter : colW * CGFloat(bar.startCol)
-                        let x1 = colW * CGFloat(bar.endCol + 1)
-                        allDayPill(bar)
-                            .frame(width: max(x1 - x0 - 6, 24), height: barH)
-                            .offset(x: x0 + 3, y: CGFloat(bar.row) * (barH + barVGap))
-                    }
+            ZStack(alignment: .topLeading) {
+                ForEach(bars) { bar in
+                    let x0 = gutterW + colW * CGFloat(bar.startCol)
+                    let x1 = gutterW + colW * CGFloat(bar.endCol + 1)
+                    allDayPill(bar)
+                        .frame(width: max(x1 - x0 - 6, 24), height: barH)
+                        .offset(x: x0 + 3, y: CGFloat(bar.row) * (barH + barVGap))
                 }
             }
-            .frame(height: CGFloat(rows) * (barH + barVGap) - barVGap)
+            .frame(width: totalW, height: CGFloat(rows) * (barH + barVGap) - barVGap, alignment: .topLeading)
             .padding(.top, 2).padding(.bottom, 8)
         }
     }
