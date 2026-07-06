@@ -55,13 +55,6 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle(lang.tr("설정"))
-            .confirmationDialog(lang.tr("정말 모든 데이터를 지울까요?"),
-                                isPresented: $showResetConfirm, titleVisibility: .visible) {
-                Button(lang.tr("초기화"), role: .destructive) { resetAllData() }
-                Button(lang.tr("취소"), role: .cancel) {}
-            } message: {
-                Text(lang.tr("이 기기의 모든 일정·학교 설정이 삭제됩니다. 되돌릴 수 없어요."))
-            }
         }
     }
 
@@ -240,7 +233,37 @@ struct SettingsView: View {
             }
             .tint(.primary)
             Divider().opacity(0.3)
-            Button(role: .destructive) { showResetConfirm = true } label: {
+            if showResetConfirm {   // 버튼 바로 위 인라인 확인(2단계) — 팝업 위치 문제 해소
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(lang.tr("정말 모든 데이터를 지울까요?"))
+                        .font(.subheadline).bold().foregroundStyle(.red)
+                    Text(lang.tr("이 기기의 모든 일정·학교 설정이 삭제됩니다. 되돌릴 수 없어요."))
+                        .font(.caption).foregroundStyle(.secondary)
+                    HStack(spacing: 8) {
+                        Button(role: .destructive) {
+                            resetAllData()
+                            withAnimation(.snappy(duration: 0.2)) { showResetConfirm = false }
+                        } label: {
+                            Text(lang.tr("초기화")).font(.subheadline.bold())
+                                .frame(maxWidth: .infinity).padding(.vertical, 8)
+                        }
+                        .buttonStyle(.borderedProminent).tint(.red)
+                        Button {
+                            withAnimation(.snappy(duration: 0.2)) { showResetConfirm = false }
+                        } label: {
+                            Text(lang.tr("취소")).font(.subheadline)
+                                .frame(maxWidth: .infinity).padding(.vertical, 8)
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
+                .padding(12)
+                .background(Color.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+            Button(role: .destructive) {
+                withAnimation(.snappy(duration: 0.22)) { showResetConfirm.toggle() }   // 1차: 확인 펼침
+            } label: {
                 HStack {
                     Label(lang.tr("모든 데이터 초기화"), systemImage: "trash").font(.subheadline)
                     Spacer()
