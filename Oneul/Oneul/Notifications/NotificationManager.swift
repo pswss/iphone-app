@@ -65,11 +65,7 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
-        #if os(iOS)
-        content.sound = AlertTone.notificationSound   // 커스텀 알림음(설정→알림음) 있으면 그걸로
-        #else
         content.sound = .default
-        #endif
         content.interruptionLevel = .timeSensitive   // 집중 모드에서도 일정 알림 전달(엔타이틀먼트 필요)
         content.userInfo = ["eventStart": eventStart.timeIntervalSince1970]   // 탭 → 그 날짜로 이동
         let comps = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: fire)
