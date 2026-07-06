@@ -35,15 +35,25 @@ struct SchoolSetupView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     searchCard
-                    if !results.isEmpty { resultsCard }
-                    if let s = selected { selectedCard(s) }
+                    if !results.isEmpty {
+                        resultsCard.transition(.opacity.combined(with: .move(edge: .top)))
+                    }
+                    if let s = selected {
+                        selectedCard(s).transition(.opacity.combined(with: .move(edge: .top)))
+                    }
                     if !message.isEmpty {
                         Text(message).font(.footnote).foregroundStyle(.secondary).padding(.horizontal, 4)
+                            .transition(.opacity)
                     }
                 }
                 .padding(16)
                 .frame(maxWidth: 640)
                 .frame(maxWidth: .infinity)
+                // 카드 등장/퇴장·크기 변화가 툭 끊기지 않게 — 검색·선택·반 로드 전 구간 스프링
+                .animation(.spring(response: 0.35, dampingFraction: 0.86), value: results)
+                .animation(.spring(response: 0.35, dampingFraction: 0.86), value: code)
+                .animation(.spring(response: 0.35, dampingFraction: 0.86), value: message)
+                .animation(.spring(response: 0.35, dampingFraction: 0.86), value: availableClasses)
             }
             .scrollDismissesKeyboard(.interactively)
         }
@@ -74,7 +84,6 @@ struct SchoolSetupView: View {
                     .frame(maxWidth: 80)
                     .disabled(query.trimmingCharacters(in: .whitespaces).isEmpty || searching)
             }
-            if searching { ProgressView().padding(.leading, 4) }
         }
         .padding(14)
         .glassCard(cornerRadius: 22)
