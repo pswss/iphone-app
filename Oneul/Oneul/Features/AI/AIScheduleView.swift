@@ -252,7 +252,7 @@ struct AIScheduleView: View {
 
     private func generate() async {
         errorMessage = nil; reply = nil; results = []; clarifyCandidates = []; clarifyPrompt = nil
-        let text = inputText
+        let text = FastScheduleParser.normalizeKoreanTime(inputText)   // "한시"→"1시" — 음성 한글 수사 보정
         isLoading = true; defer { isLoading = false }
         do {
             let result = try await AppleIntelligenceClient()
@@ -419,6 +419,9 @@ struct AIScheduleView: View {
 private struct AIThinkingGlow: View {
     @State private var t = false
     var body: some View {
+        glow.drawingGroup()   // 블러 3장 합성을 오프스크린 GPU로 — 타이핑/버튼 렉 완화
+    }
+    private var glow: some View {
         ZStack {
             blob(Color(red: 0.50, green: 0.40, blue: 1.00), 280, -90, -130, 90, 70)
             blob(Color(red: 0.95, green: 0.40, blue: 0.80), 250, 110, 150, -80, -50)

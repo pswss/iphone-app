@@ -28,8 +28,24 @@ enum FastScheduleParser {
 
     // MARK: 순수 파싱 코어 (테스트 대상 — 네트워크·장소검증 없음)
 
+    /// 한글 숫자 시각 → 아라비아 숫자("한시 병원" → "1시 병원", "열두시 반" → "12시 반").
+    /// 음성 입력이 한글 수사로 들어와 파서·모델 모두 놓치던 문제의 근본 수정.
+    static func normalizeKoreanTime(_ text: String) -> String {
+        let map: [(String, String)] = [   // 긴 것 먼저(열두/열한이 '열'에 먹히지 않게)
+            ("열두", "12"), ("열한", "11"), ("열", "10"), ("아홉", "9"), ("여덟", "8"),
+            ("일곱", "7"), ("여섯", "6"), ("다섯", "5"), ("네", "4"), ("세", "3"), ("두", "2"), ("한", "1"),
+        ]
+        var out = text
+        for (ko, num) in map {
+            // 앞이 한글이 아니고(단어 시작), 뒤가 '시'(단 '시간'·'시장' 등 제외)일 때만
+            let pattern = "(?<![가-힣])\(ko)\\s*시(?![간장])"
+            out = out.replacingOccurrences(of: pattern, with: "\(num)시", options: .regularExpression)
+        }
+        return out
+    }
+
     static func parseEvents(text: String, now: Date, cal: Calendar = .current) -> [ParsedEvent]? {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = normalizeKoreanTime(text.trimmingCharacters(in: .whitespacesAndNewlines))
         guard !trimmed.isEmpty else { return nil }
 
         if isNonCreateIntent(trimmed) { return nil }   // 질문/수정/삭제/외형/후속 → 모델

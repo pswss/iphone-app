@@ -7,18 +7,32 @@ import SwiftData
 struct FloatingSearchOverlay: View {
     var onPick: (Date) -> Void
     var onDismiss: () -> Void
-    @Query(sort: \ScheduleEvent.start) private var events: [ScheduleEvent]
+    @Environment(\.modelContext) private var context
     @State private var query = ""
     @FocusState private var focused: Bool
     private let lang = AppLanguage.shared
 
-    private var results: [ScheduleEvent] {
+    /// 검색용 경량 사본 — 전체 SwiftData 오브젝트를 메인에서 동기 로드하던 첫 오픈 렉 제거.
+    private struct Lite: Identifiable { let id: UUID; let title: String; let location: String; let start: Date }
+    @State private var items: [Lite] = []
+
+    private var results: [Lite] {
         let q = query.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty else { return [] }
-        return Array(events
+        return Array(items
             .filter { $0.title.localizedStandardContains(q) || $0.location.localizedStandardContains(q) }
             .sorted { abs($0.start.timeIntervalSinceNow) < abs($1.start.timeIntervalSinceNow) }
             .prefix(8))
+    }
+
+    private func loadItems() {
+        let container = context.container
+        Task.detached(priority: .userInitiated) {
+            let ctx = ModelContext(container)
+            let all = (try? ctx.fetch(FetchDescriptor<ScheduleEvent>())) ?? []
+            let lite = all.map { Lite(id: $0.id, title: $0.title, location: $0.location, start: $0.start) }
+            await MainActor.run { items = lite }
+        }
     }
 
     var body: some View {
@@ -64,10 +78,13 @@ struct FloatingSearchOverlay: View {
         .padding(.horizontal, 16)
         .padding(.top, 8)
         .transition(.move(edge: .top).combined(with: .opacity))
-        .onAppear { focused = true }
+        .onAppear {
+            focused = true
+            loadItems()
+        }
     }
 
-    private func pick(_ e: ScheduleEvent) {
+    private func pick(_ e: Lite) {
         onPick(e.start)
         dismiss()
     }
