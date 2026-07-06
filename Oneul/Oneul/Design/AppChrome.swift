@@ -313,7 +313,18 @@ final class AppLanguage {
         "메모 %d개 삭제됨": "%d note(s) deleted",
         "실행 취소": "Undo",
         "가져오기": "Import",
-        "애플 캘린더에서 가져오기": "Import from Apple Calendar",
+        "캘린더": "Calendar",
+        "캘린더 가져오기": "Import Calendar",
+        "Apple 캘린더": "Apple Calendar",
+        "이 기기의 캘린더에서 90일치": "Next 90 days from this device",
+        "Google 캘린더": "Google Calendar",
+        "비밀 iCal 주소(.ics)로": "Via secret iCal address (.ics)",
+        "구글 캘린더 → 설정 → 내 캘린더 → 'iCal 형식의 비공개 주소'를 붙여넣으세요.":
+            "Google Calendar → Settings → your calendar → paste the 'Secret address in iCal format'.",
+        "일정 %d개를 가져왔어요 · 반복 일정 %d개는 아직 지원하지 않아요":
+            "Imported %d events · %d repeating events not supported yet",
+        "가져오지 못했어요 — 주소를 확인해 주세요 (iCal 비공개 주소여야 해요).":
+            "Import failed — check the address (must be the secret iCal URL).",
         "일정 %d개를 가져왔어요 (오늘부터 90일)": "Imported %d events (next 90 days)",
         "캘린더 접근이 거부됐어요. 시스템 설정에서 허용해 주세요.":
             "Calendar access denied. Allow it in System Settings.",

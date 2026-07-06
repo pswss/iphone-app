@@ -5,6 +5,13 @@ import UserNotifications
 import UIKit
 #endif
 
+private struct ConditionalGlass: ViewModifier {
+    let on: Bool
+    func body(content: Content) -> some View {
+        if on { content.glassCard(cornerRadius: 22) } else { content }
+    }
+}
+
 struct SettingsView: View {
     @Environment(\.modelContext) private var context
     @AppStorage("appearance") private var appearanceRaw = Appearance.system.rawValue
@@ -125,34 +132,138 @@ struct SettingsView: View {
     @State private var importing = false
     @State private var importMsg: String?
 
+    @State private var showImportSheet = false
+    @AppStorage("googleICSURL") private var googleURL = ""
+
     private var calendarImportCard: some View {
-        HStack {
-            Label(lang.tr("애플 캘린더에서 가져오기"), systemImage: "square.and.arrow.down")
-            Spacer()
-            if importing {
-                ProgressView().controlSize(.small)
-            } else {
-                Button(lang.tr("가져오기")) { runCalendarImport() }
-                    .font(.subheadline.bold()).buttonStyle(.bordered)
+        Button { showImportSheet = true } label: {
+            HStack {
+                Label(lang.tr("캘린더"), systemImage: "calendar.badge.plus")
+                Spacer()
+                Text(lang.tr("가져오기")).font(.subheadline).foregroundStyle(.secondary)
+                Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
             }
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
         .padding(.horizontal, 14).padding(.vertical, 12)
         .glassCard(cornerRadius: 22)
+        .sheet(isPresented: $showImportSheet) { calendarImportSheet }
         .alert(importMsg ?? "", isPresented: Binding(get: { importMsg != nil },
                                                      set: { if !$0 { importMsg = nil } })) {
             Button(lang.tr("완료"), role: .cancel) {}
         }
     }
 
-    private func runCalendarImport() {
+    // 애플스러운 선택 시트 — 소스 두 개(애플/구글)
+    private var calendarImportSheet: some View {
+        NavigationStack {
+            ZStack {
+                AppBackground()
+                ScrollView {
+                    VStack(spacing: 12) {
+                        importSourceRow(icon: "applelogo", tint: .primary,
+                                        title: lang.tr("Apple 캘린더"),
+                                        subtitle: lang.tr("이 기기의 캘린더에서 90일치")) {
+                            runAppleImport()
+                        }
+
+                        VStack(alignment: .leading, spacing: 10) {
+                            importSourceRow(icon: "globe", tint: Color(red: 0.26, green: 0.52, blue: 0.96),
+                                            title: lang.tr("Google 캘린더"),
+                                            subtitle: lang.tr("비밀 iCal 주소(.ics)로"), chevron: false) {}
+                            TextField(lang.tr("https://calendar.google.com/…/basic.ics"), text: $googleURL)
+                                .textFieldStyle(.plain)
+                                .font(.caption)
+                                .padding(.horizontal, 12).padding(.vertical, 9)
+                                .background(.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 10))
+                                .autocorrectionDisabled()
+                                #if os(iOS)
+                                .textInputAutocapitalization(.never)
+                                .keyboardType(.URL)
+                                #endif
+                            Text(lang.tr("구글 캘린더 → 설정 → 내 캘린더 → 'iCal 형식의 비공개 주소'를 붙여넣으세요."))
+                                .font(.caption2).foregroundStyle(.secondary)
+                            Button {
+                                runGoogleImport()
+                            } label: {
+                                if importing { ProgressView().controlSize(.small).frame(maxWidth: .infinity) }
+                                else { Text(lang.tr("가져오기")).font(.subheadline.bold()).frame(maxWidth: .infinity) }
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(googleURL.trimmingCharacters(in: .whitespaces).isEmpty || importing)
+                        }
+                        .padding(14)
+                        .glassCard(cornerRadius: 22)
+                    }
+                    .padding(16)
+                    .frame(maxWidth: 560).frame(maxWidth: .infinity)
+                }
+            }
+            .navigationTitle(lang.tr("캘린더 가져오기"))
+            .navBarInline()
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(lang.tr("닫기")) { showImportSheet = false }
+                }
+            }
+        }
+        #if os(macOS)
+        .frame(minWidth: 460, minHeight: 420)
+        #endif
+    }
+
+    private func importSourceRow(icon: String, tint: Color, title: String, subtitle: String,
+                                 chevron: Bool = true, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.title3)
+                    .foregroundStyle(tint)
+                    .frame(width: 36, height: 36)
+                    .background(.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 9))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title).font(.body).bold()
+                    Text(subtitle).font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+                if importing && chevron { ProgressView().controlSize(.small) }
+                else if chevron { Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary) }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(chevron ? 14 : 0)
+        .modifier(ConditionalGlass(on: chevron))
+    }
+
+    private func runAppleImport() {
         importing = true
         Task { @MainActor in
             defer { importing = false }
             do {
                 let n = try await CalendarImport.run(context: context)
+                showImportSheet = false
                 importMsg = String(format: lang.tr("일정 %d개를 가져왔어요 (오늘부터 90일)"), n)
             } catch {
+                showImportSheet = false
                 importMsg = lang.tr("캘린더 접근이 거부됐어요. 시스템 설정에서 허용해 주세요.")
+            }
+        }
+    }
+
+    private func runGoogleImport() {
+        importing = true
+        Task { @MainActor in
+            defer { importing = false }
+            do {
+                let r = try await CalendarImport.runGoogleICS(urlString: googleURL, context: context)
+                showImportSheet = false
+                importMsg = r.skippedRecurring > 0
+                    ? String(format: lang.tr("일정 %d개를 가져왔어요 · 반복 일정 %d개는 아직 지원하지 않아요"), r.added, r.skippedRecurring)
+                    : String(format: lang.tr("일정 %d개를 가져왔어요 (오늘부터 90일)"), r.added)
+            } catch {
+                importMsg = lang.tr("가져오지 못했어요 — 주소를 확인해 주세요 (iCal 비공개 주소여야 해요).")
             }
         }
     }
