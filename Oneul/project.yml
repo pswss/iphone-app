@@ -133,6 +133,7 @@ targets:
         CODE_SIGN_ENTITLEMENTS: OneulMac.entitlements
         TARGETED_DEVICE_FAMILY: ""
         ENABLE_HARDENED_RUNTIME: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon   # 맥 독 아이콘(mac idiom 항목 추가됨)
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
     info:
       path: Generated/OneulMac-Info.plist
