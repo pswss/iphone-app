@@ -329,6 +329,8 @@ final class AppLanguage {
         "현재": "Now",
         "다음": "Next",
         "진행 중인 일정 없음": "No active event",
+        "배치할 교시를 찾지 못한 과목: %@ — 미리보기에서 직접 지정해 주세요.":
+            "Couldn't place: %@ — assign them manually in the preview.",
         "마이크·음성 인식 권한이 꺼져 있어요. 시스템 설정에서 허용해 주세요.":
             "Microphone/speech permission is off. Allow it in System Settings.",
         "새 학년이 시작됐어요 — 설정에서 학년·반을 다시 설정해 주세요":

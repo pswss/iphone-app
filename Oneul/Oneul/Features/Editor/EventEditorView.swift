@@ -196,11 +196,11 @@ struct EventEditorView: View {
         guard let event else { return [] }
         if event.isRecurring {
             return [
-                (lang.tr("이 일정만 삭제"), { EventActions.deleteSingle(event, in: context); dismiss() }),
-                (lang.tr("이후 일정 모두 삭제"), { EventActions.deleteFutureSeries(from: event, in: context); dismiss() })
+                (lang.tr("이 일정만 삭제"), { EventActions.deleteSingle(event, in: context); Haptics.notify(.warning); dismiss() }),
+                (lang.tr("이후 일정 모두 삭제"), { EventActions.deleteFutureSeries(from: event, in: context); Haptics.notify(.warning); dismiss() })
             ]
         }
-        return [(lang.tr("삭제"), { EventActions.deleteSingle(event, in: context); dismiss() })]
+        return [(lang.tr("삭제"), { EventActions.deleteSingle(event, in: context); Haptics.notify(.warning); dismiss() })]
     }
 
     private func field<Content: View>(_ label: String, @ViewBuilder _ content: () -> Content) -> some View {
@@ -335,6 +335,7 @@ struct EventEditorView: View {
                                 weekdays: recurrence == .weekly ? weekdays : [],
                                 endDate: hasEndDate ? endDate : nil, pinned: pinned, into: context)
         }
+        Haptics.notify(.success)   // 저장 확인 촉각 피드백
         dismiss()
     }
 

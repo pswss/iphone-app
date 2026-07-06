@@ -291,11 +291,11 @@ struct MemoEditor: View {
     @State private var importFiles = false
     @State private var previewURL: URL?
 
-    // 애플 메모식 단락 스타일 프리셋.
-    private static let titleFont   = Font.system(size: 26, weight: .bold)
-    private static let headingFont = Font.system(size: 20, weight: .bold)
-    private static let subheadFont = Font.system(size: 17, weight: .semibold)
-    private static let bodyFont    = Font.system(size: 15, weight: .regular)
+    // 애플 메모식 단락 스타일 프리셋 — 텍스트 스타일 기반(Dynamic Type 확대 반영).
+    private static let titleFont   = Font.title.bold()
+    private static let headingFont = Font.title3.bold()
+    private static let subheadFont = Font.headline
+    private static let bodyFont    = Font.body
 
     var body: some View {
         ZStack {
@@ -495,11 +495,13 @@ struct MemoEditor: View {
 
     // MARK: 첨부 추가/삭제
     private func loadPhotos(_ items: [PhotosPickerItem]) async {
-        for item in items {
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd HH.mm.ss"
+        for (i, item) in items.enumerated() {
             guard let data = try? await item.loadTransferable(type: Data.self) else { continue }
             let ut = item.supportedContentTypes.first ?? .image
             let ext = ut.preferredFilenameExtension ?? "jpg"
-            addAttachment(data: data, filename: "\(lang.tr("사진"))-\(shortStamp()).\(ext)", type: ut)
+            let suffix = items.count > 1 ? "-\(i + 1)" : ""
+            addAttachment(data: data, filename: "\(lang.tr("사진")) \(f.string(from: .now))\(suffix).\(ext)", type: ut)
         }
         photoItems = []
     }
@@ -529,8 +531,6 @@ struct MemoEditor: View {
         context.delete(att)
         touch()
     }
-
-    private func shortStamp() -> String { String(UUID().uuidString.prefix(6)) }
 
     /// 데이터 → 플랫폼 이미지 → SwiftUI Image(썸네일).
     private static func thumbnail(_ data: Data) -> Image? {

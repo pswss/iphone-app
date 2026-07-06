@@ -199,7 +199,7 @@ struct SchoolSetupView: View {
         defer { searching = false }
         do {
             results = try await NEISClient.shared.searchSchools(query.trimmingCharacters(in: .whitespaces))
-            if results.isEmpty { message = "검색 결과가 없어요." }
+            if results.isEmpty { message = lang.tr("검색 결과가 없어요") }
         } catch {
             message = error.localizedDescription
         }
@@ -404,9 +404,8 @@ struct MealView: View {
             .navigationTitle(lang.tr("급식"))
             .sheet(isPresented: $showSchoolSetup) { SchoolSetupView() }
             .onChange(of: scenePhase) { _, phase in
-                if phase == .active,
-                   !Calendar.current.isDate(mealDay, equalTo: Date(), toGranularity: .month) {
-                    mealDay = Date()   // 월이 바뀌면 이번 달(오늘)로 갱신
+                if phase == .active, mealDay < Calendar.current.startOfDay(for: Date()) {
+                    mealDay = Date()   // 지난 날짜를 보던 중이면 오늘로(미래 조회는 유지)
                 }
             }
         }

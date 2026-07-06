@@ -208,6 +208,7 @@ struct TodayView: View {
                         dayPlan: { dayPlan(for: $0) },
                         onEdit: { editing = $0 },
                         onAdd: { addStart = $0; showingAdd = true },
+                        previewStart: { previewFor($0) },   // 추가 시트 열려 있는 동안 점선 미리보기(iOS와 동일)
                         scrollHour: $sharedScrollHour)   // macOS: 한 주(월~일) 7열을 한눈에
                 .padding(.horizontal, 12)
                 // .id(gridToken) 금지 — 데이터 변경마다 뷰 아이덴티티가 바뀌면 드래그/리사이즈 커밋 때
@@ -711,6 +712,7 @@ struct MacWeekGrid: View {
     let dayPlan: (Date) -> DayPlan
     var onEdit: (ScheduleEvent) -> Void
     var onAdd: (Date) -> Void
+    var previewStart: (Date) -> Date? = { _ in nil }   // 새 일정 점선 미리보기(요일별)
     @Binding var scrollHour: Int?
 
     private let cal = Calendar.current
@@ -735,6 +737,7 @@ struct MacWeekGrid: View {
                         ForEach(Array(days.enumerated()), id: \.offset) { i, d in
                             DayGridView(plan: dayPlan(d), day: d,
                                         onEdit: onEdit, onAdd: onAdd,
+                                        previewStart: previewStart(d),
                                         scrollHour: $scrollHour,
                                         showHourLabels: i == 0,
                                         scrollsInternally: false)   // 내부 스크롤 끔 → 바깥 단일 스크롤이 통합 제어
