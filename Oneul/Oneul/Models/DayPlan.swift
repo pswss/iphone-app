@@ -37,12 +37,16 @@ struct DayPlan {
     /// Live Activity가 오늘이 비어도 다가오는 일정을 보여주도록.
     static func upcoming(events: [ScheduleEvent], within days: Int = 14,
                          now: Date = .now, calendar: Calendar = .current) -> (plan: DayPlan, day: Date)? {
+        var firstNonEmpty: (DayPlan, Date)?
         for off in 0..<days {
             guard let d = calendar.date(byAdding: .day, value: off, to: now) else { continue }
             let p = DayPlan(events: events, day: d)
-            if !p.isEmpty { return (p, d) }
+            guard !p.isEmpty else { continue }
+            if firstNonEmpty == nil { firstNonEmpty = (p, d) }
+            // 아직 안 끝난 일정이 있는 날 우선 — 저녁에 '다 끝난 오늘' 대신 내일을 띄움
+            if p.events.contains(where: { $0.end >= now }) { return (p, d) }
         }
-        return nil
+        return firstNonEmpty
     }
 
     /// 그날 하루 안의 시간제 일정 (무지개 바·그리드 블록 대상). 생일·기념일 같은 데이마커는 제외.

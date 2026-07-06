@@ -2,6 +2,7 @@
 import ActivityKit
 import Foundation
 import Observation
+import os.log
 
 /// 잠금화면/다이나믹 아일랜드 Live Activity를 시작·갱신·종료.
 /// 서버 없이 동작 — 앱이 떠 있을 때 갱신하고, 카운트다운/진행 바는 위젯이 스스로 굴립니다.
@@ -11,8 +12,12 @@ final class LiveActivityController {
     static let shared = LiveActivityController()
     private init() {}
 
-    /// 마지막 시작/갱신 시도 결과 — 설정의 진단 표시용(왜 안 뜨는지 그대로 보여줌).
-    var status = "아직 시도 안 함 — 오늘 탭을 열거나 아래 버튼을 눌러 보세요."
+    private let log = Logger(subsystem: "com.oneul.app", category: "LiveActivity")
+
+    /// 마지막 시작/갱신 시도 결과 — 진단용(Xcode 콘솔에서도 같은 내용 출력).
+    var status = "아직 시도 안 함 — 오늘 탭을 열어 보세요." {
+        didSet { log.info("\(self.status, privacy: .public)") }
+    }
 
     private var activity: Activity<ScheduleActivityAttributes>?
 
@@ -41,7 +46,8 @@ final class LiveActivityController {
         }
 
         let state = plan.contentState()
-        let content = ActivityContent(state: state, staleDate: plan.dayEnd)
+        // staleDate가 과거면(저녁·일정 종료 후) 시스템이 곧바로 stale 처리 → 안 보일 수 있음. 항상 미래로.
+        let content = ActivityContent(state: state, staleDate: max(plan.dayEnd, Date().addingTimeInterval(15 * 60)))
 
         if let activity {
             Task { await activity.update(content) }

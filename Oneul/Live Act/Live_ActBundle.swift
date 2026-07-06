@@ -13,6 +13,5 @@ struct Live_ActBundle: WidgetBundle {
     var body: some Widget {
         Live_Act()
         Live_ActControl()
-        Live_ActLiveActivity()
     }
 }
