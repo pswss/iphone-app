@@ -86,6 +86,23 @@ extension ScheduleEvent {
         !calendar.isDate(start, inSameDayAs: end)
     }
 
+    /// 하루짜리 '날 전체' 성격(생일·기념일·23시간 이상) — 그리드 블록 대신 종일 배너로 표시.
+    func isDayMarker(calendar: Calendar = .current) -> Bool {
+        guard !isMultiDay(calendar: calendar) else { return false }
+        if end.timeIntervalSince(start) >= 23 * 3600 { return true }
+        return ["생일", "기념일", "birthday", "anniversary"]
+            .contains { title.localizedCaseInsensitiveContains($0) }
+    }
+
+    /// 종일 배너 아이콘 — 생일은 케이크, 기념일은 하트.
+    var bannerIcon: String {
+        if title.localizedCaseInsensitiveContains("생일")
+            || title.localizedCaseInsensitiveContains("birthday") { return "birthday.cake" }
+        if title.localizedCaseInsensitiveContains("기념일")
+            || title.localizedCaseInsensitiveContains("anniversary") { return "heart.fill" }
+        return "rectangle.expand.vertical"
+    }
+
     /// 제목 키워드로 시험 유형 판별. (수능만 csat, 나머지 시험·모의·평가는 school)
     var examKind: ExamKind {
         let t = title

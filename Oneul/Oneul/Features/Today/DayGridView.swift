@@ -153,7 +153,7 @@ struct DayGridView: View {
             ForEach(plan.multiDayEvents) { e in
                 Button { onEdit(e) } label: {
                     HStack(spacing: 8) {
-                        Image(systemName: "rectangle.expand.vertical").font(.caption2)
+                        Image(systemName: e.bannerIcon).font(.caption2)
                         Text(e.title.isEmpty ? lang.tr("제목 없음") : e.title).font(.caption).bold()
                         Spacer()
                         Text(lang.tr("종일")).font(.caption2).foregroundStyle(.secondary)

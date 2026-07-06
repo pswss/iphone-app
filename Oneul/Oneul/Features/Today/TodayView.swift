@@ -867,7 +867,7 @@ struct MacWeekGrid: View {
         return Button { onEdit(bar.event) } label: {
             HStack(spacing: 8) {
                 if bar.openLeft { Image(systemName: "chevron.compact.left").font(.caption2).foregroundStyle(.secondary) }
-                Image(systemName: "rectangle.expand.vertical").font(.caption2)
+                Image(systemName: bar.event.bannerIcon).font(.caption2)
                 Text(bar.event.title.isEmpty ? lang.tr("제목 없음") : bar.event.title).font(.caption).bold().lineLimit(1)
                 Spacer(minLength: 4)
                 Text(lang.tr("종일")).font(.caption2).foregroundStyle(.secondary)

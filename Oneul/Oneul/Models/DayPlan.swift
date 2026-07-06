@@ -45,10 +45,10 @@ struct DayPlan {
         return nil
     }
 
-    /// 그날 하루 안에서 시작·종료하는 일정 (무지개 바 패킹 대상).
-    var singleDayEvents: [ScheduleEvent] { events.filter { !$0.isMultiDay() } }
-    /// 이틀 이상 걸치는 일정 (바 상단 흰 글로우 밴드 대상).
-    var multiDayEvents: [ScheduleEvent] { events.filter { $0.isMultiDay() } }
+    /// 그날 하루 안의 시간제 일정 (무지개 바·그리드 블록 대상). 생일·기념일 같은 데이마커는 제외.
+    var singleDayEvents: [ScheduleEvent] { events.filter { !$0.isMultiDay() && !$0.isDayMarker() } }
+    /// 종일 배너 대상 — 이틀 이상 걸치는 일정 + 하루짜리 데이마커(생일·기념일·종일격).
+    var multiDayEvents: [ScheduleEvent] { events.filter { $0.isMultiDay() || $0.isDayMarker() } }
 
     /// 0...1 사이의 가로 위치(바 안에서의 비율).
     func fraction(for date: Date) -> Double {
@@ -83,7 +83,7 @@ struct DayPlan {
         let picked = upcoming.isEmpty ? Array(events.suffix(cap)) : Array(upcoming.prefix(cap))
         let snaps = picked.map { e in
             EventSnapshot(id: e.id, title: String(e.title.prefix(16)), start: e.start, end: e.end,
-                          colorIndex: colorIndex(of: e), isMultiDay: e.isMultiDay())
+                          colorIndex: colorIndex(of: e), isMultiDay: e.isMultiDay() || e.isDayMarker())
         }
         let cur = current(at: now)
         let nxt = next(at: now)
@@ -104,7 +104,7 @@ struct DayPlan {
     func watchPayload(dayLabel: String, at now: Date = .now) -> WatchSchedulePayload {
         let snaps = events.enumerated().map { index, e in
             EventSnapshot(id: e.id, title: e.title, start: e.start, end: e.end,
-                          colorIndex: index, isMultiDay: e.isMultiDay())
+                          colorIndex: index, isMultiDay: e.isMultiDay() || e.isDayMarker())
         }
         let cur = current(at: now)
         let nxt = next(at: now)
@@ -118,7 +118,7 @@ struct DayPlan {
     func homeSnapshot(dayLabel: String, at now: Date = .now) -> HomeSnapshot {
         let snaps = events.enumerated().map { index, e in
             EventSnapshot(id: e.id, title: e.title, start: e.start, end: e.end,
-                          colorIndex: index, isMultiDay: e.isMultiDay())
+                          colorIndex: index, isMultiDay: e.isMultiDay() || e.isDayMarker())
         }
         let cur = current(at: now)
         let nxt = next(at: now)
