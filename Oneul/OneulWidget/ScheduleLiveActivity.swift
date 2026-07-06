@@ -79,10 +79,13 @@ struct ScheduleLiveActivity: Widget {
     // 진행 중이면 끝까지, 대기 중이면 다음 일정까지 — 잠금화면에서 초 단위로 스스로 줄어드는 실시간 타이머(푸시 불필요).
     @ViewBuilder
     private func countdownText(_ s: ScheduleActivityAttributes.ContentState) -> some View {
-        if let end = s.currentEnd, s.currentTitle != nil, end > .now {
-            Text(timerInterval: Date()...end, countsDown: true).monospacedDigit()
-        } else if let start = s.nextStart, start > .now {
-            Text(timerInterval: Date()...start, countsDown: true).monospacedDigit()
+        let now = Date()
+        if let end = s.currentEnd, s.currentTitle != nil, end > now {
+            Text(timerInterval: now...max(end, now.addingTimeInterval(1)), countsDown: true).monospacedDigit()
+        } else if let start = s.nextStart, start > now {
+            Text(timerInterval: now...max(start, now.addingTimeInterval(1)), countsDown: true).monospacedDigit()
+        } else if s.segments.isEmpty {
+            Text(L("일정 없음", "Free", s.isEnglish))
         } else {
             Text(L("오늘 끝", "Done", s.isEnglish))
         }
@@ -126,6 +129,8 @@ struct LockScreenView: View {
             liveTimer(L("남은 ", "ends in ", en), to: end)
         } else if let start = state.nextStart, start > .now {
             liveTimer(L("다음까지 ", "in ", en), to: start)
+        } else if state.segments.isEmpty {
+            Text(L("일정 없음", "Free", en)).font(.caption).bold().foregroundStyle(.white.opacity(0.7))
         } else {
             Text(L("오늘 끝", "Done", en)).font(.caption).bold().foregroundStyle(.white.opacity(0.7))
         }
@@ -133,9 +138,10 @@ struct LockScreenView: View {
 
     /// 라벨 + 스스로 줄어드는 실시간 카운트다운(초 단위).
     private func liveTimer(_ label: String, to target: Date) -> some View {
-        HStack(spacing: 3) {
+        let now = Date()
+        return HStack(spacing: 3) {
             Text(label)
-            Text(timerInterval: Date()...target, countsDown: true).monospacedDigit()
+            Text(timerInterval: now...max(target, now.addingTimeInterval(1)), countsDown: true).monospacedDigit()
         }
         .font(.caption).bold().foregroundStyle(.white)
         .fixedSize()

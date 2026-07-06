@@ -18,7 +18,7 @@ final class LiveActivityController {
     var status = "아직 시도 안 함 — 오늘 탭을 열어 보세요." {
         didSet {
             log.info("\(self.status, privacy: .public)")
-            print("[LA]", status)   // devicectl --console 캡처용
+            print("[LA]", Date().formatted(date: .omitted, time: .standard), status)   // devicectl --console 캡처용
         }
     }
 
@@ -38,14 +38,8 @@ final class LiveActivityController {
         if let a = activity { PushSync.shared.observe(a) }   // update 푸시 토큰 구독(재연결 포함)
         if running.count > 1 {
             let keepID = activity?.id
+            print("[LA] 중복 정리: \(running.count)개 중 \(keepID?.prefix(6) ?? "nil") 유지")
             Task { for a in running where a.id != keepID { await a.end(nil, dismissalPolicy: .immediate) } }
-        }
-
-        // 오늘 일정이 없으면 진행 중인 Activity 종료.
-        guard !plan.isEmpty else {
-            status = "다가오는 일정이 없어 표시할 게 없어요 — 오늘/곧 있을 일정을 하나 만들어 보세요."
-            Task { await end() }
-            return
         }
 
         let state = plan.contentState()
@@ -64,7 +58,7 @@ final class LiveActivityController {
             do {
                 activity = try Activity.request(attributes: attributes, content: content,
                                                 pushType: PushConfig.enabled ? .token : nil)   // 서버 갱신 허용
-                if let a = activity { PushSync.shared.observe(a) }
+                if let a = activity { PushSync.shared.observe(a); watchState(a) }
                 status = "✅ 실시간 활동 시작됨 — 잠금화면·다이나믹 아일랜드를 확인하세요."
             } catch {
                 // pushType .token은 푸시 프로비저닝이 어긋나면 실패할 수 있음 → 로컬 전용으로 한 번 더
@@ -81,8 +75,21 @@ final class LiveActivityController {
         PushSync.shared.sync(plan: plan, dayLabel: dayLabel)   // 경계 시각 스케줄 서버 등록
     }
 
+    /// 시작 후 시스템이 곧바로 끝내는지 관측(진단) — dismissed/ended가 찍히면 시스템 측 종료.
+    private var watchedID: String?
+    private func watchState(_ a: Activity<ScheduleActivityAttributes>) {
+        guard watchedID != a.id else { return }
+        watchedID = a.id
+        Task {
+            for await st in a.activityStateUpdates {
+                print("[LA]", Date().formatted(date: .omitted, time: .standard), "상태 변화: \(String(describing: st)) (id \(a.id.prefix(6)))")
+            }
+        }
+    }
+
     /// 진행 중인 모든 Activity 종료.
     func end() async {
+        print("[LA] end() 호출됨 — 스택:", Thread.callStackSymbols.prefix(4).joined(separator: " | "))
         for activity in Activity<ScheduleActivityAttributes>.activities {
             await activity.end(nil, dismissalPolicy: .immediate)
         }

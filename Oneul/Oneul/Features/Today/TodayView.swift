@@ -585,14 +585,9 @@ struct TodayView: View {
     private func syncLiveActivity() {
         let shown = DayPlan.upcoming(events: events)   // 위젯·워치용(다가오는 날 폴백)
         #if os(iOS)
-        // Live Activity는 '오늘' 전용 — 일정이 하나라도 있으면(다 끝났어도 '오늘 끝'으로) 유지,
-        // 오늘이 완전히 비었을 때만 내림.
+        // Live Activity는 항상 유지 — 일정이 없어도 '오늘 일정 없음' 상태로 상시 표시.
         let todayPlan = DayPlan(events: events, day: .now)
-        if !todayPlan.isEmpty {
-            LiveActivityController.shared.refresh(plan: todayPlan, dayLabel: dayLabel(for: .now))
-        } else {
-            Task { await LiveActivityController.shared.end() }
-        }
+        LiveActivityController.shared.refresh(plan: todayPlan, dayLabel: dayLabel(for: .now))
         #endif
         NotificationManager.shared.reschedule(for: events)   // 전체 일정(가까운 알림 + 시험 전날)
         #if canImport(WatchConnectivity)

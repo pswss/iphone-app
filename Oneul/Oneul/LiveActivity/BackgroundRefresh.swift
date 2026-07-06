@@ -31,13 +31,9 @@ enum BackgroundRefresh {
             let events = (try? context.fetch(FetchDescriptor<ScheduleEvent>())) ?? []
             NotificationManager.shared.reschedule(for: events)   // 앱을 안 열어도 알림 창(7일) 유지
             let shown = DayPlan.upcoming(events: events)   // 워치용
-            // Live Activity는 오늘 전용 — 포그라운드와 동일 규칙.
+            // Live Activity는 항상 유지 — 포그라운드와 동일 규칙.
             let todayPlan = DayPlan(events: events, day: .now)
-            if !todayPlan.isEmpty {
-                LiveActivityController.shared.refresh(plan: todayPlan, dayLabel: label(for: .now))
-            } else {
-                await LiveActivityController.shared.end()
-            }
+            LiveActivityController.shared.refresh(plan: todayPlan, dayLabel: label(for: .now))
             #if canImport(WatchConnectivity)
             let wp = shown?.plan ?? DayPlan(events: events, day: .now)
             WatchSync.shared.send(wp.watchPayload(dayLabel: label(for: shown?.day ?? .now)))
