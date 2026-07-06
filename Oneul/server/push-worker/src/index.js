@@ -61,6 +61,7 @@ async function tick(env) {
     }
 
     let changed = false;
+    let firedNow = false;
     for (const item of rec.items) {
       if (item.sent || now - item.at > 600) {            // 10분 넘게 지난 건 스킵(재기동 폭주 방지)
         if (!item.sent && now - item.at > 600) { item.sent = true; changed = true; }
@@ -74,9 +75,26 @@ async function tick(env) {
       item.sent = true;                                  // 실패해도 1회만(무한 재시도 방지)
       item.sentOK = ok;
       changed = true;
+      firedNow = true;
     }
     if (changed) await env.SCHEDULES.put(key.name, JSON.stringify(rec), { expirationTtl: 3 * 86400 });
+    if (!firedNow) await maybeRefresh(env, rec, now);    // 경계 사이에도 '남은 n분'이 스스로 줄게
   }
+}
+
+// 경계 푸시 사이의 분 단위 재렌더 — 상태는 그대로 다시 보내고, 기기가 렌더 시점의
+// 남은 시간을 다시 계산하게 한다(잠금화면 거친 표기가 앱 없이 갱신되는 원리).
+// 1시간 넘게 남은 구간은 표기가 'n시간'이라 시간 단위가 바뀌는 분에만 보낸다.
+async function maybeRefresh(env, rec, now) {
+  if (!rec.updateToken) return;
+  const past = rec.items.filter(i => i.at <= now);
+  if (!past.length) return;                              // 아직 LA 시작 전
+  const next = rec.items.filter(i => i.at > now).map(i => i.at).sort((a, b) => a - b)[0];
+  if (!next) return;                                     // 마지막 경계 이후 — 셀 대상 없음
+  const delta = next - now;
+  if (delta > 3600 && delta % 3600 >= 60) return;
+  const cur = past.reduce((a, b) => (a.at > b.at ? a : b));
+  await sendLA(env, rec, { event: "update", state: cur.state }, now);
 }
 
 async function sendLA(env, rec, item, now) {
