@@ -78,11 +78,11 @@ struct DayPlan {
     /// ActivityKit 콘텐츠는 4KB 제한 — 초과하면 'ActivityInput error 0'으로 시작 실패.
     /// 시간표로 이벤트가 많은 날을 위해 스냅샷 개수·제목 길이를 캡.
     func contentState(at now: Date = .now) -> ScheduleActivityAttributes.ContentState {
-        let cap = 14
+        let cap = 10
         let upcoming = events.filter { $0.end >= now }
         let picked = upcoming.isEmpty ? Array(events.suffix(cap)) : Array(upcoming.prefix(cap))
         let snaps = picked.map { e in
-            EventSnapshot(id: e.id, title: String(e.title.prefix(20)), start: e.start, end: e.end,
+            EventSnapshot(id: e.id, title: String(e.title.prefix(16)), start: e.start, end: e.end,
                           colorIndex: colorIndex(of: e), isMultiDay: e.isMultiDay())
         }
         let cur = current(at: now)
