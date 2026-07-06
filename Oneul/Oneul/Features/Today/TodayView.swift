@@ -19,7 +19,12 @@ struct TodayView: View {
     @State private var rowH: [Int: CGFloat] = [:]      // 접히는 위젯 4개 자연 높이(index→height)
     @State private var sharedScrollHour: Int?          // 모든 날 grid가 공유하는 세로 스크롤 위치(슬라이드해도 유지)
     @State private var gridInteracting = false         // 일정 드래그/리사이즈 중 → 좌우 날짜 스와이프 잠금
-    @State private var showSearch = false             // 일정 검색 시트
+    @State private var showSearch = false             // 일정 검색 시트(맥)
+    #if os(iOS)
+    @State private var showInlineSearch = false       // 인라인 검색창(헤더 아래로 촥)
+    @State private var searchQuery = ""
+    @FocusState private var searchFocused: Bool
+    #endif
     #if os(iOS)
     @State private var showMealSheet = false          // 급식(학생) — 탭에서 헤더 아이콘으로 이동
     @State private var showSettingsSheet = false      // 설정 — 탭에서 헤더 아이콘으로 이동
@@ -105,14 +110,12 @@ struct TodayView: View {
             if let d = note.object as? Date { selectedDay = d }   // 알림 탭 → 해당 일정 날짜로
         }
         .onReceive(NotificationCenter.default.publisher(for: .oneulSyncLA)) { _ in syncLiveActivity() }
+        #if os(macOS)
         .sheet(isPresented: $showSearch) {
             EventSearchSheet(events: events) { day in selectedDay = day }
-            #if os(macOS)
                 .frame(minWidth: 440, minHeight: 500)
-            #else
-                .presentationDetents([.medium, .large])   // 메모 검색처럼 화면 일부만
-            #endif
         }
+        #endif
         #if os(iOS)
         .sheet(isPresented: $showMealSheet) { MealView() }
         .sheet(isPresented: $showSettingsSheet) { SettingsView() }
@@ -266,9 +269,7 @@ struct TodayView: View {
     private var collapsingChrome: some View {
         VStack(spacing: 0) {
             chromeRow(index: 0, order: 3) { header }
-            #if os(macOS)
-            chromeRow(index: 1, order: 2) { unifiedBand }   // 맥: 타임라인 카드가 없어 밴드는 독립 행
-            #endif
+            chromeRow(index: 1, order: 2) { unifiedBand }   // 주요 알림(시험 D-Day·방학) — 독립 위젯 행
             #if os(iOS)
             chromeRow(index: 2, order: 1) { CalendarBar(selectedDay: $selectedDay, hasEvents: { !(eventsByDay[Calendar.current.startOfDay(for: $0)] ?? []).isEmpty }) }   // 맥은 주 그리드가 대신함 → 주간 스트립 불필요
             #endif
@@ -323,15 +324,27 @@ struct TodayView: View {
                 Text(selectedDay, format: .dateTime.day().weekday(.wide))
                     .font(.largeTitle).bold()
                 Spacer()
-                HStack(spacing: 10) {
-                    headerGlassButton("magnifyingglass") { showSearch = true }   // 일정 검색
+                HStack(spacing: 0) {                     // 검색·급식이 이어진 리퀴드 글래스 캡슐
+                    capsuleIcon("magnifyingglass") {
+                        #if os(iOS)
+                        withAnimation(.snappy(duration: 0.28)) { showInlineSearch = true }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { searchFocused = true }
+                        #else
+                        showSearch = true
+                        #endif
+                    }
                     #if os(iOS)
                     if isStudent {
-                        headerGlassButton("fork.knife") { showMealSheet = true }
+                        Rectangle().fill(.primary.opacity(0.15)).frame(width: 0.5, height: 18)
+                        capsuleIcon("fork.knife") { showMealSheet = true }
                     }
                     #endif
                 }
+                .glassEffect(.regular.interactive(), in: Capsule())
             }
+            #if os(iOS)
+            if showInlineSearch { inlineSearch }   // 상단에 미니멀하게 촥 — 시트 대신 인라인
+            #endif
             if let holiday = Holidays.name(for: selectedDay) {
                 Text(holiday)
                     .font(.caption).bold()
@@ -378,17 +391,77 @@ struct TodayView: View {
         }
     }
 
-    // 헤더 아이콘 — 리퀴드 글래스 원형
-    private func headerGlassButton(_ symbol: String, action: @escaping () -> Void) -> some View {
+    // 연결 캡슐 안의 아이콘 버튼
+    private func capsuleIcon(_ symbol: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.body.weight(.semibold))
                 .foregroundStyle(.secondary)
-                .frame(width: 36, height: 36)
-                .glassEffect(.regular.interactive(), in: Circle())
+                .frame(width: 40, height: 34)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
+
+    #if os(iOS)
+    // MARK: 인라인 일정 검색 — 헤더 아래로 미니멀하게 펼쳐지는 검색창 + 드롭다운 결과
+    @ViewBuilder private var inlineSearch: some View {
+        VStack(spacing: 6) {
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass").font(.subheadline).foregroundStyle(.secondary)
+                TextField(lang.tr("제목이나 장소"), text: $searchQuery)
+                    .textFieldStyle(.plain)
+                    .focused($searchFocused)
+                Button {
+                    withAnimation(.snappy(duration: 0.25)) { showInlineSearch = false }
+                    searchQuery = ""; searchFocused = false
+                } label: {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 12).padding(.vertical, 9)
+            .glassCard(cornerRadius: 16)
+
+            let results = inlineResults
+            if !results.isEmpty {
+                VStack(spacing: 0) {
+                    ForEach(Array(results.enumerated()), id: \.element.id) { i, e in
+                        Button {
+                            withAnimation(.snappy(duration: 0.3)) { selectedDay = e.start }
+                            withAnimation(.snappy(duration: 0.25)) { showInlineSearch = false }
+                            searchQuery = ""; searchFocused = false
+                        } label: {
+                            HStack(spacing: 8) {
+                                Text(e.title.isEmpty ? lang.tr("제목 없음") : e.title)
+                                    .font(.subheadline).bold().lineLimit(1)
+                                Spacer(minLength: 6)
+                                Text(e.start, format: .dateTime.month().day().weekday(.abbreviated).locale(lang.locale))
+                                    .font(.caption2).foregroundStyle(.secondary)
+                            }
+                            .padding(.horizontal, 12).padding(.vertical, 9)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        if i < results.count - 1 { Divider().padding(.horizontal, 10) }
+                    }
+                }
+                .glassCard(cornerRadius: 16)
+            }
+        }
+        .padding(.top, 6)
+        .transition(.move(edge: .top).combined(with: .opacity))
+    }
+
+    private var inlineResults: [ScheduleEvent] {
+        let q = searchQuery.trimmingCharacters(in: .whitespaces)
+        guard !q.isEmpty else { return [] }
+        return Array(events
+            .filter { $0.title.localizedStandardContains(q) || $0.location.localizedStandardContains(q) }
+            .sorted { abs($0.start.timeIntervalSinceNow) < abs($1.start.timeIntervalSinceNow) }
+            .prefix(6))
+    }
+    #endif
 
     // MARK: D-Day (다가오는 시험/수능)
     private var dDays: [(title: String, days: Int)] {
@@ -465,7 +538,7 @@ struct TodayView: View {
                 .scrollTargetBehavior(.paging)
                 #endif
             }
-            .frame(height: 42)
+            .frame(height: 46)
         }
     }
 
@@ -480,9 +553,9 @@ struct TodayView: View {
             Spacer(minLength: 6)
             Text(it.trailing).font(.caption2).foregroundStyle(.secondary)
         }
-        .padding(.horizontal, 10)
-        .frame(maxWidth: .infinity, minHeight: 38, alignment: .leading)
-        .background(.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
+        .padding(.horizontal, 12)
+        .frame(maxWidth: .infinity, minHeight: 42, alignment: .leading)
+        .glassCard(cornerRadius: 16)
     }
 
     // MARK: 타임라인 카드
@@ -514,7 +587,6 @@ struct TodayView: View {
                 Text(currentLine(p))
                     .font(.subheadline).bold()
             }
-            unifiedBand   // 주요 알림(시험 D-Day·방학) — 타임라인 위젯 하단부에 통합
         }
         .padding(.horizontal, 14).padding(.vertical, 13)
         .glassCard(cornerRadius: 22)
@@ -720,20 +792,26 @@ struct MacWeekGrid: View {
     @State private var didInitialScroll = false
     private var anchorHour: Int { max(0, min(23, cal.component(.hour, from: Date()) - 1)) }   // 첫 진입 위치(현재 시각 한 시간 위)
 
-    // 고정 규격 — 창 크기에 따라 열이 늘어나지 않고, 좁아지면 월요일부터 잘려 나감
-    private let colW: CGFloat = 150
+    // 열 최소폭 규격 — 좁아지면 150pt 고정에 월요일부터 잘려 나가고, 넓으면 열이 늘어나 창을 꽉 채움
+    private let minColW: CGFloat = 150
     private let gutterW: CGFloat = 52          // 시각축 전용 거터(열과 분리 → 7열 폭 완전 균등)
     private let hourH: CGFloat = 70            // DayGridView hourHeight와 동일
+
+    @State private var colW: CGFloat = 150
     private var totalW: CGFloat { gutterW + colW * 7 }
 
     var body: some View {
         GeometryReader { geo in
-            let fits = geo.size.width >= totalW
+            let eff = max(minColW, (geo.size.width - gutterW) / 7)   // 전체화면에선 늘려서 여백 없이
+            let total = gutterW + eff * 7
             fixedGrid
-                .frame(width: totalW)
-                // 넓으면 중앙, 좁으면 오른쪽(일요일) 고정 → 월요일부터 서서히 사라짐
-                .frame(width: geo.size.width, height: geo.size.height, alignment: fits ? .center : .trailing)
+                .frame(width: total)
+                // 넓으면 꽉 참(중앙), 좁으면 오른쪽(일요일) 고정 → 월요일부터 서서히 사라짐
+                .frame(width: geo.size.width, height: geo.size.height,
+                       alignment: geo.size.width >= total ? .center : .trailing)
                 .clipped()
+                .onAppear { colW = eff }
+                .onChange(of: eff) { _, v in colW = v }
         }
     }
 

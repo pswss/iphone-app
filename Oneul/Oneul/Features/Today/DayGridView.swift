@@ -28,6 +28,7 @@ struct DayGridView: View {
     // 라이트모드: 흰 글자는 대비 붕괴, 순검정은 과함 → 이벤트 색을 어둡게 섞은 딥톤(애플 캘린더식)
     private func blockText(_ c: Color) -> Color { scheme == .dark ? .white : c.mix(with: .black, by: 0.55) }
     private func blockSubText(_ c: Color) -> Color { scheme == .dark ? .white.opacity(0.85) : c.mix(with: .black, by: 0.45).opacity(0.8) }
+    private func blockBorder(_ c: Color) -> Color { scheme == .dark ? .white : c.mix(with: .black, by: 0.35) }   // 테두리도 색 계열(순검정 과함)
     private let cal = Calendar.current
     private let hourHeight: CGFloat = 70      // 세로로 늘림(일정이 덜 빽빽하게)
     private var leftInset: CGFloat { showHourLabels ? 52 : 6 }
@@ -241,7 +242,7 @@ struct DayGridView: View {
             .frame(width: colW, height: h, alignment: .topLeading)
             // 하이라이트: 원래 모습 유지하되 색만 진하게 + 은은한 색 글로우(유리 느낌). 두꺼운 흰 테두리 X
             .background(color.opacity(lifted ? 0.9 : (selected ? 0.72 : 0.5)), in: shape)
-            .overlay(shape.strokeBorder(Color.primary.opacity(lifted ? 0.6 : (selected ? 0.4 : 0.22)),
+            .overlay(shape.strokeBorder(blockBorder(color).opacity(lifted ? 0.55 : (selected ? 0.4 : 0.25)),
                                         lineWidth: lifted ? 1.5 : 1))
             .shadow(color: glowing ? color.opacity(0.7) : .black.opacity(lifted ? 0.4 : 0.12),
                     radius: glowing ? 13 : (lifted ? 10 : 3),
