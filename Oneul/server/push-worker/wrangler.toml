@@ -1,0 +1,12 @@
+# Oneul Live Activity 푸시 서버 — APNs로 push-to-start / 상태 전환 갱신.
+# 비밀(APNS_AUTH_KEY·APNS_KEY_ID·APPLE_TEAM_ID·REG_KEY)은 전부 `wrangler secret put` — 레포에 없음.
+name = "oneul-push"
+main = "src/index.js"
+compatibility_date = "2026-07-01"
+
+kv_namespaces = [
+  { binding = "SCHEDULES", id = "b31dd7ded24b4bd291d872c7ec9d88f6" }
+]
+
+[triggers]
+crons = ["* * * * *"]   # 매분 — 일정 경계 시각에 도달한 푸시 전송

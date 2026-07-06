@@ -18,6 +18,7 @@ struct OneulApp: App {
     init() {
         _ = NotificationManager.shared   // delegate 연결(권한 요청은 온보딩 완료 후 — HIG 컨텍스트 요청)
         #if os(iOS)
+        Task { @MainActor in PushSync.shared.begin() }   // push-to-start 토큰 구독(앱 꺼져도 LA 자동 시작)
         BackgroundRefresh.register(container: container)   // 백그라운드 갱신 작업 등록(launch 전)
         #endif
     }

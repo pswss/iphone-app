@@ -27,6 +27,7 @@ final class LiveActivityController {
         // 매번 새로 만들어 '중복'이 생겼다. 살아있는 것을 다시 잡고, 2개 이상이면 하나만 남기고 정리한다.
         let running = Activity<ScheduleActivityAttributes>.activities
         if activity == nil { activity = running.first }
+        if let a = activity { PushSync.shared.observe(a) }   // update 푸시 토큰 구독(재연결 포함)
         if running.count > 1 {
             let keepID = activity?.id
             Task { for a in running where a.id != keepID { await a.end(nil, dismissalPolicy: .immediate) } }
@@ -48,12 +49,15 @@ final class LiveActivityController {
         } else {
             do {
                 let attributes = ScheduleActivityAttributes(dayLabel: dayLabel)
-                activity = try Activity.request(attributes: attributes, content: content, pushType: nil)
+                activity = try Activity.request(attributes: attributes, content: content,
+                                                pushType: PushConfig.enabled ? .token : nil)   // 서버 갱신 허용
+                if let a = activity { PushSync.shared.observe(a) }
                 status = "✅ 실시간 활동 시작됨 — 잠금화면·다이나믹 아일랜드를 확인하세요."
             } catch {
                 status = "❌ 시작 실패: \(error.localizedDescription)"
             }
         }
+        PushSync.shared.sync(plan: plan, dayLabel: dayLabel)   // 경계 시각 스케줄 서버 등록
     }
 
     /// 진행 중인 모든 Activity 종료.
