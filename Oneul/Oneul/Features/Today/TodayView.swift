@@ -271,7 +271,7 @@ struct TodayView: View {
             chromeRow(index: 0, order: 3) { header }
             chromeRow(index: 1, order: 2) { unifiedBand }   // 주요 알림(시험 D-Day·방학) — 독립 위젯 행
             #if os(iOS)
-            chromeRow(index: 2, order: 1) { CalendarBar(selectedDay: $selectedDay, hasEvents: { !(eventsByDay[Calendar.current.startOfDay(for: $0)] ?? []).isEmpty }) }   // 맥은 주 그리드가 대신함 → 주간 스트립 불필요
+            chromeRow(index: 2, order: 1) { CalendarBar(selectedDay: $selectedDay) }   // 맥은 주 그리드가 대신함 → 주간 스트립 불필요
             #endif
             #if os(iOS)
             chromeRow(index: 3, order: 0) { timelineCard(plan, live: Calendar.current.isDateInToday(selectedDay)) }   // 맥은 주 그리드가 타임라인 → 하루짜리 타임라인 카드 불필요
