@@ -12,7 +12,7 @@ struct GlassCard: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .glassEffect(.regular, in: shape)   // iOS 26 진짜 Liquid Glass(굴절·렌즈·하이라이트) — ultraThinMaterial 대체
+            .glassEffect(.clear, in: shape)     // 투명 글래스 — 배경 그라데이션이 비쳐 흰 판(누끼) 느낌 제거
             .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)   // 유리가 깊이를 주므로 그림자는 아주 은은하게
     }
 
