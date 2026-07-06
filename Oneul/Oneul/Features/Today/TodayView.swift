@@ -104,6 +104,7 @@ struct TodayView: View {
         .onReceive(NotificationCenter.default.publisher(for: .oneulShowDay)) { note in
             if let d = note.object as? Date { selectedDay = d }   // 알림 탭 → 해당 일정 날짜로
         }
+        .onReceive(NotificationCenter.default.publisher(for: .oneulSyncLA)) { _ in syncLiveActivity() }
         .sheet(isPresented: $showSearch) {
             EventSearchSheet(events: events) { day in selectedDay = day }
             #if os(macOS)

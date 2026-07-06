@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		01B03CBFC066FA4AE84FB90F /* AppleIntelligenceClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AEF004D088ABDDA2FD61577 /* AppleIntelligenceClient.swift */; };
 		01C359154BAE7FEF717EFFDC /* ScheduleEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9845203CDC1D337EDEB41376 /* ScheduleEvent.swift */; };
+		0275EE76BEF0889207D6D815 /* MenuBarTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A42DB0D073136CF9C7CE94A5 /* MenuBarTimelineView.swift */; };
 		04DD91D2672B07692BFF88FD /* AICommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A4018B36A49D3884C07100 /* AICommand.swift */; };
 		056F8158761F3C36295A1C0A /* WatchSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = A16CFD8B435D3E1D46EF0F09 /* WatchSync.swift */; };
 		094B5368FA3A89424E090318 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6CDAF136B89C9CD70A564B1 /* AppConfig.swift */; };
@@ -43,6 +44,7 @@
 		63B1019055C33A0B6883FF15 /* AICommon.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B0BDB1D75C0BC7A988A590 /* AICommon.swift */; };
 		66DEC831D54E1054389D3688 /* ScheduleAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 334A2A6B08661B685EF25A76 /* ScheduleAttributes.swift */; };
 		6EDAE96F7FD4F0A21492F6CA /* WatchPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = B120768A33C004DCF2F45013 /* WatchPayload.swift */; };
+		7159538483BBEF59625752F2 /* MenuBarTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A42DB0D073136CF9C7CE94A5 /* MenuBarTimelineView.swift */; };
 		72396778E4F4CEE8CFAFDE1E /* AIScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A7DA356E9BE16433ED03A34 /* AIScheduleView.swift */; };
 		74189C886162CED33B3BEB65 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 94270AF8C3F1645E053EDB34 /* Assets.xcassets */; };
 		75309A16D28C87AA17064433 /* AIScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A7DA356E9BE16433ED03A34 /* AIScheduleView.swift */; };
@@ -211,6 +213,7 @@
 		9A4EEDA727963CDA0EA9E88A /* MemoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoView.swift; sourceTree = "<group>"; };
 		9DDD92EAE062AD8537F2B53E /* ElectiveSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ElectiveSetupView.swift; sourceTree = "<group>"; };
 		A16CFD8B435D3E1D46EF0F09 /* WatchSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSync.swift; sourceTree = "<group>"; };
+		A42DB0D073136CF9C7CE94A5 /* MenuBarTimelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarTimelineView.swift; sourceTree = "<group>"; };
 		A6CDAF136B89C9CD70A564B1 /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
 		B120768A33C004DCF2F45013 /* WatchPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchPayload.swift; sourceTree = "<group>"; };
 		B875E87DC1AAC7F636AB7E65 /* WidgetTimelineBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetTimelineBar.swift; sourceTree = "<group>"; };
@@ -344,6 +347,7 @@
 			children = (
 				0C645C9FB29A1DD74C886502 /* CalendarBar.swift */,
 				6455A65474E956EDA02D3D48 /* DayGridView.swift */,
+				A42DB0D073136CF9C7CE94A5 /* MenuBarTimelineView.swift */,
 				28D1C0B69DAE7EC2BFA4E7A8 /* TimelineBar.swift */,
 				777161A31B7E4F39C0973C6E /* TodayView.swift */,
 			);
@@ -650,6 +654,7 @@
 				CBC2A029F08197D2257C32A3 /* LiveActivityController.swift in Sources */,
 				A342CC60B0C02D253113EB28 /* MapDirections.swift in Sources */,
 				7EECDB6EDB6C3DDB90C7302A /* MemoView.swift in Sources */,
+				0275EE76BEF0889207D6D815 /* MenuBarTimelineView.swift in Sources */,
 				A13AE6AE7D3A89DE8C23A3C2 /* NEIS.swift in Sources */,
 				770DBDF8A2340C77EBA48398 /* NotificationManager.swift in Sources */,
 				8697B4FE3A5541D083495D75 /* OneulApp.swift in Sources */,
@@ -722,6 +727,7 @@
 				CBCBA8C5022E2490A93C43EE /* LiveActivityController.swift in Sources */,
 				EB12F91608821CDEE7F7CD05 /* MapDirections.swift in Sources */,
 				591559D0A0C349A1EBB8708F /* MemoView.swift in Sources */,
+				7159538483BBEF59625752F2 /* MenuBarTimelineView.swift in Sources */,
 				17F21E70FEBE7FC30A94DBBF /* NEIS.swift in Sources */,
 				D6B9F600EF442C85AC1880A2 /* NotificationManager.swift in Sources */,
 				47022DDA451A2DB987CEFAA7 /* OneulApp.swift in Sources */,

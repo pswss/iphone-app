@@ -8,6 +8,7 @@ extension Notification.Name {
     static let oneulNewMemo = Notification.Name("oneul.newMemo")     // 메모 섹션에서 + → 새 메모
     static let oneulShowDay = Notification.Name("oneul.showDay")      // 알림 탭 → 그 날짜로 이동 (object: Date)
     static let oneulSelectSection = Notification.Name("oneul.selectSection") // ⌘1~3 (object: Int 0=오늘 1=메모 2=급식)
+    static let oneulSyncLA = Notification.Name("oneul.syncLA")       // 설정 진단 카드 → Live Activity 재시작
 }
 
 @main
@@ -61,6 +62,15 @@ struct OneulApp: App {
                 .frame(width: 480, height: 600)
                 .focusEffectDisabled()   // 설정 창(별도 씬) 파란 포커스 링 제거
         }
+
+        // 타임라인 = 메뉴바 아이콘 (클릭→오늘 일정 한눈에)
+        MenuBarExtra("Oneul 타임라인", systemImage: "calendar.day.timeline.left") {
+            MenuBarTimelineView()
+                .modelContainer(container)
+                .frame(width: 340)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .menuBarExtraStyle(.window)
 
         // AI = 메뉴바 상단 ✨ (클릭→자연어 입력 팝오버, 바깥 클릭으로 닫힘)
         MenuBarExtra("Oneul AI", systemImage: "sparkles") {

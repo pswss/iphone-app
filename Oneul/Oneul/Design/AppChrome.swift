@@ -321,6 +321,14 @@ final class AppLanguage {
         "AI 일정": "AI Events",
         "새 메모 작성": "New Note",
         "학교 설정하기": "Set up school",
+        "실시간 활동 (잠금화면·다이나믹 아일랜드)": "Live Activity (Lock Screen · Dynamic Island)",
+        "지금 시작": "Start now",
+        "다가오는 일정이 없어요": "No upcoming events",
+        "남은": "left",
+        "다음까지": "next in",
+        "현재": "Now",
+        "다음": "Next",
+        "진행 중인 일정 없음": "No active event",
         "마이크·음성 인식 권한이 꺼져 있어요. 시스템 설정에서 허용해 주세요.":
             "Microphone/speech permission is off. Allow it in System Settings.",
         "새 학년이 시작됐어요 — 설정에서 학년·반을 다시 설정해 주세요":

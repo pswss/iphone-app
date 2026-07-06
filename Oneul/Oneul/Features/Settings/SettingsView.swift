@@ -29,6 +29,9 @@ struct SettingsView: View {
 
                         sectionTitle(lang.tr("알림"))
                         notificationCard
+                        #if os(iOS)
+                        liveActivityCard
+                        #endif
 
                         sectionTitle(lang.tr("가져오기"))
                         calendarImportCard
@@ -88,6 +91,29 @@ struct SettingsView: View {
         .glassCard(cornerRadius: 22)
         .task { refreshNotifStatus() }
     }
+
+    #if os(iOS)
+    // 실시간 활동 진단 — 안 뜰 때 이유(권한 꺼짐/일정 없음/시작 실패)를 그대로 보여주고 수동 재시작
+    @State private var laStatusTick = 0   // 버튼 후 status 갱신 트리거
+    private var liveActivityCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Label(lang.tr("실시간 활동 (잠금화면·다이나믹 아일랜드)"), systemImage: "bolt.badge.clock")
+                Spacer()
+                Button(lang.tr("지금 시작")) {
+                    NotificationCenter.default.post(name: .oneulSyncLA, object: nil)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { laStatusTick += 1 }
+                }
+                .font(.subheadline.bold()).buttonStyle(.bordered)
+            }
+            Text(LiveActivityController.shared.status)
+                .font(.caption).foregroundStyle(.secondary)
+                .id(laStatusTick)
+        }
+        .padding(.horizontal, 14).padding(.vertical, 12)
+        .glassCard(cornerRadius: 22)
+    }
+    #endif
 
     private func refreshNotifStatus() {
         UNUserNotificationCenter.current().getNotificationSettings { st in
