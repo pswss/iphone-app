@@ -62,12 +62,16 @@ async function tick(env) {
 
     let changed = false;
     for (const item of rec.items) {
-      if (item.sent || item.at > now || now - item.at > 600) {   // 10분 넘게 지난 건 스킵(재기동 폭주 방지)
+      if (item.sent || now - item.at > 600) {            // 10분 넘게 지난 건 스킵(재기동 폭주 방지)
         if (!item.sent && now - item.at > 600) { item.sent = true; changed = true; }
         continue;
       }
-      const ok = await sendLA(env, rec, item, now);
-      item.sent = true;                                 // 실패해도 1회만(무한 재시도 방지)
+      if (item.at > now + 65) continue;                  // 다음 분 크론 몫
+      if (item.at > now) {                               // 60초 내 도래 → 정각까지 대기 후 발사(±1초)
+        await new Promise(r => setTimeout(r, (item.at - now) * 1000));
+      }
+      const ok = await sendLA(env, rec, item, Math.floor(Date.now() / 1000));
+      item.sent = true;                                  // 실패해도 1회만(무한 재시도 방지)
       item.sentOK = ok;
       changed = true;
     }

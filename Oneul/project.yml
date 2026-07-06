@@ -41,6 +41,7 @@ targets:
       properties:
         CFBundleDisplayName: Oneul
         NSSupportsLiveActivities: true
+        NSSupportsLiveActivitiesFrequentUpdates: true
         ITSAppUsesNonExemptEncryption: false
         UIBackgroundModes:
           - fetch
