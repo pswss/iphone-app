@@ -103,14 +103,23 @@ struct RootView: View {
                 withAnimation(.spring(response: 0.32, dampingFraction: 0.85)) { searchActive = true }
             }
         }
-        .overlay(alignment: .top) {
+        .overlay {
             if searchActive {
-                FloatingSearchOverlay(
-                    onPick: { day in
-                        iosTab = .today
-                        NotificationCenter.default.post(name: .oneulShowDay, object: day)
-                    },
-                    onDismiss: { searchActive = false })
+                ZStack(alignment: .top) {
+                    Color.black.opacity(0.15)          // 뒤 버튼 오작동 차단 + 배경 탭 → 닫기
+                        .ignoresSafeArea()
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            withAnimation(.spring(response: 0.32, dampingFraction: 0.85)) { searchActive = false }
+                        }
+                    FloatingSearchOverlay(
+                        onPick: { day in
+                            iosTab = .today
+                            NotificationCenter.default.post(name: .oneulShowDay, object: day)
+                        },
+                        onDismiss: { searchActive = false })
+                }
+                .transition(.opacity)
             }
         }
         .overlay {
