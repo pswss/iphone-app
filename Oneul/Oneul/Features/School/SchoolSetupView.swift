@@ -298,7 +298,10 @@ struct MealCard: View {
                 ForEach(Array(menuItems(m.menu).enumerated()), id: \.offset) { _, item in
                     HStack(alignment: .firstTextBaseline, spacing: 9) {
                         Circle().fill(Color.appAccent).frame(width: 5, height: 5)
-                        Text(item).font(.subheadline)
+                        Text(item.name).font(.subheadline)
+                        if !item.allergy.isEmpty {   // 알레르기 번호(1 난류, 2 우유…) — 폐기하던 정보 복원
+                            Text(item.allergy).font(.caption2).foregroundStyle(.tertiary)
+                        }
                         Spacer(minLength: 0)
                     }
                 }
@@ -309,16 +312,18 @@ struct MealCard: View {
         .glassCard(cornerRadius: 22)
     }
 
-    /// "*" 접두사·알레르기 번호 "(5.6)" 제거해서 메뉴만.
-    private func menuItems(_ menu: String) -> [String] {
-        menu.split(separator: "\n").map { line -> String in
+    /// "*" 접두사 정리, 알레르기 번호 "(5.6)"는 분리해서 반환.
+    private func menuItems(_ menu: String) -> [(name: String, allergy: String)] {
+        menu.split(separator: "\n").map { line -> (String, String) in
             var s = line.trimmingCharacters(in: .whitespaces)
             while s.hasPrefix("*") { s.removeFirst() }
-            if let r = s.range(of: #"\s*\([0-9.\s]+\)\s*$"#, options: .regularExpression) {
+            var allergy = ""
+            if let r = s.range(of: #"\s*\(([0-9.\s]+)\)\s*$"#, options: .regularExpression) {
+                allergy = String(s[r]).trimmingCharacters(in: CharacterSet(charactersIn: " ()"))
                 s.removeSubrange(r)
             }
-            return s.trimmingCharacters(in: .whitespaces)
-        }.filter { !$0.isEmpty }
+            return (s.trimmingCharacters(in: .whitespaces), allergy)
+        }.filter { !$0.0.isEmpty }
     }
     private func icon(_ type: String) -> String {
         if type.contains("조") { return "sunrise.fill" }
@@ -343,6 +348,7 @@ struct MealCard: View {
 struct MealView: View {
     @AppStorage("neisCode") private var code = ""
     @State private var mealDay = Date()
+    @State private var showSchoolSetup = false
     @Environment(\.scenePhase) private var scenePhase
     private let lang = AppLanguage.shared
 
@@ -351,10 +357,15 @@ struct MealView: View {
             ZStack {
                 AppBackground()
                 if code.isEmpty {
-                    VStack(spacing: 10) {
+                    VStack(spacing: 12) {
                         Image(systemName: "fork.knife").font(.largeTitle).foregroundStyle(.secondary)
                         Text(lang.tr("설정 → 학생 → 학교 설정에서\n학교를 먼저 등록하세요"))
                             .multilineTextAlignment(.center).font(.subheadline).foregroundStyle(.secondary)
+                        Button { showSchoolSetup = true } label: {   // 빈 상태 CTA
+                            Label(lang.tr("학교 설정하기"), systemImage: "graduationcap")
+                                .font(.subheadline.bold())
+                        }
+                        .buttonStyle(.borderedProminent)
                     }
                     .padding(40)
                 } else {
@@ -391,6 +402,7 @@ struct MealView: View {
                 }
             }
             .navigationTitle(lang.tr("급식"))
+            .sheet(isPresented: $showSchoolSetup) { SchoolSetupView() }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active,
                    !Calendar.current.isDate(mealDay, equalTo: Date(), toGranularity: .month) {

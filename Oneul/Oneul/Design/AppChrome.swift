@@ -319,6 +319,8 @@ final class AppLanguage {
             "Calendar access denied. Allow it in System Settings.",
         "할 일": "To-do",
         "AI 일정": "AI Events",
+        "새 메모 작성": "New Note",
+        "학교 설정하기": "Set up school",
         "마이크·음성 인식 권한이 꺼져 있어요. 시스템 설정에서 허용해 주세요.":
             "Microphone/speech permission is off. Allow it in System Settings.",
         "새 학년이 시작됐어요 — 설정에서 학년·반을 다시 설정해 주세요":

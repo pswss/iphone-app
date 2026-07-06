@@ -145,9 +145,14 @@ struct MemoView: View {
                 AppBackground()
                 Group {
                     if memos.isEmpty {
-                        VStack(spacing: 8) {
+                        VStack(spacing: 12) {
                             Image(systemName: "note.text").font(.largeTitle).foregroundStyle(.secondary)
                             Text(lang.tr("메모가 없어요")).font(.subheadline).foregroundStyle(.secondary)
+                            Button { addMemo() } label: {          // 빈 상태에서 바로 행동 유도
+                                Label(lang.tr("새 메모 작성"), systemImage: "square.and.pencil")
+                                    .font(.subheadline.bold())
+                            }
+                            .buttonStyle(.borderedProminent)
                         }
                     } else {
                         List {
