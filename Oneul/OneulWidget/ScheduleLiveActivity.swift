@@ -15,6 +15,9 @@ func remainingLabel(to target: Date, english: Bool) -> String {
     return english ? "\(Int(secs) / 3600) hr" : "\(Int(secs) / 3600)시간"
 }
 
+let LA_DEBUG_MINIMAL = false
+let LA_DEBUG_NO_BAR = true   // [진단] 풀 UI에서 타임라인 바만 제거 — 바가 범인인지 절반 커팅   // [진단] 렌더 크래시 격리 — 최소 렌더로 생존 확인 후 원복
+
 struct ScheduleLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: ScheduleActivityAttributes.self) { context in
