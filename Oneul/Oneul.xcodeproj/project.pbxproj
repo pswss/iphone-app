@@ -21,6 +21,7 @@
 		162CDA1685661DC1777F7FC1 /* OneulWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 4F7FC0B293541145B57F17CD /* OneulWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		17F21E70FEBE7FC30A94DBBF /* NEIS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 741F7445372DEF5858438E89 /* NEIS.swift */; };
 		1CDAAB28C96E1D2652437EC6 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6CDAF136B89C9CD70A564B1 /* AppConfig.swift */; };
+		1F7C034570C1A8C620034213 /* AlertToneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E83392111091F0434503487 /* AlertToneView.swift */; };
 		20B7719AEC321620F1714E81 /* SearchTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 723FC4F1D7A54EA6EB73514D /* SearchTabView.swift */; };
 		27289D8F1B5A2E06AF20D96E /* AICommon.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B0BDB1D75C0BC7A988A590 /* AICommon.swift */; };
 		293DD03098EE5B027CDB2B56 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 777161A31B7E4F39C0973C6E /* TodayView.swift */; };
@@ -39,6 +40,7 @@
 		510A835B944A7DC75A0BDA9F /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ACF06EA2A9B63E4872D0D82 /* Theme.swift */; };
 		5160EB9B599C49DC72181368 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F3E3AE2F482E8821D392598 /* SettingsView.swift */; };
 		52D18DA1E0BFF37AFCA77DB0 /* EventEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5057FFD3739CA0A9C50D19B /* EventEditorView.swift */; };
+		53C491BC70A8C560DC563603 /* AlertToneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E83392111091F0434503487 /* AlertToneView.swift */; };
 		53D7519E7811C519E51F224D /* EventPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B86C494CBB8B41E58CDC3E /* EventPalette.swift */; };
 		57C4F0A210291D003D6D831F /* SearchTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 723FC4F1D7A54EA6EB73514D /* SearchTabView.swift */; };
 		591559D0A0C349A1EBB8708F /* MemoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A4EEDA727963CDA0EA9E88A /* MemoView.swift */; };
@@ -206,6 +208,7 @@
 		5ACE8189A99207C779416B4D /* OneulApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OneulApp.swift; sourceTree = "<group>"; };
 		6455A65474E956EDA02D3D48 /* DayGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayGridView.swift; sourceTree = "<group>"; };
 		6A7DA356E9BE16433ED03A34 /* AIScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIScheduleView.swift; sourceTree = "<group>"; };
+		6E83392111091F0434503487 /* AlertToneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertToneView.swift; sourceTree = "<group>"; };
 		723FC4F1D7A54EA6EB73514D /* SearchTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchTabView.swift; sourceTree = "<group>"; };
 		72970E6D99F9137A4E75455D /* BackgroundRefresh.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundRefresh.swift; sourceTree = "<group>"; };
 		741F7445372DEF5858438E89 /* NEIS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NEIS.swift; sourceTree = "<group>"; };
@@ -321,6 +324,7 @@
 		7E52B51971BEB27526C6DFEE /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				6E83392111091F0434503487 /* AlertToneView.swift */,
 				3A8C0BEA6C5E6E763D3C0449 /* CalendarImport.swift */,
 				1F3E3AE2F482E8821D392598 /* SettingsView.swift */,
 			);
@@ -649,6 +653,7 @@
 				27289D8F1B5A2E06AF20D96E /* AICommon.swift in Sources */,
 				E823D7F623DA11AA93889FB4 /* AIProvider.swift in Sources */,
 				75309A16D28C87AA17064433 /* AIScheduleView.swift in Sources */,
+				53C491BC70A8C560DC563603 /* AlertToneView.swift in Sources */,
 				811D809B7A894889A5E6B9F4 /* AppChrome.swift in Sources */,
 				94288FF630F4E04FD1FB58B6 /* AppConfig.swift in Sources */,
 				01B03CBFC066FA4AE84FB90F /* AppleIntelligenceClient.swift in Sources */,
@@ -725,6 +730,7 @@
 				63B1019055C33A0B6883FF15 /* AICommon.swift in Sources */,
 				DE59C581CA224D42DDC4B4E9 /* AIProvider.swift in Sources */,
 				72396778E4F4CEE8CFAFDE1E /* AIScheduleView.swift in Sources */,
+				1F7C034570C1A8C620034213 /* AlertToneView.swift in Sources */,
 				F6F88039FEDC3B1E8A95AA9B /* AppChrome.swift in Sources */,
 				094B5368FA3A89424E090318 /* AppConfig.swift in Sources */,
 				31C3B75836FCEB96DED757F0 /* AppleIntelligenceClient.swift in Sources */,

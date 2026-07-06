@@ -36,6 +36,11 @@ struct SettingsView: View {
                         sectionTitle(lang.tr("가져오기"))
                         calendarImportCard
 
+                        #if os(iOS)
+                        sectionTitle(lang.tr("알림음"))
+                        alertToneCard
+                        #endif
+
                         sectionTitle(lang.tr("개인정보"))
                         privacyCard
 
@@ -57,6 +62,28 @@ struct SettingsView: View {
             .navigationTitle(lang.tr("설정"))
         }
     }
+
+    #if os(iOS)
+    // MARK: 알림음 — 음원 트림해서 이 앱 알림 소리로
+    @State private var showAlertTone = false
+
+    private var alertToneCard: some View {
+        Button { showAlertTone = true } label: {
+            HStack {
+                Text(lang.tr("알림음")).font(.body)
+                Spacer()
+                Image(systemName: "waveform")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(Color.appAccentText)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 16).padding(.vertical, 16)
+        .glassCard(cornerRadius: 22)
+        .sheet(isPresented: $showAlertTone) { AlertToneView() }
+    }
+    #endif
 
     // MARK: 애플 캘린더 가져오기(EventKit) — 기존 일정 이사 경로
     @State private var importing = false
