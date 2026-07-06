@@ -38,6 +38,7 @@ struct RootView: View {
     #if os(iOS)
     @State private var fadeSnapshot: UIImage?          // 외형 전환 시 이전 화면을 덮어 서서히 사라지게
     @State private var iosTab: IOSTab = .today
+    @State private var searchActive = false            // 플로팅 검색 — 켜지면 검색 탭이 잠시 사라짐
     #endif
     #if os(macOS)
     @State private var macSection: MacSection? = .today
@@ -90,11 +91,26 @@ struct RootView: View {
             Tab(lang.tr("설정"), systemImage: "gearshape", value: IOSTab.settings) {
                 SettingsView()
             }
-            Tab(lang.tr("검색"), systemImage: "magnifyingglass", value: IOSTab.search, role: .search) {
-                SearchTabView { day in
-                    iosTab = .today
-                    NotificationCenter.default.post(name: .oneulShowDay, object: day)   // 오늘 탭이 그 날짜로
+            if !searchActive {   // 검색 중엔 탭이 사라졌다가 완료/취소하면 되돌아옴
+                Tab(lang.tr("검색"), systemImage: "magnifyingglass", value: IOSTab.search, role: .search) {
+                    Color.clear   // 실제 화면 전환 없음 — 선택 즉시 오버레이로 전환
                 }
+            }
+        }
+        .onChange(of: iosTab) { old, new in
+            if new == .search {
+                iosTab = old == .search ? .today : old          // 현재 탭 유지
+                withAnimation(.spring(response: 0.32, dampingFraction: 0.85)) { searchActive = true }
+            }
+        }
+        .overlay(alignment: .top) {
+            if searchActive {
+                FloatingSearchOverlay(
+                    onPick: { day in
+                        iosTab = .today
+                        NotificationCenter.default.post(name: .oneulShowDay, object: day)
+                    },
+                    onDismiss: { searchActive = false })
             }
         }
         .overlay {
