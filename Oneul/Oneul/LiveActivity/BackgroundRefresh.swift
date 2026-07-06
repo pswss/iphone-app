@@ -30,10 +30,11 @@ enum BackgroundRefresh {
             let context = ModelContext(container)
             let events = (try? context.fetch(FetchDescriptor<ScheduleEvent>())) ?? []
             NotificationManager.shared.reschedule(for: events)   // 앱을 안 열어도 알림 창(7일) 유지
-            // 가장 가까운 일정 있는 날(오늘 비어도 미래 일정 표시) — 포그라운드와 동일 로직, BGTask가 미래 LA를 끄지 않게.
-            let shown = DayPlan.upcoming(events: events)
-            if let shown {
-                LiveActivityController.shared.refresh(plan: shown.plan, dayLabel: label(for: shown.day))
+            let shown = DayPlan.upcoming(events: events)   // 워치용
+            // Live Activity는 오늘 전용 — 포그라운드와 동일 규칙.
+            let todayPlan = DayPlan(events: events, day: .now)
+            if !todayPlan.isEmpty {
+                LiveActivityController.shared.refresh(plan: todayPlan, dayLabel: label(for: .now))
             } else {
                 await LiveActivityController.shared.end()
             }

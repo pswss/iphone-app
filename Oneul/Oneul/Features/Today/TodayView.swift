@@ -577,11 +577,13 @@ struct TodayView: View {
     }
 
     private func syncLiveActivity() {
-        // 오늘이 비어도 가장 가까운(다가오는) 일정 있는 날을 띄움 → 일정이 미래여도 Live Activity가 보임.
-        let shown = DayPlan.upcoming(events: events)
+        let shown = DayPlan.upcoming(events: events)   // 위젯·워치용(다가오는 날 폴백)
         #if os(iOS)
-        if let shown {
-            LiveActivityController.shared.refresh(plan: shown.plan, dayLabel: dayLabel(for: shown.day))
+        // Live Activity는 '오늘' 전용 — 일정이 하나라도 있으면(다 끝났어도 '오늘 끝'으로) 유지,
+        // 오늘이 완전히 비었을 때만 내림.
+        let todayPlan = DayPlan(events: events, day: .now)
+        if !todayPlan.isEmpty {
+            LiveActivityController.shared.refresh(plan: todayPlan, dayLabel: dayLabel(for: .now))
         } else {
             Task { await LiveActivityController.shared.end() }
         }
