@@ -26,6 +26,7 @@ struct TodayView: View {
     #endif
     private let lang = AppLanguage.shared
     @AppStorage("userType") private var userType = "general"
+    @Environment(\.scenePhase) private var scenePhase
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var hSize
     #endif
@@ -95,6 +96,11 @@ struct TodayView: View {
             if sharedScrollHour == nil { sharedScrollHour = max(0, Calendar.current.component(.hour, from: Date()) - 1) }
         }
         .onChange(of: events) { _, _ in rebuildIndex(); syncLiveActivity() }
+        .onChange(of: scenePhase) { _, phase in
+            // 어제 켜둔 앱이 아침에 포그라운드로 복귀하는 경로 — onAppear가 다시 안 불려
+            // LA가 영영 재시작되지 않던 문제. 활성화 때마다 오늘 기준으로 재동기화.
+            if phase == .active { syncLiveActivity() }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .oneulNewEvent)) { _ in addStart = nil; showingAdd = true }
         .onReceive(NotificationCenter.default.publisher(for: .oneulToday)) { _ in selectedDay = .now }
         .onReceive(NotificationCenter.default.publisher(for: .oneulShiftDay)) { note in

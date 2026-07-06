@@ -46,8 +46,11 @@ final class LiveActivityController {
         }
 
         let state = plan.contentState()
-        // staleDate가 과거면(저녁·일정 종료 후) 시스템이 곧바로 stale 처리 → 안 보일 수 있음. 항상 미래로.
-        let content = ActivityContent(state: state, staleDate: max(plan.dayEnd, Date().addingTimeInterval(15 * 60)))
+        // staleDate는 최소 '오늘 자정'까지 — 과거(저녁·일정 종료 후)면 즉시 stale로 숨고,
+        // 15분처럼 짧으면 저녁에 켠 LA가 금방 흐려지던 문제.
+        let endOfToday = Calendar.current.date(
+            byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: .now)) ?? .now
+        let content = ActivityContent(state: state, staleDate: max(plan.dayEnd, endOfToday))
 
         if let activity {
             Task { await activity.update(content) }
