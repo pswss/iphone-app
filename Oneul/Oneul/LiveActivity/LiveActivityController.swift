@@ -16,7 +16,10 @@ final class LiveActivityController {
 
     /// 마지막 시작/갱신 시도 결과 — 진단용(Xcode 콘솔에서도 같은 내용 출력).
     var status = "아직 시도 안 함 — 오늘 탭을 열어 보세요." {
-        didSet { log.info("\(self.status, privacy: .public)") }
+        didSet {
+            log.info("\(self.status, privacy: .public)")
+            print("[LA]", status)   // devicectl --console 캡처용
+        }
     }
 
     private var activity: Activity<ScheduleActivityAttributes>?
