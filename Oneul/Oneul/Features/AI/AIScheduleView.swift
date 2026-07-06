@@ -136,13 +136,13 @@ struct AIScheduleView: View {
             .padding(.vertical, 14)
             .background(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(active ? Color.appAccentStrong : Color.gray.opacity(0.22))
+                    .fill(active ? Color.blue : Color.gray.opacity(0.22))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .strokeBorder(.white.opacity(active ? 0.25 : 0), lineWidth: 1)
             )
-            .shadow(color: active ? Color.appAccentStrong.opacity(0.55) : .clear, radius: 14, y: 5)
+            .shadow(color: active ? Color.blue.opacity(0.55) : .clear, radius: 14, y: 5)
         }
         .buttonStyle(.plain)
         .disabled(!canGenerate)
@@ -419,9 +419,6 @@ struct AIScheduleView: View {
 private struct AIThinkingGlow: View {
     @State private var t = false
     var body: some View {
-        glow.drawingGroup()   // 블러 3장 합성을 오프스크린 GPU로 — 타이핑/버튼 렉 완화
-    }
-    private var glow: some View {
         ZStack {
             blob(Color(red: 0.50, green: 0.40, blue: 1.00), 280, -90, -130, 90, 70)
             blob(Color(red: 0.95, green: 0.40, blue: 0.80), 250, 110, 150, -80, -50)

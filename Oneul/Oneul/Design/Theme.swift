@@ -26,8 +26,6 @@ extension Color {
 
     /// 앱 포인트 컬러 — 라이트=화이트, 다크=남색.
     static let appAccent = dynamic(light: (1, 1, 1, 1), dark: (0.18, 0.29, 0.63, 1))
-    /// 항상 진한 강조(남색) — 라이트에서도 채워진 버튼이 또렷해야 할 때(AI 전송 등).
-    static let appAccentStrong = dynamic(light: (0.18, 0.29, 0.63, 1), dark: (0.18, 0.29, 0.63, 1))
     /// 포인트 컬러 위에 올라가는 글자/아이콘 색.
     static let appOnAccent = dynamic(light: (0.11, 0.11, 0.11, 1), dark: (1, 1, 1, 1))
     /// 어두운/밝은 배경 위에서 읽히는 강조 텍스트 색(카운트다운 등).
