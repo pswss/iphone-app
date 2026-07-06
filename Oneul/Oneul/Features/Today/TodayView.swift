@@ -129,6 +129,11 @@ struct TodayView: View {
                     onInteractingChange: { gridInteracting = $0 })
     }
 
+    /// 그 날에 생일·기념일(데이마커)이 있는지 — 캘린더 날짜 빨강 표시용.
+    private func hasDayMarker(_ d: Date) -> Bool {
+        (eventsByDay[Calendar.current.startOfDay(for: d)] ?? []).contains { $0.isDayMarker() }
+    }
+
     /// 새 일정 추가 시트가 떠 있고 그 시작 시각이 이 날짜면 미리보기 블록 표시.
     private func previewFor(_ d: Date) -> Date? {
         guard showingAdd, let s = addStart,
@@ -209,6 +214,7 @@ struct TodayView: View {
                         onEdit: { editing = $0 },
                         onAdd: { addStart = $0; showingAdd = true },
                         previewStart: { previewFor($0) },   // 추가 시트 열려 있는 동안 점선 미리보기(iOS와 동일)
+                        isSpecial: { hasDayMarker($0) },
                         scrollHour: $sharedScrollHour)   // macOS: 한 주(월~일) 7열을 한눈에
                 .padding(.horizontal, 12)
                 // .id(gridToken) 금지 — 데이터 변경마다 뷰 아이덴티티가 바뀌면 드래그/리사이즈 커밋 때
@@ -266,7 +272,8 @@ struct TodayView: View {
             chromeRow(index: 0, order: 3) { header }
             chromeRow(index: 1, order: 2) { unifiedBand }   // 주요 알림(시험 D-Day·방학) — 독립 위젯 행
             #if os(iOS)
-            chromeRow(index: 2, order: 1) { CalendarBar(selectedDay: $selectedDay) }   // 맥은 주 그리드가 대신함 → 주간 스트립 불필요
+            chromeRow(index: 2, order: 1) { CalendarBar(selectedDay: $selectedDay,
+                                                     isSpecial: { hasDayMarker($0) }) }   // 맥은 주 그리드가 대신함 → 주간 스트립 불필요
             #endif
             #if os(iOS)
             chromeRow(index: 3, order: 0) { timelineCard(plan, live: Calendar.current.isDateInToday(selectedDay)) }   // 맥은 주 그리드가 타임라인 → 하루짜리 타임라인 카드 불필요
@@ -709,6 +716,7 @@ struct MacWeekGrid: View {
     var onEdit: (ScheduleEvent) -> Void
     var onAdd: (Date) -> Void
     var previewStart: (Date) -> Date? = { _ in nil }   // 새 일정 점선 미리보기(요일별)
+    var isSpecial: (Date) -> Bool = { _ in false }     // 생일·기념일 — 헤더 날짜 빨강
     @Binding var scrollHour: Int?
 
     private let cal = Calendar.current
@@ -803,12 +811,13 @@ struct MacWeekGrid: View {
 
     private func dayHeader(_ d: Date) -> some View {
         let today = cal.isDateInToday(d)
+        let special = isSpecial(d) || Holidays.name(for: d) != nil   // 생일·기념일·공휴일 빨강(오늘 강조 우선)
         return VStack(spacing: 1) {
             Text(d, format: .dateTime.weekday(.short).locale(lang.locale))
                 .font(.caption2).foregroundStyle(today ? Color.appAccentText : .secondary)
             Text(d, format: .dateTime.day())
                 .font(.callout).bold()
-                .foregroundStyle(today ? Color.appAccentText : .primary)
+                .foregroundStyle(today ? Color.appAccentText : (special ? .red : .primary))
         }
     }
 

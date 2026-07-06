@@ -5,6 +5,7 @@ import SwiftUI
 /// - 헤더(월 이름/▼) 탭 → 월 달력으로 펼침. 펼침에서 좌우 스와이프=이전/다음 달, 날짜 탭=선택 후 접힘.
 struct CalendarBar: View {
     @Binding var selectedDay: Date
+    var isSpecial: (Date) -> Bool = { _ in false }   // 생일·기념일 등 — 날짜 숫자 빨강
 
     @State private var expanded = false
     @State private var weekIndex = 0
@@ -156,6 +157,7 @@ struct CalendarBar: View {
     private func dateColor(_ date: Date, selected: Bool) -> Color {
         if selected { return Color.appOnAccent }
         if Holidays.name(for: date) != nil { return .red }
+        if isSpecial(date) { return .red }               // 생일·기념일
         switch cal.component(.weekday, from: date) {
         case 1: return .red    // 일요일
         case 7: return .blue   // 토요일
