@@ -327,7 +327,6 @@ final class AppLanguage {
         "남은": "left",
         "다음까지": "next in",
         "현재": "Now",
-        "다음": "Next",
         "진행 중인 일정 없음": "No active event",
         "배치할 교시를 찾지 못한 과목: %@ — 미리보기에서 직접 지정해 주세요.":
             "Couldn't place: %@ — assign them manually in the preview.",
