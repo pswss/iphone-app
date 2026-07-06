@@ -21,11 +21,6 @@ struct TodayView: View {
     @State private var gridInteracting = false         // 일정 드래그/리사이즈 중 → 좌우 날짜 스와이프 잠금
     @State private var showSearch = false             // 일정 검색 시트(맥)
     #if os(iOS)
-    @State private var showInlineSearch = false       // 인라인 검색창(헤더 아래로 촥)
-    @State private var searchQuery = ""
-    @FocusState private var searchFocused: Bool
-    #endif
-    #if os(iOS)
     @State private var showMealSheet = false          // 급식(학생) — 탭에서 헤더 아이콘으로 이동
     @State private var showSettingsSheet = false      // 설정 — 탭에서 헤더 아이콘으로 이동
     #endif
@@ -324,27 +319,16 @@ struct TodayView: View {
                 Text(selectedDay, format: .dateTime.day().weekday(.wide))
                     .font(.largeTitle).bold()
                 Spacer()
-                HStack(spacing: 0) {                     // 검색·급식이 이어진 리퀴드 글래스 캡슐
-                    capsuleIcon("magnifyingglass") {
-                        #if os(iOS)
-                        withAnimation(.snappy(duration: 0.28)) { showInlineSearch = true }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { searchFocused = true }
-                        #else
-                        showSearch = true
-                        #endif
-                    }
-                    #if os(iOS)
-                    if isStudent {
-                        Rectangle().fill(.primary.opacity(0.15)).frame(width: 0.5, height: 18)
-                        capsuleIcon("fork.knife") { showMealSheet = true }
-                    }
-                    #endif
+                #if os(iOS)
+                if isStudent {   // 검색은 하단 탭(role .search)으로 이동 — 헤더엔 급식만
+                    capsuleIcon("fork.knife") { showMealSheet = true }
+                        .glassEffect(.regular.interactive(), in: Capsule())
                 }
-                .glassEffect(.regular.interactive(), in: Capsule())
+                #else
+                capsuleIcon("magnifyingglass") { showSearch = true }
+                    .glassEffect(.regular.interactive(), in: Capsule())
+                #endif
             }
-            #if os(iOS)
-            if showInlineSearch { inlineSearch }   // 상단에 미니멀하게 촥 — 시트 대신 인라인
-            #endif
             if let holiday = Holidays.name(for: selectedDay) {
                 Text(holiday)
                     .font(.caption).bold()
@@ -403,65 +387,6 @@ struct TodayView: View {
         .buttonStyle(.plain)
     }
 
-    #if os(iOS)
-    // MARK: 인라인 일정 검색 — 헤더 아래로 미니멀하게 펼쳐지는 검색창 + 드롭다운 결과
-    @ViewBuilder private var inlineSearch: some View {
-        VStack(spacing: 6) {
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass").font(.subheadline).foregroundStyle(.secondary)
-                TextField(lang.tr("제목이나 장소"), text: $searchQuery)
-                    .textFieldStyle(.plain)
-                    .focused($searchFocused)
-                Button {
-                    withAnimation(.snappy(duration: 0.25)) { showInlineSearch = false }
-                    searchQuery = ""; searchFocused = false
-                } label: {
-                    Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.horizontal, 12).padding(.vertical, 9)
-            .glassCard(cornerRadius: 16)
-
-            let results = inlineResults
-            if !results.isEmpty {
-                VStack(spacing: 0) {
-                    ForEach(Array(results.enumerated()), id: \.element.id) { i, e in
-                        Button {
-                            withAnimation(.snappy(duration: 0.3)) { selectedDay = e.start }
-                            withAnimation(.snappy(duration: 0.25)) { showInlineSearch = false }
-                            searchQuery = ""; searchFocused = false
-                        } label: {
-                            HStack(spacing: 8) {
-                                Text(e.title.isEmpty ? lang.tr("제목 없음") : e.title)
-                                    .font(.subheadline).bold().lineLimit(1)
-                                Spacer(minLength: 6)
-                                Text(e.start, format: .dateTime.month().day().weekday(.abbreviated).locale(lang.locale))
-                                    .font(.caption2).foregroundStyle(.secondary)
-                            }
-                            .padding(.horizontal, 12).padding(.vertical, 9)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        if i < results.count - 1 { Divider().padding(.horizontal, 10) }
-                    }
-                }
-                .glassCard(cornerRadius: 16)
-            }
-        }
-        .padding(.top, 6)
-        .transition(.move(edge: .top).combined(with: .opacity))
-    }
-
-    private var inlineResults: [ScheduleEvent] {
-        let q = searchQuery.trimmingCharacters(in: .whitespaces)
-        guard !q.isEmpty else { return [] }
-        return Array(events
-            .filter { $0.title.localizedStandardContains(q) || $0.location.localizedStandardContains(q) }
-            .sorted { abs($0.start.timeIntervalSinceNow) < abs($1.start.timeIntervalSinceNow) }
-            .prefix(6))
-    }
-    #endif
 
     // MARK: D-Day (다가오는 시험/수능)
     private var dDays: [(title: String, days: Int)] {

@@ -25,6 +25,10 @@ enum MacSection: Hashable, CaseIterable {
 }
 #endif
 
+#if os(iOS)
+enum IOSTab: Hashable { case today, memo, ai, settings, search }
+#endif
+
 struct RootView: View {
     @AppStorage("appearance") private var appearanceRaw = Appearance.system.rawValue
     @AppStorage("userType") private var userType = "general"
@@ -33,6 +37,7 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     #if os(iOS)
     @State private var fadeSnapshot: UIImage?          // 외형 전환 시 이전 화면을 덮어 서서히 사라지게
+    @State private var iosTab: IOSTab = .today
     #endif
     #if os(macOS)
     @State private var macSection: MacSection? = .today
@@ -71,20 +76,26 @@ struct RootView: View {
     @ViewBuilder
     private var content: some View {
         #if os(iOS)
-        // 3탭 고정 — 설정·급식이 최상위 탭을 차지하고 학생 전환 시 탭 위치가 밀리던 문제.
-        // 설정/급식은 오늘 화면 헤더 아이콘(시트)으로 이동.
-        TabView {
-            TodayView()
-                .tabItem { Label(lang.tr("오늘"), systemImage: "calendar.day.timeline.left") }
-
-            MemoView()
-                .tabItem { Label(lang.tr("메모"), systemImage: "note.text") }
-
-            AIScheduleView()
-                .tabItem { Label(lang.tr("AI"), systemImage: "sparkles") }
-
-            SettingsView()
-                .tabItem { Label(lang.tr("설정"), systemImage: "gearshape") }
+        // 검색은 role .search 탭 — 애플 뮤직처럼 탭바 우측 분리 + 탭하면 검색 필로 모핑(시스템 제공)
+        TabView(selection: $iosTab) {
+            Tab(lang.tr("오늘"), systemImage: "calendar.day.timeline.left", value: IOSTab.today) {
+                TodayView()
+            }
+            Tab(lang.tr("메모"), systemImage: "note.text", value: IOSTab.memo) {
+                MemoView()
+            }
+            Tab("AI", systemImage: "sparkles", value: IOSTab.ai) {
+                AIScheduleView()
+            }
+            Tab(lang.tr("설정"), systemImage: "gearshape", value: IOSTab.settings) {
+                SettingsView()
+            }
+            Tab(lang.tr("검색"), systemImage: "magnifyingglass", value: IOSTab.search, role: .search) {
+                SearchTabView { day in
+                    iosTab = .today
+                    NotificationCenter.default.post(name: .oneulShowDay, object: day)   // 오늘 탭이 그 날짜로
+                }
+            }
         }
         .overlay {
             // 이전 외형 스냅샷을 위에 깔았다가 페이드아웃 → 새 외형이 서서히 드러남(크로스페이드)
