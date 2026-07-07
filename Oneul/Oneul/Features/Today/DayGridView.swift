@@ -70,7 +70,7 @@ struct DayGridView: View {
 
             if scrollsInternally {
                 GeometryReader { geo in
-                    let gridW = geo.size.width - leftInset - 8
+                    let gridW = geo.size.width - leftInset - 2   // 오른쪽은 숨구멍만 — 블록이 화면 끝까지 차게
                     ZStack(alignment: .bottom) {
                         ScrollViewReader { proxy in
                             ScrollView(showsIndicators: false) {
@@ -94,7 +94,7 @@ struct DayGridView: View {
             } else {
                 // 주 그리드(맥): 내부 스크롤 없이 전체 높이 렌더 → MacWeekGrid의 단일 ScrollView가 7열을 통합 스크롤
                 GeometryReader { geo in
-                    gridContent(width: geo.size.width, gridW: geo.size.width - leftInset - 8)
+                    gridContent(width: geo.size.width, gridW: geo.size.width - leftInset - 2)
                         .coordinateSpace(name: "grid")
                 }
                 .frame(height: gridHeight)
