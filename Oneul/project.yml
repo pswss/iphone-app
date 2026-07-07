@@ -101,6 +101,8 @@ targets:
       path: Generated/OneulWatch-Info.plist
       properties:
         CFBundleDisplayName: Oneul
+        CFBundleAllowMixedLocalizations: true   # lproj 없이도 시스템 언어로 시간 포맷(없으면 워치가 'PM' 영어 표기)
+        CFBundleDevelopmentRegion: ko
         WKApplication: true
         WKCompanionAppBundleIdentifier: com.oneul.app
 

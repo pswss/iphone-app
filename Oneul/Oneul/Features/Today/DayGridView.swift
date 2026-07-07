@@ -82,6 +82,15 @@ struct DayGridView: View {
                             .onAppear {
                                 scrollProxy = proxy
                                 if scrollHour == nil { scrollHour = scrollAnchorHour }   // 첫 진입 기준 위치
+                                #if DEBUG
+                                if ProcessInfo.processInfo.arguments.contains("-demoSeed") {
+                                    // 스크린샷용 — 헤드리스에선 scrollPosition 복원이 첫 렌더에 안 먹어 직접 스크롤
+                                    Task { @MainActor in
+                                        try? await Task.sleep(nanoseconds: 900_000_000)
+                                        proxy.scrollTo(scrollAnchorHour, anchor: .top)
+                                    }
+                                }
+                                #endif
                             }
                             .trackScroll(enabled: onScrollDelta != nil, hourHeight: hourHeight,
                                          onDelta: onScrollDelta, onHour: { _ in })       // 접힘 진행률만 추적; 위치는 scrollPosition가 공유

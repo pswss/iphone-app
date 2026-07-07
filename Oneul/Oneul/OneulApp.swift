@@ -24,6 +24,9 @@ struct OneulApp: App {
         Task { @MainActor in PushSync.shared.begin() }   // push-to-start 토큰 구독(앱 꺼져도 LA 자동 시작)
         BackgroundRefresh.register(container: container)   // 백그라운드 갱신 작업 등록(launch 전)
         #endif
+        #if DEBUG
+        Task { @MainActor [container] in DemoSeed.runIfRequested(container: container) }   // 스크린샷용
+        #endif
     }
 
     var body: some Scene {

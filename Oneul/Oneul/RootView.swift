@@ -37,7 +37,20 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     #if os(iOS)
     @State private var fadeSnapshot: UIImage?          // 외형 전환 시 이전 화면을 덮어 서서히 사라지게
-    @State private var iosTab: IOSTab = .today
+    @State private var iosTab: IOSTab = {
+        #if DEBUG
+        // 스크린샷용 — "-demoTab=ai" 식으로 시작 탭 지정(헤드리스 시뮬레이터는 탭을 못 누름)
+        if let arg = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("-demoTab=") }) {
+            switch arg.dropFirst("-demoTab=".count) {
+            case "ai": return .ai
+            case "memo": return .memo
+            case "settings": return .settings
+            default: break
+            }
+        }
+        #endif
+        return .today
+    }()
     @State private var searchActive = false            // 플로팅 검색 — 켜지면 검색 탭이 잠시 사라짐
     #endif
     #if os(macOS)
