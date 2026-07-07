@@ -68,9 +68,51 @@ const HTML = `<!doctype html>
 </body>
 </html>`;
 
+// 지원 페이지 — App Store '지원 URL'용 (문의처 + 자주 묻는 질문)
+const SUPPORT = `<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>오늘(Oneul) 지원 · Support</title>
+<style>
+  body { font-family: -apple-system, "Apple SD Gothic Neo", sans-serif; max-width: 680px;
+         margin: 0 auto; padding: 32px 20px 60px; line-height: 1.75; color: #1c1c2e; }
+  h1 { font-size: 1.5em; } h2 { font-size: 1.1em; margin-top: 1.8em; }
+  .card { background: #f4f5fb; border-radius: 14px; padding: 14px 18px; margin: 10px 0; }
+  .en { color: #555; }
+  @media (prefers-color-scheme: dark) { body { background: #111; color: #eee; }
+    .card { background: #1d1e26; } .en { color: #aaa; } }
+</style>
+</head>
+<body>
+<h1>오늘(Oneul) 지원</h1>
+<p>오늘은 자연어로 입력하는 하루 일정 타임라인 앱입니다. 문제가 있거나 제안이 있으면 언제든 메일 주세요.</p>
+<p><strong>문의:</strong> <a href="mailto:edsok5588@gmail.com">edsok5588@gmail.com</a> — 보통 1~2일 안에 답장드려요.</p>
+
+<h2>자주 묻는 질문</h2>
+<div class="card"><strong>잠금화면에 일정(실시간 활동)이 안 떠요.</strong><br>
+오늘 날짜에 일정이 있어야 표시됩니다. 설정 &gt; 알림에서 '실시간 활동'이 켜져 있는지도 확인해 주세요.</div>
+<div class="card"><strong>학교 시간표·급식이 안 나와요.</strong><br>
+설정에서 학교·학년·반을 설정하면 자동으로 불러옵니다. 학기 중이 아닐 때(방학)는 시간표가 비어 있을 수 있어요.</div>
+<div class="card"><strong>다른 기기와 동기화가 안 돼요.</strong><br>
+두 기기 모두 같은 Apple 계정으로 iCloud에 로그인돼 있고, iCloud Drive가 켜져 있어야 합니다.</div>
+<div class="card"><strong>데이터를 전부 지우고 싶어요.</strong><br>
+설정 &gt; 데이터 초기화에서 지울 수 있습니다. 일정은 기기와 내 iCloud에만 저장되며 개발자는 접근할 수 없어요.</div>
+
+<p><a href="/">개인정보 처리방침 보기</a></p>
+<hr>
+<p class="en">Oneul is a natural-language daily timeline app. For help or feedback, email
+<a href="mailto:edsok5588@gmail.com">edsok5588@gmail.com</a> — we usually reply within 1–2 days.
+<a href="/">Privacy Policy</a></p>
+</body>
+</html>`;
+
 export default {
-  async fetch() {
-    return new Response(HTML, {
+  async fetch(request) {
+    const path = new URL(request.url).pathname;
+    const body = path === "/support" ? SUPPORT : HTML;
+    return new Response(body, {
       headers: { "content-type": "text/html; charset=utf-8" },
     });
   },
