@@ -79,8 +79,12 @@ struct DayPlan {
     /// 시간표로 이벤트가 많은 날을 위해 스냅샷 개수·제목 길이를 캡.
     func contentState(at now: Date = .now) -> ScheduleActivityAttributes.ContentState {
         let cap = 10
+        // 하루 전체가 바에 보이게(지난 칸은 렌더러가 흐리게 그림) — 캡 초과 시 미래 우선,
+        // 남는 자리는 최근에 끝난 일정부터 채움. 끝난 일정을 통째로 빼면 바가 남은 일정만 보인다.
+        let past = events.filter { $0.end < now }
         let upcoming = events.filter { $0.end >= now }
-        let picked = upcoming.isEmpty ? Array(events.suffix(cap)) : Array(upcoming.prefix(cap))
+        let futurePick = Array(upcoming.prefix(cap))
+        let picked = Array(past.suffix(cap - futurePick.count)) + futurePick
         let snaps = picked.map { e in
             EventSnapshot(id: e.id, title: String(e.title.prefix(16)), start: e.start, end: e.end,
                           colorIndex: colorIndex(of: e), isMultiDay: e.isMultiDay() || e.isDayMarker())
