@@ -37,31 +37,10 @@ struct TimelineBar: View {
                         .frame(maxHeight: .infinity, alignment: .center)
 
                     ForEach(Array(layout.segments.enumerated()), id: \.offset) { _, seg in
-                        let span = max(1, seg.end.timeIntervalSince(seg.start))
                         let multi = seg.eventIndices.count > 1
                         // 스테인글라스: 늦게 시작하는 일정을 먼저(뒤층) 그려 앞 일정 뒤로 비치게
                         ForEach(seg.eventIndices.sorted { single[$0].start > single[$1].start }, id: \.self) { i in
-                            let e = single[i]
-                            let color = EventPalette.color(plan.colorIndex(of: e), of: plan.events.count)
-                            let isCurrent = current?.id == e.id
-                            let isPast = now >= e.end
-                            let f0 = min(max(e.start.timeIntervalSince(seg.start) / span, 0), 1)
-                            let f1 = min(max(e.end.timeIntervalSince(seg.start) / span, 0), 1)
-
-                            RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                .fill(color)
-                                .frame(width: max(2, seg.width * (f1 - f0) * w - 1.5),
-                                       height: height * (isCurrent ? 1.15 : 1))   // 현재 일정 강조 높이
-                                .opacity(isPast ? 0.25 : (isCurrent ? 1 : (multi ? 0.6 : 0.5)))   // 겹치면 반투명 유리판 → 뒤가 비침
-                                .overlay {
-                                    if multi {   // 각 유리판 윤곽 → '두 개'임이 보이게
-                                        RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                            .strokeBorder(.primary.opacity(0.35), lineWidth: 0.5)
-                                    }
-                                }
-                                .shadow(color: isCurrent ? color.opacity(0.6) : .clear, radius: 6, y: 3)
-                                .offset(x: (seg.left + seg.width * f0) * w + 0.75)
-                                .frame(maxHeight: .infinity, alignment: .center)
+                            cell(single[i], seg: seg, multi: multi, current: current, now: now, w: w)
                         }
                     }
 
@@ -81,5 +60,35 @@ struct TimelineBar: View {
         }
         .frame(height: height + 14)
         .animation(.easeInOut(duration: 0.35), value: current?.id)
+    }
+
+    /// 일정 유리판 하나 — Double/CGFloat 혼합 산술을 명시적 타입 let으로 분리.
+    /// (한 표현식에 인라인하면 구형 컴파일러가 타입체크 시간 초과로 빌드 실패)
+    private func cell(_ e: ScheduleEvent, seg: PackedLayout.Segment, multi: Bool,
+                      current: ScheduleEvent?, now: Date, w: CGFloat) -> some View {
+        let span: Double = max(1, seg.end.timeIntervalSince(seg.start))
+        let color: Color = EventPalette.color(plan.colorIndex(of: e), of: plan.events.count)
+        let isCurrent: Bool = current?.id == e.id
+        let isPast: Bool = now >= e.end
+        let f0: Double = min(max(e.start.timeIntervalSince(seg.start) / span, 0), 1)
+        let f1: Double = min(max(e.end.timeIntervalSince(seg.start) / span, 0), 1)
+        let cellW: CGFloat = max(2, CGFloat(seg.width * (f1 - f0)) * w - 1.5)
+        let cellH: CGFloat = height * (isCurrent ? 1.15 : 1)          // 현재 일정 강조 높이
+        let cellX: CGFloat = CGFloat(seg.left + seg.width * f0) * w + 0.75
+        let alpha: Double = isPast ? 0.25 : (isCurrent ? 1 : (multi ? 0.6 : 0.5))   // 겹치면 반투명 유리판 → 뒤가 비침
+
+        return RoundedRectangle(cornerRadius: 3, style: .continuous)
+            .fill(color)
+            .frame(width: cellW, height: cellH)
+            .opacity(alpha)
+            .overlay {
+                if multi {   // 각 유리판 윤곽 → '두 개'임이 보이게
+                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                        .strokeBorder(.primary.opacity(0.35), lineWidth: 0.5)
+                }
+            }
+            .shadow(color: isCurrent ? color.opacity(0.6) : .clear, radius: 6, y: 3)
+            .offset(x: cellX)
+            .frame(maxHeight: .infinity, alignment: .center)
     }
 }
