@@ -37,21 +37,23 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     #if os(iOS)
     @State private var fadeSnapshot: UIImage?          // 외형 전환 시 이전 화면을 덮어 서서히 사라지게
-    @State private var iosTab: IOSTab = {
+    @State private var iosTab: IOSTab = RootView.initialTab()
+    @State private var searchActive = false            // 플로팅 검색 — 켜지면 검색 탭이 잠시 사라짐
+
+    /// 시작 탭 — 스크린샷용 "-demoTab=ai" 런치 아규먼트 지원(DEBUG). 명시적 타입으로
+    /// 단순하게 유지: 클로저 초기화는 구형 컴파일러에서 타입체크 시간 초과를 유발했다.
+    private static func initialTab() -> IOSTab {
         #if DEBUG
-        // 스크린샷용 — "-demoTab=ai" 식으로 시작 탭 지정(헤드리스 시뮬레이터는 탭을 못 누름)
-        if let arg = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("-demoTab=") }) {
-            switch arg.dropFirst("-demoTab=".count) {
-            case "ai": return .ai
-            case "memo": return .memo
-            case "settings": return .settings
-            default: break
-            }
+        let args: [String] = ProcessInfo.processInfo.arguments
+        for arg in args where arg.hasPrefix("-demoTab=") {
+            let name: String = String(arg.dropFirst("-demoTab=".count))
+            if name == "ai" { return .ai }
+            if name == "memo" { return .memo }
+            if name == "settings" { return .settings }
         }
         #endif
         return .today
-    }()
-    @State private var searchActive = false            // 플로팅 검색 — 켜지면 검색 탭이 잠시 사라짐
+    }
     #endif
     #if os(macOS)
     @State private var macSection: MacSection? = .today
