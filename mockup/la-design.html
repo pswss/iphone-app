@@ -117,22 +117,33 @@
   <h2>무지개 팔레트</h2>
   <div class="palette" id="pal"></div>
 
+  <h2>설정 저장</h2>
+  <div class="row" style="gap:6px">
+    <button id="copyBtn" style="flex:1;padding:8px;border:1.5px solid var(--accent);background:var(--accent);
+      color:#fff;border-radius:9px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit">현재 설정 복사</button>
+    <button id="resetBtn" style="flex:1;padding:8px;border:1.5px solid #d9d9e3;background:#fafafc;
+      color:#555;border-radius:9px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit">초기화</button>
+  </div>
+  <div class="hint" id="saveHint">조절값은 자동 저장돼요 — 새로고침해도 유지됩니다.</div>
+
   <h2>메모</h2>
   <div class="hint">· 바는 실제 앱과 같은 <b>PackedLayout</b> — 일정끼리 빈틈없이 붙고, 폭은 시간 비례,
   겹치는 일정은 한 칸에 스테인글라스, 지난 칸은 흐려지고, 쉬는 시간엔 흰 니들이 다음 칸 경계에 멈춰요.<br>
   · 카드·아일랜드 안 글자는 <b>클릭해서 직접 수정</b> 가능.<br>
-  · 마음에 들면 “옵션 B, 코너 26, 바 16” 식으로 알려 주세요 — 그대로 SwiftUI에 옮길게요.</div>
+  · 마음에 들면 <b>“현재 설정 복사”</b>를 눌러 그대로 붙여넣어 주세요 — SwiftUI에 옮길게요.</div>
 </div>
 
 <script>
-// ── 상태 ──
-const S = {
+// ── 상태 (localStorage에 자동 저장/복원) ──
+const DEFAULTS = {
   variant: "A", scn: "now", wall: "dark",
   bg: "tint", bgColor: "#383D73", bgAlpha: 35,
   radius: 22, fscale: 100, barH: 14,
   showHead: true, showBar: true, showProg: true, showNow: true, showNext: true,
   palette: ["#FF453A", "#FF9F0A", "#FFD60A", "#30D158", "#0A84FF", "#5E5CE6", "#BF5AF2"],
 };
+const S = { ...DEFAULTS, ...JSON.parse(localStorage.getItem("oneul-la-mockup") || "{}") };
+const saveS = () => localStorage.setItem("oneul-la-mockup", JSON.stringify(S));
 
 // 샘플 하루: [시작h, 끝h, 제목] — 동아리+보강이 겹침(스테인글라스 확인용)
 const DAY = [[9,10,"수학"],[10,11,"영어"],[11,12.5,"물리 실험"],[13.5,15,"동아리"],[14,15,"보강"],[16,18,"학원"],[19,20,"운동"]];
@@ -317,6 +328,7 @@ function render() {
 
   ["radius","fscale","bgAlpha","barH"].forEach(k => document.getElementById(k + "V").textContent =
     k === "fscale" || k === "bgAlpha" ? S[k] + "%" : S[k]);
+  saveS();
 }
 
 // ── 컨트롤 배선 ──
@@ -348,6 +360,26 @@ S.palette.forEach((c, i) => {
   inp.oninput = () => { S.palette[i] = inp.value; render(); };
   $("pal").appendChild(inp);
 });
+
+// 저장된 상태를 컨트롤 UI에 반영(새로고침 복원)
+[["scnSeg","scn"],["wallSeg","wall"],["bgSeg","bg"]].forEach(([id, k]) =>
+  $(id).querySelectorAll("button").forEach(x => x.classList.toggle("on", x.dataset.v === S[k])));
+[["radius","radius"],["fscale","fscale"],["bgAlpha","bgAlpha"],["barH","barH"]].forEach(([id, k]) => $(id).value = S[k]);
+$("bgColor").value = S.bgColor;
+["showHead","showBar","showProg","showNow","showNext"].forEach(k => $(k).checked = S[k]);
+
+// 현재 설정 복사 / 초기화
+$("copyBtn").onclick = async () => {
+  const onoff = k => S[k] ? "켬" : "끔";
+  const txt = `[오늘 LA 목업 설정] 옵션 ${S.variant} (${VARIANTS[S.variant].name}) · 배경 ${S.bg}${S.bg === "custom" ? " " + S.bgColor : ""} `
+    + `불투명도 ${S.bgAlpha}% · 코너 ${S.radius} · 글자 ${S.fscale}% · 바 높이 ${S.barH} · `
+    + `헤더 ${onoff("showHead")}/바 ${onoff("showBar")}/진행바 ${onoff("showProg")}/현재 ${onoff("showNow")}/다음 ${onoff("showNext")} · `
+    + `팔레트 ${S.palette.join(",")}`;
+  try { await navigator.clipboard.writeText(txt); $("saveHint").textContent = "복사됨! 대화에 붙여넣어 주세요."; }
+  catch { $("saveHint").textContent = txt; }   // 클립보드 막히면 그대로 표시
+};
+$("resetBtn").onclick = () => { localStorage.removeItem("oneul-la-mockup"); location.reload(); };
+
 render();
 </script>
 </body>
