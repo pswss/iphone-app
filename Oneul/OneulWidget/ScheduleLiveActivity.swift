@@ -21,7 +21,7 @@ struct ScheduleLiveActivity: Widget {
             // 잠금화면 / 배너
             LockScreenView(attributes: context.attributes, state: context.state)
                 .padding(14)
-                .activityBackgroundTint(Color.black.opacity(0.35))
+                .activityBackgroundTint(Color.black.opacity(0.33))
                 .activitySystemActionForegroundColor(.white)
 
         } dynamicIsland: { context in
@@ -106,14 +106,7 @@ struct LockScreenView: View {
                 Spacer()
                 countdown
             }
-            WidgetTimelineBar(segments: state.segments)
-            if let seg = state.segments.first(where: { $0.start <= Date() && Date() < $0.end }) {
-                ProgressView(timerInterval: seg.start...seg.end, countsDown: false) {
-                    EmptyView()
-                } currentValueLabel: { EmptyView() }
-                    .progressViewStyle(.linear)
-                    .tint(.white)                        // 진행 중 일정이 채워지는 실시간 바(배민식)
-            }
+            WidgetTimelineBar(segments: state.segments, height: 18)   // 목업 확정값 — 바 두껍게, 진행 바 제거
             Text(L("현재", "Now", en) + " · " + (state.currentTitle ?? L("진행 중인 일정 없음", "No active event", en)))
                 .font(.subheadline).bold().foregroundStyle(.white)
             if let title = state.nextTitle, let start = state.nextStart {
