@@ -85,6 +85,17 @@ final class PushSync {
         }
 
         var items: [[String: Any]] = []
+
+        // '지금' 상태를 항목으로 — 첫 경계가 오기 전에도 서버가 이걸 기준으로
+        // 분단위 재전송을 해서 잠금화면 남은 시간이 스스로 갱신된다(내용은 동일, 재렌더만).
+        if updateToken != nil {
+            let state = plan.contentState(at: now)
+            if let data = try? enc.encode(state),
+               let obj = try? JSONSerialization.jsonObject(with: data) {
+                items.append(["at": Int(now.timeIntervalSince1970), "event": "update", "state": obj])
+            }
+        }
+
         for t in times.sorted() {
             let state = plan.contentState(at: t.addingTimeInterval(2))
             guard let data = try? enc.encode(state),
