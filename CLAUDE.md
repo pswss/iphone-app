@@ -11,9 +11,11 @@
 - 시스템 컴포넌트(리퀴드 글래스, 표준 컨트롤)와 일반적 UI 관례(주간 그리드, 타임라인 바 등)는 기능적 표현이라 사용 가능. 특정 앱의 **고유한 시각 정체성(트레이드 드레스)을 통째로 모방하는 수준**은 피한다.
 - 서드파티 이미지·폰트·사운드를 넣을 땐 라이선스 확인 후 출처를 주석으로 남긴다.
 
-## 비밀 관리
-- `NEIS.swift`, `ElectiveSetupView.swift`, `PushConfig.swift`는 `skip-worktree` — 비공개 URL·키 포함, **절대 커밋 금지**.
-- 새 비밀은 Cloudflare `wrangler secret` 또는 skip-worktree 로컬 파일로만.
+## 비밀 관리 (2026-07-07 개편)
+- 비공개 값은 전부 `Oneul/Oneul/Secrets.swift` 한 파일에만(gitignore, **절대 커밋 금지**). 다른 소스는 `Secrets.xxx`로 참조만 하므로 자유롭게 커밋.
+- 새 비밀 추가 시 3곳 동기화: `Secrets.swift` + `docs/Secrets.swift.example` + `ci_scripts/ci_post_clone.sh`(Xcode Cloud용 환경변수 생성).
+- 서버 쪽 비밀은 Cloudflare `wrangler secret`으로만.
+- 커밋 전 스테이징에 비밀 패턴 없는지 확인: `git diff --cached | grep -E "pswss|[0-9a-f]{32,}"` → 0건이어야 함.
 
 ## 빌드
 - `project.yml`이 원본 — 타깃/파일 추가는 xcodegen(`xcodegen generate`)으로. Xcode에서 직접 타깃 추가 금지(재생성 시 소실).
