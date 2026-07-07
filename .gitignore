@@ -24,3 +24,6 @@ Oneul/screenshot-*.png
 # Cloudflare wrangler 로컬 캐시(계정 정보 — 커밋 금지)
 .wrangler/
 proxy/.wrangler/
+
+# 비공개 값 — 로컬/Xcode Cloud(ci_post_clone.sh)에서만 존재
+Oneul/Oneul/Secrets.swift

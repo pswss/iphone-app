@@ -18,9 +18,11 @@
 		0F506EF0648DD738B3180989 /* OneulWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 2BA16226B30D84045A77F03B /* OneulWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		1163B5973260DF55E9E1820B /* Glass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A201BB565E9308A6DAAEAB4 /* Glass.swift */; };
 		133F28617D2C44375770E9C8 /* FastScheduleParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AFB22F65F7DA7A454446F4C /* FastScheduleParser.swift */; };
+		1435EEE82A2AD6CFCDFFACE3 /* DemoSeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7F9C18FC4E1E401DF2949A1 /* DemoSeed.swift */; };
 		162CDA1685661DC1777F7FC1 /* OneulWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 4F7FC0B293541145B57F17CD /* OneulWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		17F21E70FEBE7FC30A94DBBF /* NEIS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 741F7445372DEF5858438E89 /* NEIS.swift */; };
 		1CDAAB28C96E1D2652437EC6 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6CDAF136B89C9CD70A564B1 /* AppConfig.swift */; };
+		1ED76964DE8F4E238242E10E /* Secrets.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0F1D56A335B4CF3C60CAD2C /* Secrets.swift */; };
 		20B7719AEC321620F1714E81 /* SearchTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 723FC4F1D7A54EA6EB73514D /* SearchTabView.swift */; };
 		27289D8F1B5A2E06AF20D96E /* AICommon.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B0BDB1D75C0BC7A988A590 /* AICommon.swift */; };
 		293DD03098EE5B027CDB2B56 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 777161A31B7E4F39C0973C6E /* TodayView.swift */; };
@@ -70,12 +72,15 @@
 		8B72B9B6D654345B9E3D61D8 /* WatchPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = B120768A33C004DCF2F45013 /* WatchPayload.swift */; };
 		8C727C52A59118C9F354FE41 /* OneulWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15E10C76F7BC3F0106E55F39 /* OneulWidgetBundle.swift */; };
 		8D8728FC5A77B9D0A65A3EE2 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4945B28361CA4844CD0BE2A0 /* RootView.swift */; };
+		90D948B85926B5CD47170A76 /* DemoSeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7F9C18FC4E1E401DF2949A1 /* DemoSeed.swift */; };
 		90D9E832A705B233285C4FC2 /* SpeechRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93B892D311D56026159282E3 /* SpeechRecognizer.swift */; };
 		94288FF630F4E04FD1FB58B6 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6CDAF136B89C9CD70A564B1 /* AppConfig.swift */; };
+		95C5CE537936221973BF1B33 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D030EE3E9D94FEA04538B638 /* Assets.xcassets */; };
 		97BAA858C7D312E7C5E090F1 /* SchoolSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FE512E0EFCA4922CDD6E120 /* SchoolSetupView.swift */; };
 		98CC0BB2485C2B8A92CD624E /* WatchPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = B120768A33C004DCF2F45013 /* WatchPayload.swift */; };
 		9AE53CF1AE89239DF3BDC6F7 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = D6485A918A22F530881FA7E2 /* PrivacyInfo.xcprivacy */; };
 		9E7036EDAB19410AF75669FD /* ElectiveSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DDD92EAE062AD8537F2B53E /* ElectiveSetupView.swift */; };
+		A011BC7858CC5CBBE5FE1E03 /* Secrets.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0F1D56A335B4CF3C60CAD2C /* Secrets.swift */; };
 		A13AE6AE7D3A89DE8C23A3C2 /* NEIS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 741F7445372DEF5858438E89 /* NEIS.swift */; };
 		A18E3127C7D72B0AE089E6A3 /* CalendarImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A8C0BEA6C5E6E763D3C0449 /* CalendarImport.swift */; };
 		A342CC60B0C02D253113EB28 /* MapDirections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E4F2E090381140001B79DD9 /* MapDirections.swift */; };
@@ -224,9 +229,12 @@
 		A6CDAF136B89C9CD70A564B1 /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
 		AFA11EEF3B09738985C9A43B /* PushSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushSync.swift; sourceTree = "<group>"; };
 		B120768A33C004DCF2F45013 /* WatchPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchPayload.swift; sourceTree = "<group>"; };
+		B7F9C18FC4E1E401DF2949A1 /* DemoSeed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoSeed.swift; sourceTree = "<group>"; };
 		B875E87DC1AAC7F636AB7E65 /* WidgetTimelineBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetTimelineBar.swift; sourceTree = "<group>"; };
 		BA30100A3889640819877BDE /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		C9F7A51A479EF765DCADE7CC /* AppChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppChrome.swift; sourceTree = "<group>"; };
+		D030EE3E9D94FEA04538B638 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		D0F1D56A335B4CF3C60CAD2C /* Secrets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Secrets.swift; sourceTree = "<group>"; };
 		D2A4018B36A49D3884C07100 /* AICommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AICommand.swift; sourceTree = "<group>"; };
 		D5057FFD3739CA0A9C50D19B /* EventEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventEditorView.swift; sourceTree = "<group>"; };
 		D6485A918A22F530881FA7E2 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
@@ -280,6 +288,7 @@
 		47ABD67BC7245533CB09183F /* OneulWatch */ = {
 			isa = PBXGroup;
 			children = (
+				D030EE3E9D94FEA04538B638 /* Assets.xcassets */,
 				306B6C9EB3EE7319C5856947 /* OneulWatchApp.swift */,
 				DCFBCDB0ECA3D2AB171BE319 /* WatchStore.swift */,
 				815B39ECC50A54E32E23A9EB /* WatchTodayView.swift */,
@@ -375,9 +384,11 @@
 				80092D50E2095F9BA0E5120B /* Persistence */,
 				220D8BB0B3D177353EBEEA32 /* Resources */,
 				851AD1BD3E095A8D0AADFF84 /* Watch */,
+				B7F9C18FC4E1E401DF2949A1 /* DemoSeed.swift */,
 				5ACE8189A99207C779416B4D /* OneulApp.swift */,
 				D6485A918A22F530881FA7E2 /* PrivacyInfo.xcprivacy */,
 				4945B28361CA4844CD0BE2A0 /* RootView.swift */,
+				D0F1D56A335B4CF3C60CAD2C /* Secrets.swift */,
 			);
 			path = Oneul;
 			sourceTree = "<group>";
@@ -507,6 +518,7 @@
 			buildConfigurationList = 950332E0D4C525B4E02159B7 /* Build configuration list for PBXNativeTarget "OneulWatch" */;
 			buildPhases = (
 				1EC9965F4E5DCF0C6B8ECDC0 /* Sources */,
+				D2D3F32E39E133B8CE5D5072 /* Resources */,
 				44BEBFA81447A0E7ACB570A9 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
@@ -638,6 +650,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		D2D3F32E39E133B8CE5D5072 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				95C5CE537936221973BF1B33 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -657,6 +677,7 @@
 				A18E3127C7D72B0AE089E6A3 /* CalendarImport.swift in Sources */,
 				C3C8A27FED06E8DF5FDE3D86 /* DayGridView.swift in Sources */,
 				4ADF4B85379FD3B22D3D3DA8 /* DayPlan.swift in Sources */,
+				90D948B85926B5CD47170A76 /* DemoSeed.swift in Sources */,
 				DA1B100733D4D79C56226FF7 /* ElectiveSetupView.swift in Sources */,
 				52D18DA1E0BFF37AFCA77DB0 /* EventEditorView.swift in Sources */,
 				53D7519E7811C519E51F224D /* EventPalette.swift in Sources */,
@@ -679,6 +700,7 @@
 				D0A38FC10823361801D6E040 /* ScheduleEvent.swift in Sources */,
 				97BAA858C7D312E7C5E090F1 /* SchoolSetupView.swift in Sources */,
 				20B7719AEC321620F1714E81 /* SearchTabView.swift in Sources */,
+				1ED76964DE8F4E238242E10E /* Secrets.swift in Sources */,
 				AD1FDE6AC6C6BD1FAD733E65 /* SettingsView.swift in Sources */,
 				E4592FB74E0748311A618CBF /* SpeechRecognizer.swift in Sources */,
 				510A835B944A7DC75A0BDA9F /* Theme.swift in Sources */,
@@ -733,6 +755,7 @@
 				7D0657F4E7594D9442DEC0E5 /* CalendarImport.swift in Sources */,
 				A377868AD6D78D418F337FC4 /* DayGridView.swift in Sources */,
 				B3DF1BE7CAAB4151B6F4070C /* DayPlan.swift in Sources */,
+				1435EEE82A2AD6CFCDFFACE3 /* DemoSeed.swift in Sources */,
 				9E7036EDAB19410AF75669FD /* ElectiveSetupView.swift in Sources */,
 				B88062FDE5641D40232361F5 /* EventEditorView.swift in Sources */,
 				82A5D9747B70D4941E3BF04B /* EventPalette.swift in Sources */,
@@ -755,6 +778,7 @@
 				01C359154BAE7FEF717EFFDC /* ScheduleEvent.swift in Sources */,
 				D878F5A8C4ED547EE9A72BD7 /* SchoolSetupView.swift in Sources */,
 				57C4F0A210291D003D6D831F /* SearchTabView.swift in Sources */,
+				A011BC7858CC5CBBE5FE1E03 /* Secrets.swift in Sources */,
 				5160EB9B599C49DC72181368 /* SettingsView.swift in Sources */,
 				90D9E832A705B233285C4FC2 /* SpeechRecognizer.swift in Sources */,
 				7FEBFE102F891625DB5A7734 /* Theme.swift in Sources */,
