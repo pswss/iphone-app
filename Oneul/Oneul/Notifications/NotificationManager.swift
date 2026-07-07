@@ -74,22 +74,30 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     }
 
     // MARK: UNUserNotificationCenterDelegate
+    //
+    // 주의: 이 델리게이트들을 async 버전으로 구현하면 안 됨 — 앱 활성화 전(콜드 스타트
+    // 직후·백그라운드)에 응답이 전달되면 UIKit이 async 완료 시점에 스냅샷/상태 저장을
+    // 시도하다 assertion 크래시(실기기 로그: _updateStateRestorationArchiveForBackgroundEvent).
+    // completionHandler 방식은 이 경로를 타지 않는다.
 
     /// 앱 사용 중에도 배너·사운드 표시 — 없으면 포그라운드에서 알림이 조용히 사라짐.
     func userNotificationCenter(_ center: UNUserNotificationCenter,
-                                willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
-        [.banner, .list, .sound]
+                                willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .list, .sound])
     }
 
     /// 알림 탭 → 해당 일정 날짜로 이동.
     func userNotificationCenter(_ center: UNUserNotificationCenter,
-                                didReceive response: UNNotificationResponse) async {
+                                didReceive response: UNNotificationResponse,
+                                withCompletionHandler completionHandler: @escaping () -> Void) {
         if let ts = response.notification.request.content.userInfo["eventStart"] as? TimeInterval {
             let day = Date(timeIntervalSince1970: ts)
-            await MainActor.run {
+            DispatchQueue.main.async {
                 NotificationCenter.default.post(name: .oneulShowDay, object: day)
             }
         }
+        completionHandler()
     }
 
     private static func subtitle(for event: ScheduleEvent) -> String {
