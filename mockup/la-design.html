@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>오늘 — 라이브 액티비티 디자인 목업</title>
+<style>
+  :root { --accent: #383D73; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Apple SD Gothic Neo", sans-serif; color: #1c1c2e;
+         display: flex; min-height: 100vh; background: #f2f2f7; }
+
+  /* ── 좌측: 잠금화면 ── */
+  #stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+           gap: 18px; padding: 30px 16px; }
+  #phone { width: 393px; height: 780px; border-radius: 54px; position: relative; overflow: hidden;
+           box-shadow: 0 24px 60px rgba(0,0,0,.45), inset 0 0 0 10px #0b0b0f;
+           background: linear-gradient(160deg, #2b3a67 0%, #5a4a7a 45%, #274a5e 100%); }
+  #phone.lightwall { background: linear-gradient(160deg, #ffd9c9 0%, #cdd4ff 50%, #bff0dd 100%); }
+  #lock { position: absolute; inset: 10px; display: flex; flex-direction: column; align-items: center; }
+  #clockDate { margin-top: 66px; font-size: 15px; font-weight: 700; color: rgba(255,255,255,.85); }
+  #clockTime { font-size: 76px; font-weight: 700; color: rgba(255,255,255,.92); line-height: 1.02;
+               font-variant-numeric: tabular-nums; letter-spacing: -1px; }
+  #phone.lightwall #clockDate, #phone.lightwall #clockTime { color: rgba(40,40,70,.85); }
+  #island { position: absolute; top: 21px; left: 50%; transform: translateX(-50%); width: 122px; height: 36px;
+            border-radius: 20px; background: #000; }
+
+  #laCard { width: 361px; margin-top: 26px; }
+  #variantTitle { font-weight: 800; font-size: 15px; opacity: .8; }
+  #stageHint { font-size: 12px; color: #77777f; max-width: 400px; text-align: center; line-height: 1.6; }
+
+  /* 다이나믹 아일랜드 확장 미리보기 */
+  #diWrap { width: 393px; }
+  #diTitle { font-size: 12px; font-weight: 700; color: #8a8a94; margin: 4px 0 6px; text-align: center; }
+  #di { width: 371px; margin: 0 auto; background: #000; border-radius: 44px; padding: 14px 18px; color: #fff; }
+
+  [contenteditable] { outline: none; border-radius: 3px; }
+  [contenteditable]:hover { box-shadow: 0 0 0 1.5px rgba(140,160,255,.6); cursor: text; }
+
+  /* ── 우측: 컨트롤 ── */
+  #panel { width: 340px; background: #fff; border-left: 1px solid #e3e3ea; padding: 18px 18px 40px;
+           overflow-y: auto; height: 100vh; position: sticky; top: 0; }
+  #panel h1 { font-size: 17px; margin: 2px 0 14px; }
+  #panel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .4px; color: #8a8a94; margin: 20px 0 8px; }
+  .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .tabs button { padding: 9px 6px; border: 1.5px solid #d9d9e3; background: #fafafc; border-radius: 10px;
+                 font-size: 12.5px; font-weight: 700; color: #555; cursor: pointer; font-family: inherit; }
+  .tabs button.on { border-color: var(--accent); background: var(--accent); color: #fff; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; font-size: 13px; }
+  .row label { flex: 1; }
+  .row input[type=range] { flex: 1.2; accent-color: var(--accent); }
+  .row input[type=color] { width: 34px; height: 26px; border: none; background: none; padding: 0; cursor: pointer; }
+  .row .val { width: 38px; text-align: right; color: #8a8a94; font-variant-numeric: tabular-nums; font-size: 12px; }
+  .seg2 { display: flex; border: 1.5px solid #d9d9e3; border-radius: 9px; overflow: hidden; }
+  .seg2 button { flex: 1; border: none; background: #fafafc; padding: 6px 8px; font-size: 12px; font-weight: 700;
+                 color: #555; cursor: pointer; font-family: inherit; white-space: nowrap; }
+  .seg2 button.on { background: var(--accent); color: #fff; }
+  .sw { position: relative; width: 40px; height: 24px; flex-shrink: 0; }
+  .sw input { display: none; }
+  .sw i { position: absolute; inset: 0; border-radius: 12px; background: #d9d9e3; transition: .15s; }
+  .sw i::after { content: ""; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%;
+                 background: #fff; transition: .15s; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+  .sw input:checked + i { background: var(--accent); }
+  .sw input:checked + i::after { left: 18px; }
+  .palette { display: flex; gap: 5px; }
+  .palette input { width: 30px; height: 26px; border: none; background: none; padding: 0; cursor: pointer; }
+  .hint { font-size: 11.5px; color: #9a9aa4; line-height: 1.55; margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <div id="variantTitle"></div>
+  <div id="phone">
+    <div id="island"></div>
+    <div id="lock">
+      <div id="clockDate">7월 7일 월요일</div>
+      <div id="clockTime">9:41</div>
+      <div id="laCard"></div>
+    </div>
+  </div>
+  <div id="diWrap"><div id="diTitle">다이나믹 아일랜드 (확장)</div><div id="di"></div></div>
+  <div id="stageHint"></div>
+</div>
+
+<div id="panel">
+  <h1>오늘 — 라이브 액티비티 목업</h1>
+
+  <h2>디자인 옵션</h2>
+  <div class="tabs" id="tabs"></div>
+
+  <h2>상태 시나리오</h2>
+  <div class="row"><label>지금 상태</label>
+    <div class="seg2" id="scnSeg"><button data-v="now" class="on">진행 중</button><button data-v="break">쉬는 시간</button></div>
+  </div>
+  <div class="row"><label>배경화면</label>
+    <div class="seg2" id="wallSeg"><button data-v="dark" class="on">어두움</button><button data-v="light">밝음</button></div>
+  </div>
+
+  <h2>카드</h2>
+  <div class="row"><label>배경</label>
+    <div class="seg2" id="bgSeg"><button data-v="tint" class="on">검정 틴트</button><button data-v="glass">화이트 글래스</button><button data-v="custom">커스텀</button></div>
+  </div>
+  <div class="row"><label>커스텀 색</label><input type="color" id="bgColor" value="#383D73"></div>
+  <div class="row"><label>불투명도</label><input type="range" id="bgAlpha" min="15" max="95" value="35"><span class="val" id="bgAlphaV"></span></div>
+  <div class="row"><label>코너 반경</label><input type="range" id="radius" min="12" max="36" value="22"><span class="val" id="radiusV"></span></div>
+  <div class="row"><label>글자 크기</label><input type="range" id="fscale" min="80" max="125" value="100"><span class="val" id="fscaleV"></span></div>
+
+  <h2>요소 표시</h2>
+  <div class="row"><label>헤더(오늘 일정 + 남은 시간)</label><label class="sw"><input type="checkbox" id="showHead" checked><i></i></label></div>
+  <div class="row"><label>무지개 바</label><label class="sw"><input type="checkbox" id="showBar" checked><i></i></label></div>
+  <div class="row"><label>진행 바(진행 중일 때)</label><label class="sw"><input type="checkbox" id="showProg" checked><i></i></label></div>
+  <div class="row"><label>현재 일정 줄</label><label class="sw"><input type="checkbox" id="showNow" checked><i></i></label></div>
+  <div class="row"><label>다음 일정 줄</label><label class="sw"><input type="checkbox" id="showNext" checked><i></i></label></div>
+  <div class="row"><label>바 높이</label><input type="range" id="barH" min="8" max="24" value="14"><span class="val" id="barHV"></span></div>
+
+  <h2>무지개 팔레트</h2>
+  <div class="palette" id="pal"></div>
+
+  <h2>메모</h2>
+  <div class="hint">· 바는 실제 앱과 같은 <b>PackedLayout</b> — 일정끼리 빈틈없이 붙고, 폭은 시간 비례,
+  겹치는 일정은 한 칸에 스테인글라스, 지난 칸은 흐려지고, 쉬는 시간엔 흰 니들이 다음 칸 경계에 멈춰요.<br>
+  · 카드·아일랜드 안 글자는 <b>클릭해서 직접 수정</b> 가능.<br>
+  · 마음에 들면 “옵션 B, 코너 26, 바 16” 식으로 알려 주세요 — 그대로 SwiftUI에 옮길게요.</div>
+</div>
+
+<script>
+// ── 상태 ──
+const S = {
+  variant: "A", scn: "now", wall: "dark",
+  bg: "tint", bgColor: "#383D73", bgAlpha: 35,
+  radius: 22, fscale: 100, barH: 14,
+  showHead: true, showBar: true, showProg: true, showNow: true, showNext: true,
+  palette: ["#FF453A", "#FF9F0A", "#FFD60A", "#30D158", "#0A84FF", "#5E5CE6", "#BF5AF2"],
+};
+
+// 샘플 하루: [시작h, 끝h, 제목] — 동아리+보강이 겹침(스테인글라스 확인용)
+const DAY = [[9,10,"수학"],[10,11,"영어"],[11,12.5,"물리 실험"],[13.5,15,"동아리"],[14,15,"보강"],[16,18,"학원"],[19,20,"운동"]];
+const nowH = () => S.scn === "now" ? 10.5 : 12.9;   // 진행 중(영어) / 쉬는 시간(12:54)
+
+// ── PackedLayout — Swift와 동일 알고리즘 ──
+function packedLayout(intervals, minWidth = 0.05) {
+  const order = intervals.map((_, i) => i).sort((a, b) =>
+    intervals[a][0] !== intervals[b][0] ? intervals[a][0] - intervals[b][0] : intervals[a][1] - intervals[b][1]);
+  const built = [];
+  for (const oi of order) {
+    const [s, e] = intervals[oi];
+    const last = built[built.length - 1];
+    if (last && s < last.end) { last.end = Math.max(last.end, e); last.idxs.push(oi); }
+    else built.push({ start: s, end: e, idxs: [oi] });
+  }
+  const durs = built.map(c => Math.max(0.01, c.end - c.start));
+  const total = durs.reduce((a, b) => a + b, 0);
+  let widths = durs.map(d => Math.max(d / total, minWidth));
+  const sum = widths.reduce((a, b) => a + b, 0);
+  widths = widths.map(x => x / sum);
+  let acc = 0;
+  const segs = built.map((c, k) => { const s = { left: acc, width: widths[k], ...c }; acc += widths[k]; return s; });
+  return {
+    segments: segs,
+    fraction(now) {
+      if (!segs.length) return 0;
+      if (now < segs[0].start) return 0;
+      for (const s of segs) {
+        if (now < s.start) return s.left;                       // 쉬는 시간 → 경계 정지
+        if (now < s.end) return s.left + s.width * (now - s.start) / (s.end - s.start);
+      }
+      return 1;
+    },
+  };
+}
+
+// ── 무지개 바(Canvas 렌더 재현) ──
+function barHTML(h, opt = {}) {
+  const now = nowH();
+  const L = packedLayout(DAY.map(e => [e[0], e[1]]));
+  const cells = [];
+  for (const sl of L.segments) {
+    const span = Math.max(0.01, sl.end - sl.start);
+    const overlap = sl.idxs.length > 1;
+    for (const i of [...sl.idxs].sort((a, b) => DAY[b][0] - DAY[a][0])) {
+      const e = DAY[i];
+      const color = S.palette[i % 7];
+      const isCur = now >= e[0] && now < e[1];
+      const isPast = now >= e[1];
+      const f0 = Math.min(Math.max((e[0] - sl.start) / span, 0), 1);
+      const f1 = Math.min(Math.max((e[1] - sl.start) / span, 0), 1);
+      const x = (sl.left + sl.width * f0) * 100;
+      const wdt = sl.width * (f1 - f0) * 100;
+      const alpha = isPast ? 0.3 : (isCur ? 1 : (overlap ? 0.62 : 0.55));
+      cells.push(`<div style="position:absolute;top:0;bottom:0;left:calc(${x}% + .75px);width:calc(${wdt}% - 1.5px);
+        background:${color}${Math.round(alpha * 255).toString(16).padStart(2, "0")};border-radius:3px;
+        ${overlap ? "box-shadow:inset 0 0 0 .5px rgba(255,255,255,.35);" : ""}"></div>`);
+    }
+  }
+  const frac = Math.max(0.004, Math.min(0.996, L.fraction(now)));
+  return `<div style="position:relative;height:${h}px;margin:${opt.mtop ?? 4}px 0 ${opt.mbot ?? 4}px">
+    <div style="position:absolute;inset:0;border-radius:${h / 2}px;background:${opt.track || "rgba(255,255,255,.14)"}"></div>
+    ${cells.join("")}
+    <div style="position:absolute;top:-4px;bottom:-4px;left:calc(${frac * 100}% - 1px);width:2px;border-radius:2px;
+      background:${opt.needle || "#fff"};box-shadow:0 0 3px rgba(0,0,0,.4)"></div></div>`;
+}
+
+// ── 상태 파생 값 ──
+const t12 = h => { const H = Math.floor(h), m = Math.round((h - H) * 60);
+  return `${H < 12 ? "오전" : "오후"} ${((H + 11) % 12) + 1}:${String(m).padStart(2, "0")}`; };
+const curIdx = () => DAY.findIndex(e => e[0] <= nowH() && nowH() < e[1]);
+const nxtIdx = () => DAY.findIndex(e => e[0] > nowH());
+const countTxt = () => { const c = curIdx(), n = nxtIdx(), now = nowH();
+  const tgt = c >= 0 ? DAY[c][1] : (n >= 0 ? DAY[n][0] : null);
+  if (tgt == null) return "오늘 끝";
+  const mins = Math.round((tgt - now) * 60);
+  return (c >= 0 ? "남은 " : "다음까지 ") + (mins < 60 ? mins + "분" : Math.floor(mins / 60) + "시간");
+};
+const progFrac = () => { const c = curIdx(); if (c < 0) return null;
+  return (nowH() - DAY[c][0]) / (DAY[c][1] - DAY[c][0]); };
+const ed = t => `<span contenteditable spellcheck="false">${t}</span>`;
+
+const VARIANTS = {
+  A: { name: "A · 지금 스타일", hint: "현재 LA 그대로 — 헤더·무지개 바·진행 바·현재/다음 줄. 배경과 수치만 바꿔 보세요." },
+  B: { name: "B · 화이트 글래스", hint: "밝은 유리 카드 + 남색 텍스트 — 앱(파스텔+글래스) 감성의 라이트 버전." },
+  C: { name: "C · 다음 일정 포커스", hint: "다음(진행 중이면 현재) 일정의 시각·제목을 크게, 바는 하단에 얇게." },
+  D: { name: "D · 진행 중심(배민식)", hint: "진행 중 일정 제목 + 큰 진행 바가 주인공, 무지개 바는 위에 얇게." },
+};
+
+// ── 렌더 ──
+function render() {
+  const card = document.getElementById("laCard");
+  document.getElementById("phone").className = S.wall === "light" ? "lightwall" : "";
+  document.getElementById("variantTitle").textContent = VARIANTS[S.variant].name;
+  document.getElementById("stageHint").textContent = VARIANTS[S.variant].hint;
+
+  // 카드 배경 · 잉크
+  let bg, ink, sub, track, needle = "#fff", prog = "#fff";
+  const glassy = (S.variant === "B" && S.bg === "tint") ? "glass" : S.bg;   // B는 기본 글래스
+  if (glassy === "glass") {
+    bg = `rgba(255,255,255,${Math.max(S.bgAlpha, 45)}%)`;
+    ink = "#383D73"; sub = "rgba(56,61,115,.6)"; track = "rgba(56,61,115,.14)";
+    needle = "#383D73"; prog = "#383D73";
+    card.style.backdropFilter = "blur(14px)";
+  } else if (glassy === "custom") {
+    bg = S.bgColor + Math.round(S.bgAlpha * 2.55).toString(16).padStart(2, "0");
+    ink = "#fff"; sub = "rgba(255,255,255,.7)"; track = "rgba(255,255,255,.14)";
+    card.style.backdropFilter = "blur(10px)";
+  } else {
+    bg = `rgba(0,0,0,${S.bgAlpha / 100})`;
+    ink = "#fff"; sub = "rgba(255,255,255,.7)"; track = "rgba(255,255,255,.14)";
+    card.style.backdropFilter = "blur(10px)";
+  }
+  card.style.background = bg;
+  card.style.borderRadius = S.radius + "px";
+  card.style.padding = "14px";
+  card.style.fontSize = (S.fscale / 100) * 13 + "px";
+  card.style.color = ink;
+
+  const c = curIdx(), n = nxtIdx(), pf = progFrac();
+  const head = S.showHead ? `
+    <div style="display:flex;align-items:baseline;gap:8px">
+      <span style="font-size:.85em;font-weight:800">📅 ${ed("오늘 일정")}</span>
+      <span style="flex:1"></span>
+      <span style="font-size:.85em;font-weight:800">${ed(countTxt())}</span>
+    </div>` : "";
+  const progBar = (S.showProg && pf != null) ? `
+    <div style="position:relative;height:4px;border-radius:2px;background:${track};margin:7px 0 2px">
+      <div style="position:absolute;top:0;bottom:0;left:0;width:${pf * 100}%;border-radius:2px;background:${prog}"></div>
+    </div>` : "";
+  const nowLine = S.showNow ? `
+    <div style="font-weight:800;font-size:.98em;margin-top:7px;white-space:nowrap;overflow:hidden">
+      ${ed("현재 · " + (c >= 0 ? DAY[c][2] : "진행 중인 일정 없음"))}</div>` : "";
+  const nextLine = (S.showNext && n >= 0) ? `
+    <div style="color:${sub};font-size:.8em;margin-top:3px;white-space:nowrap">
+      ${ed("다음 · " + DAY[n][2] + " " + t12(DAY[n][0]))}</div>` : "";
+
+  if (S.variant === "A" || S.variant === "B") {
+    card.innerHTML = head
+      + (S.showBar ? barHTML(S.barH, { track, needle, mtop: 9, mbot: 2 }) : "")
+      + progBar + nowLine + nextLine;
+
+  } else if (S.variant === "C") {
+    const t = c >= 0 ? DAY[c] : (n >= 0 ? DAY[n] : null);
+    card.innerHTML = head + `
+      <div style="display:flex;align-items:flex-end;gap:10px;margin:8px 0 4px">
+        <div style="font-size:2.2em;font-weight:300;line-height:1;font-variant-numeric:tabular-nums">
+          ${ed(t ? t12(c >= 0 ? t[1] : t[0]) : "—")}</div>
+        <div style="padding-bottom:3px">
+          <div style="color:${sub};font-size:.72em;font-weight:800">${ed(c >= 0 ? "까지 · 진행 중" : "다음 일정")}</div>
+          <div style="font-weight:800;font-size:1em">${ed(t ? t[2] : "오늘 일정 없음")}</div>
+        </div></div>`
+      + (S.showBar ? barHTML(Math.max(6, S.barH - 6), { track, needle, mtop: 8 }) : "")
+      + nextLine;
+
+  } else { // D 진행 중심
+    const title = c >= 0 ? DAY[c][2] : (n >= 0 ? "대기 중" : "오늘 끝");
+    card.innerHTML = head
+      + (S.showBar ? barHTML(Math.max(6, S.barH - 7), { track, needle, mtop: 8, mbot: 8 }) : "")
+      + `<div style="display:flex;align-items:baseline;gap:8px;margin-top:2px">
+           <span style="font-weight:800;font-size:1.05em">${ed(title)}</span>
+           <span style="flex:1"></span>
+           ${c >= 0 ? `<span style="color:${sub};font-size:.78em">${ed(t12(DAY[c][0]) + " – " + t12(DAY[c][1]))}</span>` : ""}
+         </div>
+         <div style="position:relative;height:7px;border-radius:4px;background:${track};margin:8px 0 3px">
+           <div style="position:absolute;top:0;bottom:0;left:0;width:${(pf ?? 0) * 100}%;border-radius:4px;
+                background:linear-gradient(90deg,${S.palette[Math.max(c, 0) % 7]},${prog})"></div>
+         </div>` + nextLine;
+  }
+
+  // 다이나믹 아일랜드(확장) — 항상 현재 구조
+  document.getElementById("di").innerHTML = `
+    <div style="display:flex;align-items:baseline;gap:8px;font-size:${(S.fscale / 100) * 13}px">
+      <span style="font-size:.85em;font-weight:800">📅 ${ed(c >= 0 ? DAY[c][2] : "오늘 일정")}</span>
+      <span style="flex:1"></span>
+      <span style="font-weight:800">${ed(countTxt())}</span>
+    </div>
+    ${barHTML(12, { mtop: 10, mbot: 4 })}
+    ${n >= 0 ? `<div style="color:rgba(255,255,255,.6);font-size:${(S.fscale / 100) * 10.5}px;margin-top:4px">
+      ${ed("다음 · " + DAY[n][2] + " " + t12(DAY[n][0]))}</div>` : ""}`;
+
+  ["radius","fscale","bgAlpha","barH"].forEach(k => document.getElementById(k + "V").textContent =
+    k === "fscale" || k === "bgAlpha" ? S[k] + "%" : S[k]);
+}
+
+// ── 컨트롤 배선 ──
+const $ = id => document.getElementById(id);
+const tabs = $("tabs");
+Object.entries(VARIANTS).forEach(([k, v]) => {
+  const b = document.createElement("button");
+  b.textContent = v.name; b.dataset.k = k;
+  if (k === S.variant) b.classList.add("on");
+  b.onclick = () => { S.variant = k; tabs.querySelectorAll("button").forEach(x => x.classList.toggle("on", x.dataset.k === k)); render(); };
+  tabs.appendChild(b);
+});
+function seg(id, key) {
+  $(id).querySelectorAll("button").forEach(b => b.onclick = () => {
+    S[key] = b.dataset.v;
+    $(id).querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+    render();
+  });
+}
+seg("scnSeg", "scn"); seg("wallSeg", "wall"); seg("bgSeg", "bg");
+[["radius","radius"],["fscale","fscale"],["bgAlpha","bgAlpha"],["barH","barH"]].forEach(([id,k]) =>
+  $(id).oninput = e => { S[k] = +e.target.value; render(); });
+$("bgColor").oninput = e => { S.bgColor = e.target.value; S.bg = "custom";
+  document.querySelectorAll("#bgSeg button").forEach(x => x.classList.toggle("on", x.dataset.v === "custom")); render(); };
+["showHead","showBar","showProg","showNow","showNext"].forEach(k =>
+  $(k).onchange = e => { S[k] = e.target.checked; render(); });
+S.palette.forEach((c, i) => {
+  const inp = document.createElement("input"); inp.type = "color"; inp.value = c;
+  inp.oninput = () => { S.palette[i] = inp.value; render(); };
+  $("pal").appendChild(inp);
+});
+render();
+</script>
+</body>
+</html>
