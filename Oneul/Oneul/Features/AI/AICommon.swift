@@ -15,6 +15,7 @@ struct ParsedEvent: Identifiable, Hashable {
     var endDate: Date? = nil             // 반복 종료일(없으면 기본 1년)
     var inferredPM: Bool = false         // 오전/오후 미표기를 맥락으로 오후 해석함(근거 표시용)
     var amPmAmbiguous: Bool = false      // 오전/오후를 확신 못 함 → 사용자에게 확인 질문
+    var deleteSeries: Bool = false       // delete 시 같은 시리즈의 이후 반복 전체 삭제
 }
 
 /// 맨숫자 시각(오전/오후 미표기)의 해석에 쓰는 사용자 맥락.

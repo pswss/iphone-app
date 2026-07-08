@@ -25,6 +25,10 @@ struct AppleIntelligenceClient: ScheduleAI {
         if let edit = FastScheduleParser.tryParseEdit(text: text, now: now, existing: existing) {
             return edit
         }
+        // 0.6) 기간 범위 삭제: "다음 주 일정 다 지워줘" — 뷰가 기간 내 일정을 목록으로 펼쳐 미리보기.
+        if let range = FastScheduleParser.tryParseRangeDelete(text: text, now: now) {
+            return AIResult(events: [], actions: [.deleteRange(from: range.from, to: range.to)])
+        }
         #if canImport(FoundationModels)
         if #available(iOS 26, macOS 26, *) {
             return try await AppleAI.generate(from: text, now: now, existing: existing)

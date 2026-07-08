@@ -99,6 +99,59 @@ enum FastScheduleParser {
                         actions: [])
     }
 
+    /// 기간 범위 삭제 요청("다음 주 일정 다 지워줘"). [from, to) 반환. 아니면 nil.
+    struct RangeDelete { var from: Date; var to: Date }
+
+    /// 삭제 단어 + '전부/다/모두/일정' 단서 + 날짜 범위(하루/주/주말/달)가 모두 있어야 범위 삭제로 본다.
+    /// "수학 전부 삭제"(제목 일괄)나 "내일 회의 지워줘"(단건)는 nil → 기존 제목 기반 경로.
+    static func tryParseRangeDelete(text: String, now: Date, cal: Calendar = .current) -> RangeDelete? {
+        let t = text
+        guard hasDeleteCue(t) else { return nil }
+        let wholesale = ["전부", "모두", "몽땅", "싹", "죄다", "전체", "일정"].contains { t.contains($0) }
+            || has(t, #"다\s*(지워|지우|삭제|없애|빼|취소)"#)
+        guard wholesale else { return nil }
+
+        let today = cal.startOfDay(for: now)
+        let todayWd = cal.component(.weekday, from: today)
+        var weekOff: Int? = nil
+        if t.contains("다다음주") || t.contains("다다음 주") { weekOff = 2 }
+        else if t.contains("다음주") || t.contains("다음 주") || t.contains("담주") { weekOff = 1 }
+        else if t.contains("이번주") || t.contains("이번 주") || t.contains("금주") { weekOff = 0 }
+
+        // 주말: 다가오는 토요일(+주차) ~ 일요일 끝
+        if t.contains("주말") {
+            if let sat = cal.date(byAdding: .day, value: (7 - todayWd + 7) % 7 + (weekOff ?? 0) * 7, to: today),
+               let end = cal.date(byAdding: .day, value: 2, to: sat) {
+                return RangeDelete(from: max(sat, today), to: end)
+            }
+        }
+        let hasWeekday = has(t, #"[월화수목금토일]요일"#) || has(t, #"(?<![가-힣0-9])[월화수목금토일](?![가-힣])"#)
+        if !hasWeekday {
+            // 주 단위(요일 미지정): 그 주 월요일 ~ 다음 월요일. 과거 요일은 제외(오늘부터).
+            if let off = weekOff,
+               let monday = cal.date(byAdding: .day, value: -((todayWd + 5) % 7) + off * 7, to: today),
+               let end = cal.date(byAdding: .day, value: 7, to: monday) {
+                return RangeDelete(from: max(monday, today), to: end)
+            }
+            // 달 단위
+            var monthOff: Int? = nil
+            if t.contains("다다음달") || t.contains("다다음 달") { monthOff = 2 }
+            else if t.contains("다음달") || t.contains("다음 달") || t.contains("담달") { monthOff = 1 }
+            else if t.contains("이번달") || t.contains("이번 달") { monthOff = 0 }
+            if let off = monthOff, let base = cal.date(byAdding: .month, value: off, to: today),
+               let iv = cal.dateInterval(of: .month, for: base) {
+                return RangeDelete(from: max(iv.start, today), to: iv.end)
+            }
+        }
+        // 하루 단위(오늘/내일/요일/N월 N일 …) — 명시된 과거 날짜(어제)는 그대로 허용
+        if let rd = AIKoreanDate.parse(t, now: now, cal: cal).relativeDay,
+           let day = cal.date(byAdding: .day, value: rd, to: today),
+           let next = cal.date(byAdding: .day, value: 1, to: day) {
+            return RangeDelete(from: day, to: next)
+        }
+        return nil
+    }
+
     // MARK: 순수 파싱 코어 (테스트 대상 — 네트워크·장소검증 없음)
 
     /// 한글 숫자 시각 → 아라비아 숫자("한시 병원" → "1시 병원", "열두시 반" → "12시 반").

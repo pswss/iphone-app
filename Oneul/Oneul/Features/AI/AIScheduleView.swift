@@ -13,6 +13,7 @@ struct AIScheduleView: View {
     @State private var clarifyCandidates: [DeleteCandidate] = []   // "어떤 것을 삭제할까요?" 후보
     @State private var clarifyPrompt: String?
     @State private var amPmPending: [ParsedEvent] = []             // 오전/오후 확인이 필요한 일정
+    @State private var seriesPending: [ParsedEvent] = []           // 반복 일정 삭제 — 이번 것만/전체 확인
     @AppStorage("appearance") private var appearanceRaw = Appearance.system.rawValue
     @AppStorage("neisOffice") private var neisOffice = ""
     @AppStorage("neisCode") private var neisCode = ""
@@ -92,6 +93,7 @@ struct AIScheduleView: View {
             if let reply { AIReplyCard(text: reply) }
             if let clarifyPrompt { clarifySection(clarifyPrompt) }
             if !amPmPending.isEmpty { amPmSection }
+            if !seriesPending.isEmpty { seriesSection }
             if !results.isEmpty { resultsSection }
         }
     }
@@ -202,6 +204,9 @@ struct AIScheduleView: View {
                                 Text(String(format: lang.tr("오후 %d시로 해석했어요 — 아니면 눌러서 고쳐 주세요"), hour12(e.start)))
                                     .font(.caption2).foregroundStyle(.orange)
                             }
+                            if e.deleteSeries {   // 반복 전체 삭제 예고
+                                Text(lang.tr("이후 일정 모두 삭제")).font(.caption2).foregroundStyle(.red)
+                            }
                         }
                         Spacer()
                         if e.action != .delete {
@@ -289,12 +294,61 @@ struct AIScheduleView: View {
 
     private func deleteCandidate(_ c: DeleteCandidate) {
         if let e = find(c.id) {
-            context.delete(e)
-            try? context.save()
-            reply = lang.tr("삭제했어요") + ": \(c.title)"
+            if e.isRecurring {
+                // 반복 일정 — 바로 지우지 않고 이번 것만/전체 확인
+                seriesPending.append(ParsedEvent(title: e.title, start: e.start, end: e.end,
+                                                 location: e.location, action: .delete, targetID: e.id))
+            } else {
+                context.delete(e)
+                try? context.save()
+                reply = lang.tr("삭제했어요") + ": \(c.title)"
+            }
         }
         clarifyCandidates = []
         clarifyPrompt = nil
+    }
+
+    /// 기간 내 사용자 일정(source="")을 삭제 미리보기 목록으로 펼친다. 시간표·학사일정은 건드리지 않는다.
+    private func rangeDeleteEvents(from: Date, to: Date) -> [ParsedEvent] {
+        var d = FetchDescriptor<ScheduleEvent>(
+            predicate: #Predicate { $0.start >= from && $0.start < to && $0.source == "" },
+            sortBy: [SortDescriptor(\.start)])
+        d.fetchLimit = 300
+        let items = (try? context.fetch(d)) ?? []
+        return items.map { ParsedEvent(title: $0.title, start: $0.start, end: $0.end,
+                                       location: $0.location, action: .delete, targetID: $0.id) }
+    }
+
+    /// 반복 일정 삭제 확인 — 이번 것만 vs 이후 반복 모두. 선택 즉시 실행.
+    private var seriesSection: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            ForEach(seriesPending) { e in
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(String(format: lang.tr("'%@'은(는) 반복 일정이에요. 어떻게 삭제할까요?"), e.title))
+                        .font(.subheadline).bold()
+                    Text(e.start.formatted(.dateTime.month().day().weekday(.short).hour().minute().locale(lang.locale)))
+                        .font(.caption).foregroundStyle(.secondary)
+                    HStack(spacing: 8) {
+                        Button(lang.tr("이 일정만 삭제")) { applySeriesChoice(e, wholeSeries: false) }
+                        Button(role: .destructive) { applySeriesChoice(e, wholeSeries: true) } label: {
+                            Text(lang.tr("이후 일정 모두 삭제"))
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(12).glassCard(cornerRadius: 22)
+            }
+        }
+    }
+
+    private func applySeriesChoice(_ e: ParsedEvent, wholeSeries: Bool) {
+        seriesPending.removeAll { $0.id == e.id }
+        guard let t = find(e.targetID) else { return }
+        if wholeSeries { EventActions.deleteFutureSeries(from: t, in: context) }
+        else { EventActions.deleteSingle(t, in: context) }
+        reply = lang.tr("삭제했어요") + ": \(e.title)"
+        Haptics.notify(.warning)
     }
 
     /// 반복 배지 문구: "매주" 또는 "매주 월수금".
@@ -310,7 +364,7 @@ struct AIScheduleView: View {
 
     private func generate() async {
         errorMessage = nil; reply = nil; results = []; clarifyCandidates = []; clarifyPrompt = nil
-        amPmPending = []
+        amPmPending = []; seriesPending = []
         let text = FastScheduleParser.normalizeKoreanTime(inputText)   // "한시"→"1시" — 음성 한글 수사 보정
         isLoading = true; defer { isLoading = false }
         do {
@@ -319,6 +373,7 @@ struct AIScheduleView: View {
 
             // 즉시 액션(외형/급식/일정 질문/삭제 후보) 처리 → 답변 모음
             var replies: [String] = []
+            var rangeEvents: [ParsedEvent] = []
             for action in result.actions {
                 switch action {
                 case .setAppearance(let mode):
@@ -331,14 +386,36 @@ struct AIScheduleView: View {
                 case .clarifyDelete(let cands, let prompt):
                     clarifyCandidates = cands
                     clarifyPrompt = prompt
+                case .deleteRange(let from, let to):
+                    // 기간 범위 삭제 — 사용자 일정만 목록으로 펼쳐 미리보기(적용하기를 눌러야 실제 삭제)
+                    let evs = rangeDeleteEvents(from: from, to: to)
+                    if evs.isEmpty {
+                        replies.append(lang.tr("그 기간에 삭제할 일정이 없어요."))
+                    } else {
+                        rangeEvents = evs
+                        replies.append(String(format: lang.tr("일정 %d개를 찾았어요 — 적용하기를 누르면 삭제돼요."), evs.count))
+                    }
                 case .unknown:
                     break
                 }
             }
 
+            // 반복 시리즈 삭제: 대상이 반복 일정이면 — '전부/반복' 단서가 있으면 이후 전체 삭제로,
+            // 없으면 이번 것만/전체를 물어봄(파괴적 작업은 보수적으로)
+            var evs = result.events
+            let wantsSeries = ["전부", "모두", "싹", "몽땅", "반복", "시리즈", "전체"].contains { text.contains($0) }
+            var ask: [ParsedEvent] = []
+            for i in evs.indices where evs[i].action == .delete && evs[i].targetID != nil {
+                guard let t = find(evs[i].targetID), t.isRecurring else { continue }
+                if wantsSeries { evs[i].deleteSeries = true } else { ask.append(evs[i]) }
+            }
+            let askIDs = Set(ask.map(\.id))
+            evs.removeAll { askIDs.contains($0.id) }
+            seriesPending = ask
+
             // 오전/오후를 확신 못 한 일정은 결과에 넣지 않고 먼저 물어봄(선택하면 결과로 이동)
-            amPmPending = result.events.filter { $0.amPmAmbiguous }.sorted { $0.start < $1.start }
-            results = result.events.filter { !$0.amPmAmbiguous }.sorted { $0.start < $1.start }
+            amPmPending = evs.filter { $0.amPmAmbiguous }.sorted { $0.start < $1.start }
+            results = (evs.filter { !$0.amPmAmbiguous } + rangeEvents).sorted { $0.start < $1.start }
             if !replies.isEmpty { reply = replies.joined(separator: "\n\n") }
 
             if result.isEmpty {
@@ -465,7 +542,11 @@ struct AIScheduleView: View {
                 }
             case .delete:
                 if let id = e.targetID {
-                    if let t = find(id) { context.delete(t); applied += 1 }
+                    if let t = find(id) {
+                        if e.deleteSeries { EventActions.deleteFutureSeries(from: t, in: context) }
+                        else { context.delete(t) }
+                        applied += 1
+                    }
                 } else {
                     // bulk: 정확히 같은 제목 우선, 없을 때만 부분 일치("수학"이 "수학여행"을 지우는 오폭 방지)
                     for t in bulkDeleteTargets(e.title) { context.delete(t); applied += 1 }

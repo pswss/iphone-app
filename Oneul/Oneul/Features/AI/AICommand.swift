@@ -16,6 +16,7 @@ enum AIAction {
     case mealQuery(date: Date)
     case scheduleQuery(kind: AIQueryKind, day: Date)
     case clarifyDelete(candidates: [DeleteCandidate], prompt: String)   // 삭제 대상이 애매할 때 후보 제시
+    case deleteRange(from: Date, to: Date)   // 기간 범위 삭제("다음 주 일정 다 지워줘") — 뷰가 목록으로 펼쳐 미리보기
     case unknown
 }
 
