@@ -26,6 +26,79 @@ enum FastScheduleParser {
         return AIResult(events: events, actions: [])
     }
 
+    /// 규칙 기반 '수정' 빠른 경로 — "수학 9시로 바꿔줘", "치과 내일로 옮겨줘" 같은 단순 시간·날짜 변경을
+    /// 모델 없이 즉시 처리한다. 대상 일정(제목 일치)이나 새 값이 확실치 않으면 nil(→ 모델 폴백).
+    /// 작은 모델이 수정 요청을 삭제+생성으로 오해해 엉뚱한 일정을 지우던 버그의 근본 대책.
+    static func tryParseEdit(text: String, now: Date, existing: [ExistingEvent],
+                             cal: Calendar = .current) -> AIResult? {
+        let t = normalizeKoreanTime(text.trimmingCharacters(in: .whitespacesAndNewlines))
+        guard !t.isEmpty, !t.contains("\n"), !existing.isEmpty else { return nil }
+        guard hasUpdateCue(t), !hasDeleteCue(t), !t.contains("?"), !t.contains("？") else { return nil }
+
+        // 새 시각: '…로/으로' 바로 앞의 시각만 새 값("8시 수학 9시로 바꿔" → 9시)
+        let timeToPat = #"(오전|오후|저녁|밤|새벽|아침)?\s*(\d{1,2})\s*시\s*(?:(\d{1,2})\s*분\s*|(반)\s*)?(?:으로|로)"#
+        var newTime: (h: Int, m: Int, explicit: Bool)?
+        if let g = match(t, timeToPat), let hRaw = Int(g[2]), hRaw < 24 {
+            var h = hRaw
+            var explicit = hRaw >= 13
+            if ["오후", "저녁", "밤"].contains(g[1]) { if h < 12 { h += 12 }; explicit = true }
+            if ["오전", "새벽", "아침"].contains(g[1]) { if h == 12 { h = 0 }; explicit = true }
+            let m = g[4] == "반" ? 30 : min(59, Int(g[3]) ?? 0)
+            newTime = (h, m, explicit)
+        }
+
+        // 대상: 제목이 입력에 통째로 든 기존 일정(가장 긴 제목 우선)
+        let titled = existing.filter { !$0.title.isEmpty && t.contains($0.title) }
+        guard let bestLen = titled.map({ $0.title.count }).max() else { return nil }
+        let title = titled.first(where: { $0.title.count == bestLen })!.title
+        var cands = titled.filter { $0.title == title }
+        guard let titleRange = t.range(of: title) else { return nil }
+        let before = String(t[..<titleRange.lowerBound])
+        var after = String(t[titleRange.upperBound...])
+        if let r = after.range(of: timeToPat, options: .regularExpression) { after.removeSubrange(r) }
+
+        // 새 날짜: (a) '…로/으로'가 붙은 날짜("내일로", "13일로") (b) 제목 뒤의 날짜("수학 내일 9시로")
+        let dateToPat = #"((?:다다음|다음|이번)\s*주(?:\s*[월화수목금토일]요일)?|오늘|내일모레|내일|모레|글피|[월화수목금토일]요일|(?<![가-힣0-9])[월화수목금토일]|\d{1,2}\s*월\s*\d{1,2}\s*일|(?<!\d)\d{1,2}\s*/\s*\d{1,2}|(?<!\d)\d{1,2}\s*일)\s*(?:으로|로)"#
+        var newDay: Date?
+        let today = cal.startOfDay(for: now)
+        if let g = match(t, dateToPat), let rd = AIKoreanDate.parse(g[1], now: now, cal: cal).relativeDay {
+            newDay = cal.date(byAdding: .day, value: rd, to: today)
+        } else if let rd = AIKoreanDate.parse(after, now: now, cal: cal).relativeDay {
+            newDay = cal.date(byAdding: .day, value: rd, to: today)
+        }
+        guard newTime != nil || newDay != nil else { return nil }
+
+        // 같은 제목이 여럿이면 제목 앞의 날짜("금요일 수학…")·기존 시각("8시 수학…")으로 좁힘
+        if let qd = AIKoreanDate.parse(before, now: now, cal: cal).relativeDay,
+           let day = cal.date(byAdding: .day, value: qd, to: today) {
+            let narrowed = cands.filter { cal.isDate($0.start, inSameDayAs: day) }
+            if !narrowed.isEmpty { cands = narrowed }
+        }
+        if let old = hourToken(before, bareOK: false) {
+            let hs: Set<Int> = [old.h, resolve1(old).0, old.h < 12 ? old.h + 12 : old.h]
+            let narrowed = cands.filter { hs.contains(cal.component(.hour, from: $0.start)) }
+            if !narrowed.isEmpty { cands = narrowed }
+        }
+        guard let target = cands.sorted(by: { $0.start < $1.start }).first else { return nil }
+
+        let baseDay = cal.startOfDay(for: newDay ?? target.start)
+        var h = cal.component(.hour, from: target.start)
+        var m = cal.component(.minute, from: target.start)
+        if let nt = newTime {
+            if nt.explicit { h = nt.h } else {
+                let alt = nt.h < 12 ? nt.h + 12 : nt.h
+                h = abs(nt.h - h) <= abs(alt - h) ? nt.h : alt   // 맨숫자는 원래 시각과 가까운 오전/오후 해석
+            }
+            m = nt.m
+        }
+        let start = cal.date(bySettingHour: h, minute: m, second: 0, of: baseDay) ?? target.start
+        let dur = target.end.timeIntervalSince(target.start)
+        let end = start.addingTimeInterval(dur > 0 ? dur : 3600)
+        return AIResult(events: [ParsedEvent(title: target.title, start: start, end: end,
+                                             location: target.location, action: .update, targetID: target.id)],
+                        actions: [])
+    }
+
     // MARK: 순수 파싱 코어 (테스트 대상 — 네트워크·장소검증 없음)
 
     /// 한글 숫자 시각 → 아라비아 숫자("한시 병원" → "1시 병원", "열두시 반" → "12시 반").
@@ -75,6 +148,12 @@ enum FastScheduleParser {
             }
             if hasUnresolvedDate(seg, dateHint: dateHint) {   // 월>12·불가능한 일·'월'만 등 미해석 날짜 → 폴백
                 unplaced += 1; continue
+            }
+            if hasMultipleTimes(seg) {            // 시각이 2개 이상 남은 조각 → 제목 병합("수학 영어") 방지, 폴백
+                unplaced += 1; continue
+            }
+            if AIKoreanDate.parse(seg, now: now, cal: cal).endRelativeDay != nil {
+                unplaced += 1; continue           // "7/1부터 7/5까지" 기간 일정 → 모델(멀티데이 생성)로
             }
 
             let day = dateHint ?? carryDay ?? cal.startOfDay(for: now)
@@ -328,8 +407,8 @@ enum FastScheduleParser {
     private static func weeklyDays(_ seg: String) -> Set<Int> {
         let map: [Character: Int] = ["일": 1, "월": 2, "화": 3, "수": 4, "목": 5, "금": 6, "토": 7]
         if seg.contains("주말") { return [1, 7] }                        // 주말 = 토·일
-        if let g = match(seg, #"매주\s*([월화수목금토일]{2,7})"#) {
-            return Set(g[1].compactMap { map[$0] })
+        if let g = match(seg, #"매주\s*([월화수목금토일](?:\s*[월화수목금토일])+)(?![가-힣])"#) {
+            return Set(g[1].compactMap { map[$0] })   // "매주 월수금"·"매주 월 수 금" 모두
         }
         let full: [(String, Int)] = [("월요일", 2), ("화요일", 3), ("수요일", 4),
                                      ("목요일", 5), ("금요일", 6), ("토요일", 7), ("일요일", 1)]
@@ -373,7 +452,7 @@ enum FastScheduleParser {
 
         // 반복(요일 뭉치는 '매주/격주'에 붙은 것만) — 날짜어보다 먼저
         s = removeRegex(s, #"매\s*주말"#)                       // '매주말' → 주말 반복(통째로 먼저 제거)
-        s = removeRegex(s, #"(매주|격주|주마다)\s*[월화수목금토일]{1,7}(?:\s*요일)?(?![가-힣])"#)   // 요일 뭉치도 단어 경계 요구('매주 수학'의 '수' 보존)
+        s = removeRegex(s, #"(매주|격주|주마다)\s*[월화수목금토일](?:\s*[월화수목금토일])*(?:\s*요일)?(?![가-힣])"#)   // 요일 뭉치도 단어 경계 요구('매주 수학'의 '수' 보존), "월 수 금" 띄어쓰기 허용
         s = removeWords(s, ["주말마다", "매일매일", "격주", "2주마다", "이주마다",
                             "날마다", "주마다", "달마다", "해마다"])
         for p in [#"매주(?![가-힣])"#, #"매일(?![가-힣])"#, #"매달(?![가-힣])"#,
@@ -398,6 +477,8 @@ enum FastScheduleParser {
             "열흘", "아흐레", "여드레", "이레", "엿새", "닷새", "나흘", "사흘", "이틀",
             "월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일",
         ])
+        // 한 글자 요일("금 5시 수학"의 '금') — 홀로 선 토큰만('수학'의 수, '8월'의 월은 보존)
+        s = removeRegex(s, #"(?<![가-힣0-9])[월화수목금토일](?![가-힣])"#)
 
         // 요청 어미 — "추가해줘/넣어 줘/등록해주세요/잡아줄래" 같은 명령 꼬리는 제목이 아님.
         // 단계마다 비면 직전 값으로 되돌리고 멈춤 → "일정 추가해줘"는 '일정'까지만 남는다.
@@ -482,14 +563,28 @@ enum FastScheduleParser {
         for w in ["뭐야", "뭐가", "뭐있", "뭐먹", "무엇", "언제", "몇시", "며칠", "몇개",
                   "알려줘", "알려줄", "알려주", "궁금", "있어", "있나", "있는지", "없어"] where t.contains(w) { return true }
         for w in ["급식", "식단"] where t.contains(w) { return true }
-        for w in ["취소", "삭제", "지워", "지울", "지운", "없애", "없앨", "없던", "캔슬",
-                  "빼줘", "빼주", "빼자", "빼버려", "빼고싶"] where t.contains(w) { return true }
-        for w in ["옮겨", "옮길", "옮기", "미뤄", "미룰", "당겨", "당길", "앞당", "늦춰", "늦출",
-                  "변경", "조정해", "조정하", "조정할", "수정해", "수정하", "수정할",
-                  "바꿔", "바꾸고", "바꿀"] where t.contains(w) { return true }
+        if hasDeleteCue(t) { return true }
+        if hasUpdateCue(t) { return true }
         if (t.contains("다크") || t.contains("라이트") || t.contains("화이트") || t.contains("야간") || t.contains("주간"))
             && (t.contains("모드") || t.contains("테마")) { return true }
         for w in ["그거말고", "그건말고", "그게아니", "다른거로", "다른걸로"] where t.contains(w) { return true }
+        return false
+    }
+
+    /// 삭제 의도 단어가 실제로 들어 있는가 — 모델이 수정 요청을 삭제로 오해했을 때 걸러내는 안전장치로도 사용.
+    static func hasDeleteCue(_ text: String) -> Bool {
+        for w in ["취소", "삭제", "지워", "지울", "지운", "없애", "없앨", "없던", "캔슬",
+                  "빼줘", "빼주", "빼자", "빼버려", "빼고싶"] where text.contains(w) { return true }
+        let lower = text.lowercased()
+        for w in ["delete", "remove", "cancel"] where lower.contains(w) { return true }
+        return false
+    }
+
+    /// 수정(시간·날짜 변경) 의도 단어가 들어 있는가.
+    static func hasUpdateCue(_ text: String) -> Bool {
+        for w in ["옮겨", "옮길", "옮기", "미뤄", "미룰", "미루", "당겨", "당길", "앞당", "늦춰", "늦출", "늦추",
+                  "변경", "조정해", "조정하", "조정할", "수정해", "수정하", "수정할",
+                  "바꿔", "바꾸고", "바꿀"] where text.contains(w) { return true }
         return false
     }
 
@@ -517,10 +612,44 @@ enum FastScheduleParser {
             }
             for part in line.split(whereSeparator: { $0 == "," || $0 == "，" }) {
                 let s = part.trimmingCharacters(in: .whitespaces)
-                if !s.isEmpty { lines.append(s) }
+                if !s.isEmpty { lines.append(contentsOf: splitChainedSchedules(s)) }
             }
         }
         return lines
+    }
+
+    /// 구분자 없이 한 줄에 이어 쓴 여러 일정("오늘 8시 수학 금요일 5시 수학")을 날짜 토큰 앞에서 분할.
+    /// 왼쪽 조각이 이미 시각을 가진 경우에만 자름 → "소풍 내일 3시"처럼 날짜가 뒤에 오는 단일 일정은 보존.
+    private static func splitChainedSchedules(_ line: String) -> [String] {
+        let datePat = #"(?<=\s)(?:오늘|내일모레|내일|모레|글피|어제|다다음\s*주|다음\s*주|이번\s*주|담주|다음\s*달|이번\s*달|[월화수목금토일]요일|[월화수목금토일](?![가-힣])|\d{1,2}\s*월\s*\d{1,2}\s*일|\d{1,2}\s*/\s*\d{1,2})"#
+        guard let re = try? NSRegularExpression(pattern: datePat) else { return [line] }
+        let ns = line as NSString
+        var pieces: [String] = []
+        var pieceStart = 0
+        for m in re.matches(in: line, range: NSRange(location: 0, length: ns.length)) {
+            let cur = ns.substring(with: NSRange(location: pieceStart, length: m.range.location - pieceStart))
+            if hasTimeToken(cur) {   // 왼쪽에 이미 시각이 있으면 여기서 새 일정 시작
+                pieces.append(cur.trimmingCharacters(in: .whitespaces))
+                pieceStart = m.range.location
+            }
+        }
+        let last = ns.substring(from: pieceStart).trimmingCharacters(in: .whitespaces)
+        if !last.isEmpty { pieces.append(last) }
+        return pieces.isEmpty ? [line] : pieces
+    }
+
+    private static func hasTimeToken(_ s: String) -> Bool {
+        has(s, #"(?<!\d)\d{1,2}\s*시(?!간)"#) || has(s, #"(?<!\d)\d{1,2}\s*:\s*\d{2}"#)
+    }
+
+    /// 한 세그먼트에 시각 표현이 2개 이상 남아 있는가(범위 제외).
+    /// true면 제목이 "수학 영어"처럼 합쳐질 상황 → 통째로 모델 폴백.
+    private static func hasMultipleTimes(_ seg: String) -> Bool {
+        if hourRangeParts(seg) != nil { return false }                       // "5~7시"류 범위는 정상
+        if has(seg, #"\d{1,2}:\d{2}\s*[-~]\s*\d{1,2}:\d{2}"#) { return false }   // "9:00-18:00"
+        let n = allMatches(seg, #"(?<!\d)\d{1,2}\s*시(?!간)"#).count
+              + allMatches(seg, #"(?<!\d)\d{1,2}\s*:\s*\d{2}"#).count
+        return n >= 2
     }
 
     // MARK: - 정규식 헬퍼

@@ -19,6 +19,8 @@ struct AIScheduleView: View {
     @AppStorage("neisKind") private var neisKind = ""
     @State private var speech = SpeechRecognizer()
     @FocusState private var editorFocused: Bool
+    @AppStorage("aiMeridiemTipShown") private var meridiemTipShown = false   // 첫 진입 팁 1회
+    @State private var showMeridiemTip = false
     private let lang = AppLanguage.shared
 
     var body: some View {
@@ -47,7 +49,15 @@ struct AIScheduleView: View {
             .animation(.easeInOut(duration: 0.45), value: isLoading)   // 글로우 페이드 인/아웃
             .navigationTitle(lang.tr("AI 일정"))
             .navBarInline()
-            .task { AppleIntelligenceClient.prewarm() }
+            .task {
+                AppleIntelligenceClient.prewarm()
+                if !meridiemTipShown { showMeridiemTip = true; meridiemTipShown = true }   // 첫 진입 1회 팁
+            }
+            .alert(lang.tr("더 정확하게 쓰는 팁"), isPresented: $showMeridiemTip) {
+                Button(lang.tr("확인"), role: .cancel) {}
+            } message: {
+                Text(lang.tr("시간 앞에 '오전/오후'를 함께 적으면 훨씬 정확해요.\n예) 내일 오전 8시 수학 · 금요일 오후 5시 학원"))
+            }
             .onChange(of: speech.transcript) { _, t in if !t.isEmpty { inputText = t } }
             .onDisappear { speech.stop() }
             #if os(iOS)

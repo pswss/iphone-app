@@ -171,8 +171,7 @@ enum AIKoreanDate {
             minute = Int(text[mr].filter { $0.isNumber }) ?? 0
         }
 
-        let pm = ["오후", "저녁", "밤"].contains { text.contains($0) }
-        let am = ["오전", "새벽", "아침"].contains { text.contains($0) }
+        let (pm, am) = meridiem(text)
         let noon = text.contains("정오"), midnight = text.contains("자정")
         if pm, h < 12 { h += 12 }
         if am, h == 12 { h = 0 }
@@ -198,9 +197,23 @@ enum AIKoreanDate {
         if let mr = text.range(of: #"시\s*\d{1,2}\s*분"#, options: .regularExpression) {
             m = Int(text[mr].filter { $0.isNumber }) ?? 0
         }
-        if ["오후", "저녁", "밤"].contains(where: text.contains), h < 12 { h += 12 }
-        if ["오전", "새벽", "아침"].contains(where: text.contains), h == 12 { h = 0 }
+        let (pm, am) = meridiem(text)
+        if pm, h < 12 { h += 12 }
+        if am, h == 12 { h = 0 }
         return (h, m)
+    }
+
+    /// 오전/오후 판정 — 숫자 바로 앞에 붙은 표시가 최우선("오전 8시 저녁준비"의 '저녁'이 이기지 않게).
+    /// 인접 표시가 없으면 명시어(오전/오후) 우선, 그다음 새벽/아침/저녁/밤 같은 정황어.
+    private static func meridiem(_ text: String) -> (pm: Bool, am: Bool) {
+        let pmAdj = text.range(of: #"(오후|저녁|밤)\s*\d"#, options: .regularExpression) != nil
+        let amAdj = text.range(of: #"(오전|새벽|아침)\s*\d"#, options: .regularExpression) != nil
+        if pmAdj || amAdj { return (pmAdj, amAdj && !pmAdj) }
+        if text.contains("오후") { return (true, false) }
+        if text.contains("오전") { return (false, true) }
+        if ["저녁", "밤"].contains(where: text.contains) { return (true, false) }
+        if ["새벽", "아침"].contains(where: text.contains) { return (false, true) }
+        return (false, false)
     }
 
     /// "A부터 B까지" / "A~B" / "A에서 B까지" → (앞, 뒤). 범위 표현이 없으면 nil.
@@ -254,7 +267,14 @@ enum AIKoreanDate {
         }
         let wdMap: [(String, Int)] = [("월요일", 2), ("화요일", 3), ("수요일", 4),
                                       ("목요일", 5), ("금요일", 6), ("토요일", 7), ("일요일", 1)]
-        if let wd = wdMap.first(where: { text.contains($0.0) })?.1 {
+        var weekdayHit = wdMap.first(where: { text.contains($0.0) })?.1
+        if weekdayHit == nil,
+           let r = text.range(of: #"(?<![가-힣0-9])[월화수목금토일](?![가-힣])"#, options: .regularExpression) {
+            // 한 글자 요일("금 5시 수학") — 홀로 선 토큰만('수학'의 수, '8월'의 월, '내일'의 일은 제외)
+            let single: [Character: Int] = ["일": 1, "월": 2, "화": 3, "수": 4, "목": 5, "금": 6, "토": 7]
+            weekdayHit = text[r].first.flatMap { single[$0] }
+        }
+        if let wd = weekdayHit {
             let todayWd = cal.component(.weekday, from: today)
             if let off = weekOffset {
                 let mondayOffset = (todayWd + 5) % 7

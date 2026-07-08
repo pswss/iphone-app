@@ -14,6 +14,11 @@ struct AppleIntelligenceClient: ScheduleAI {
         if let fast = await FastScheduleParser.tryParse(text: text, now: now, existing: existing) {
             return fast
         }
+        // 0.5) 빠른 수정 경로: "수학 9시로 바꿔줘" 같은 단순 시간·날짜 변경은 규칙으로 즉시.
+        //      (작은 모델이 수정을 삭제+생성으로 오해해 엉뚱한 일정을 지우던 문제 방지)
+        if let edit = FastScheduleParser.tryParseEdit(text: text, now: now, existing: existing) {
+            return edit
+        }
         #if canImport(FoundationModels)
         if #available(iOS 26, macOS 26, *) {
             return try await AppleAI.generate(from: text, now: now, existing: existing)
@@ -346,6 +351,9 @@ enum AppleAI {
                 if seen.insert(t.id).inserted { events.append(makeUpdate(c, t, now: now)) }
 
             case "scheduleDelete":
+                // 안전장치: 입력에 삭제 단어가 실제로 없으면 모델의 삭제 판단을 무시
+                // (수정 요청을 삭제+생성으로 오해해 다른 일정이 사라지던 버그 방지)
+                guard FastScheduleParser.hasDeleteCue(text) else { break }
                 if c.bulk {
                     if let key = bulkKey(text: text, existing: existing) {
                         events.append(ParsedEvent(title: key, start: now, end: now,
