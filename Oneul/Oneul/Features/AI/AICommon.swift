@@ -13,6 +13,17 @@ struct ParsedEvent: Identifiable, Hashable {
     var recurrence: Recurrence = .none   // 반복 일정(create 적용 시 EventActions.create로)
     var weekdays: Set<Int> = []          // 매주 특정 요일(1=일…7=토)
     var endDate: Date? = nil             // 반복 종료일(없으면 기본 1년)
+    var inferredPM: Bool = false         // 오전/오후 미표기를 맥락으로 오후 해석함(근거 표시용)
+    var amPmAmbiguous: Bool = false      // 오전/오후를 확신 못 함 → 사용자에게 확인 질문
+}
+
+/// 맨숫자 시각(오전/오후 미표기)의 해석에 쓰는 사용자 맥락.
+/// 근거: docs/AI_시간맥락모델.md (학원 조례·학교 등하교·통계청 생활시간조사 기반).
+struct AIParseContext {
+    /// 방학 여부 — true=방학, false=학기중, nil=모름(학사일정 데이터 없음).
+    var vacation: Bool? = nil
+    /// 제목 → 기존 일정들의 시작 시(0-23). 같은 과목의 등록 패턴을 통계 모델보다 우선.
+    var learnedHours: [String: Set<Int>] = [:]
 }
 
 /// AI에 컨텍스트로 넘기는 기존(다가오는) 일정 스냅샷.

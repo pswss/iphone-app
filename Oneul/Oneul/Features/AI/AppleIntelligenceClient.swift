@@ -8,10 +8,16 @@ import FoundationModels
 /// 모델은 '의미 슬롯'만 채우고(날짜/시각 ISO 생성 금지), 실제 계산은 Swift(AIDateResolver)가 한다.
 struct AppleIntelligenceClient: ScheduleAI {
     func generateSchedule(from text: String, now: Date, existing: [ExistingEvent]) async throws -> AIResult {
+        try await generateSchedule(from: text, now: now, existing: existing, context: AIParseContext())
+    }
+
+    /// context: 맨숫자 시각(오전/오후 미표기) 해석에 쓰는 사용자 맥락(방학 여부·기존 일정 패턴).
+    func generateSchedule(from text: String, now: Date, existing: [ExistingEvent],
+                          context: AIParseContext) async throws -> AIResult {
         // 0) 빠른 경로: 규칙 기반 파서가 '단순 일정 생성'이라고 확신하면 모델 없이 즉시 반환.
         //    질문·수정·삭제·외형 변경·모호한 문장은 nil → 아래 Apple Intelligence 경로로 폴백.
         //    (표·여러 줄 일정도 여기서 처리 — 모델보다 빠르고 정확. AI 미지원 기기에서도 동작.)
-        if let fast = await FastScheduleParser.tryParse(text: text, now: now, existing: existing) {
+        if let fast = await FastScheduleParser.tryParse(text: text, now: now, existing: existing, context: context) {
             return fast
         }
         // 0.5) 빠른 수정 경로: "수학 9시로 바꿔줘" 같은 단순 시간·날짜 변경은 규칙으로 즉시.

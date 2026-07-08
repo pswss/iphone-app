@@ -18,8 +18,8 @@ enum FastScheduleParser {
 
     /// 비동기(장소 검증 포함). 확신하면 AIResult, 아니면 nil(→ 모델 폴백).
     static func tryParse(text: String, now: Date, existing: [ExistingEvent],
-                         cal: Calendar = .current) async -> AIResult? {
-        guard var events = parseEvents(text: text, now: now, cal: cal), !events.isEmpty else { return nil }
+                         cal: Calendar = .current, context: AIParseContext = AIParseContext()) async -> AIResult? {
+        guard var events = parseEvents(text: text, now: now, cal: cal, context: context), !events.isEmpty else { return nil }
         for i in events.indices where !events[i].location.isEmpty {
             events[i].location = await validatePlace(events[i].location)
         }
@@ -117,7 +117,8 @@ enum FastScheduleParser {
         return out
     }
 
-    static func parseEvents(text: String, now: Date, cal: Calendar = .current) -> [ParsedEvent]? {
+    static func parseEvents(text: String, now: Date, cal: Calendar = .current,
+                            context: AIParseContext = AIParseContext()) -> [ParsedEvent]? {
         let trimmed = normalizeKoreanTime(text.trimmingCharacters(in: .whitespacesAndNewlines))
         guard !trimmed.isEmpty else { return nil }
 
@@ -159,7 +160,16 @@ enum FastScheduleParser {
             let day = dateHint ?? carryDay ?? cal.startOfDay(for: now)
             let (rec, wds) = parseRecurrence(seg)
             if let t = time ?? pendingTime {
-                events.append(makeEvent(title: title, day: day, time: t, rec: rec, wds: wds, seg: seg, cal: cal))
+                var span = t
+                var inferredPM = false, ambiguous = false
+                if span.bare {   // 오전/오후 미표기 맨숫자 → 시간 맥락 모델로 해석(docs/AI_시간맥락모델.md)
+                    let r = resolveBareHour(span.sH, title: title, day: day, context: context, cal: cal)
+                    span.sH = r.hour; inferredPM = r.inferredPM; ambiguous = r.ambiguous
+                }
+                var ev = makeEvent(title: title, day: day, time: span, rec: rec, wds: wds, seg: seg, cal: cal)
+                ev.inferredPM = inferredPM
+                ev.amPmAmbiguous = ambiguous
+                events.append(ev)
                 pendingTime = nil
             } else if rec != .none || dateHint != nil {
                 // 시각이 없어도 반복 표시(매주/매일/매월/매년)나 날짜가 있으면 종일 일정으로 생성
@@ -176,7 +186,10 @@ enum FastScheduleParser {
 
     // MARK: - 시각
 
-    struct TimeSpan { var sH: Int; var sM: Int; var eH: Int?; var eM: Int? }
+    struct TimeSpan {
+        var sH: Int; var sM: Int; var eH: Int?; var eM: Int?
+        var bare = false   // 오전/오후 미표기 맨숫자(1~12) — 해석은 parseEvents가 맥락으로
+    }
 
     private enum Meridiem { case am, pm, none, noon, midnight }
     private struct HourTok { var h: Int; var m: Int; var mer: Meridiem; var night: Bool }
@@ -210,10 +223,51 @@ enum FastScheduleParser {
         }
         // 4) 시(時) 단일
         if let t = hourToken(seg, bareOK: false) {
+            if t.mer == .none, !t.night, (1...12).contains(t.h) {
+                // 오전/오후 미표기 → 여기서 확정하지 않고 표시만(맥락 해석은 parseEvents에서)
+                return TimeSpan(sH: t.h, sM: t.m, eH: nil, eM: nil, bare: true)
+            }
             let (h, m) = resolve1(t)
             return TimeSpan(sH: h, sM: m, eH: nil, eM: nil)
         }
         return nil
+    }
+
+    /// 오전/오후 미표기 맨숫자 시각을 시간 맥락 모델로 해석(근거: docs/AI_시간맥락모델.md).
+    /// 우선순위: 같은 제목의 기존 일정 패턴 > 새벽 배제(1~7시=오후) > 요일·방학·과목 맥락.
+    /// ambiguous=true면 확정하지 않고 사용자 확인(오전/오후 선택)이 필요.
+    static func resolveBareHour(_ h: Int, title: String, day: Date, context: AIParseContext,
+                                cal: Calendar) -> (hour: Int, inferredPM: Bool, ambiguous: Bool) {
+        guard (1...12).contains(h) else { return (h, false, false) }
+        let pmH = h == 12 ? 12 : h + 12
+        // 1) 학습된 패턴: 같은 제목의 기존 일정 시각과 일치하는 해석 우선
+        if let hours = context.learnedHours[title] {
+            if h != 12, hours.contains(pmH) { return (pmH, true, false) }
+            if hours.contains(h) { return (h, false, false) }
+        }
+        if h == 12 { return (12, false, false) }               // 12시 = 낮(점심 평균 12:25)
+        if (1...7).contains(h) { return (pmH, true, false) }   // 새벽 배제 — 낮 활동 가정
+        // h 8~11
+        let wd = cal.component(.weekday, from: day)
+        if wd == 1 || wd == 7 || context.vacation == true {    // 주말·방학: 이른 시각 = 오전(주말 오전반·방학 특강)
+            return (h, false, false)
+        }
+        if isAcademyLike(title) {                              // 평일 + 학원 컨텍스트
+            if context.vacation == nil { return (h, false, true) }   // 방학 여부 불명 — 판정이 뒤집히는 구간 → 확인
+            // 학기중: 오전 8~11시는 등교 시간이라 학원 불가. 8~9시는 저녁 수업(20~21시), 10~11시는 22시 시작이 조례 위반이라 확인.
+            return (8...9).contains(h) ? (pmH, true, false) : (h, false, true)
+        }
+        return (h, false, false)                               // 병원·회의 등 일반 활동은 오전(표준 9~18시)
+    }
+
+    /// 학원/과목 컨텍스트인가 — 과목명 또는 학원류 접미어 포함.
+    static func isAcademyLike(_ title: String) -> Bool {
+        let t = title.replacingOccurrences(of: " ", with: "")
+        let subjects = ["수학", "영어", "국어", "과학", "사회", "역사", "한국사", "물리", "화학",
+                        "생물", "지구과학", "논술", "독서", "문법", "단어", "모의고사"]
+        if subjects.contains(where: t.contains) { return true }
+        for suf in ["학원", "과외", "특강", "보습", "교습", "수업", "스터디", "인강"] where t.contains(suf) { return true }
+        return false
     }
 
     /// 콜론 시각용 오전/오후 판정(숫자에 붙은 표시만).
@@ -400,6 +454,12 @@ enum FastScheduleParser {
         if has(seg, #"매일(?![가-힣])|날마다"#) { return (.daily, []) }
         if has(seg, #"매달(?![가-힣])|매월(?![가-힣])|달마다"#) { return (.monthly, []) }
         if has(seg, #"매년(?![가-힣])|매해(?![가-힣])|해마다"#) { return (.yearly, []) }
+        // '매주' 없이 요일 뭉치만("월수금 수학") — 요일 2개 이상 나열은 매주 반복으로 본다(학원 관행)
+        if let g = match(seg, #"(?<![가-힣0-9])([월화수목금토일]{2,7})(?:\s*요일)?(?![가-힣])"#) {
+            let map: [Character: Int] = ["일": 1, "월": 2, "화": 3, "수": 4, "목": 5, "금": 6, "토": 7]
+            let days = Set(g[1].compactMap { map[$0] })
+            if days.count >= 2 { return (.weekly, days) }
+        }
         return (.none, [])
     }
 
@@ -477,7 +537,8 @@ enum FastScheduleParser {
             "열흘", "아흐레", "여드레", "이레", "엿새", "닷새", "나흘", "사흘", "이틀",
             "월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일",
         ])
-        // 한 글자 요일("금 5시 수학"의 '금') — 홀로 선 토큰만('수학'의 수, '8월'의 월은 보존)
+        // 요일 뭉치("월수금 수학")와 한 글자 요일("금 5시 수학") — 홀로 선 토큰만('수학'의 수, '8월'의 월은 보존)
+        s = removeRegex(s, #"(?<![가-힣0-9])[월화수목금토일]{2,7}(?:\s*요일)?(?![가-힣])"#)
         s = removeRegex(s, #"(?<![가-힣0-9])[월화수목금토일](?![가-힣])"#)
 
         // 요청 어미 — "추가해줘/넣어 줘/등록해주세요/잡아줄래" 같은 명령 꼬리는 제목이 아님.

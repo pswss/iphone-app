@@ -12,6 +12,7 @@ struct AIScheduleView: View {
     @State private var reply: String?                // 급식·외형 등 액션 답변
     @State private var clarifyCandidates: [DeleteCandidate] = []   // "어떤 것을 삭제할까요?" 후보
     @State private var clarifyPrompt: String?
+    @State private var amPmPending: [ParsedEvent] = []             // 오전/오후 확인이 필요한 일정
     @AppStorage("appearance") private var appearanceRaw = Appearance.system.rawValue
     @AppStorage("neisOffice") private var neisOffice = ""
     @AppStorage("neisCode") private var neisCode = ""
@@ -90,6 +91,7 @@ struct AIScheduleView: View {
             }
             if let reply { AIReplyCard(text: reply) }
             if let clarifyPrompt { clarifySection(clarifyPrompt) }
+            if !amPmPending.isEmpty { amPmSection }
             if !results.isEmpty { resultsSection }
         }
     }
@@ -196,6 +198,10 @@ struct AIScheduleView: View {
                                      (e.location.isEmpty ? "" : " · \(e.location)"))
                                     .font(.caption2).foregroundStyle(.secondary)
                             }
+                            if e.inferredPM {   // 확률 기반 기본값 적용 → 해석 근거 표시(즉시 정정 가능)
+                                Text(String(format: lang.tr("오후 %d시로 해석했어요 — 아니면 눌러서 고쳐 주세요"), hour12(e.start)))
+                                    .font(.caption2).foregroundStyle(.orange)
+                            }
                         }
                         Spacer()
                         if e.action != .delete {
@@ -217,6 +223,48 @@ struct AIScheduleView: View {
 
     private func timeText(_ date: Date) -> String {
         date.formatted(.dateTime.hour().minute().locale(lang.locale))
+    }
+
+    private func hour12(_ date: Date) -> Int {
+        let h = Calendar.current.component(.hour, from: date) % 12
+        return h == 0 ? 12 : h
+    }
+
+    /// 오전/오후를 확신 못 한 일정 — 사용자가 한 번 탭해 확정(한 번에 질문 1개 원칙, 카드당 선택지 2개).
+    private var amPmSection: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            ForEach(amPmPending) { e in
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(String(format: lang.tr("'%@' — 오전 %d시인가요, 오후 %d시인가요?"),
+                                e.title, hour12(e.start), hour12(e.start)))
+                        .font(.subheadline).bold()
+                    HStack(spacing: 8) {
+                        Button(String(format: lang.tr("오전 %d시"), hour12(e.start))) { resolveAmPm(e, pm: false) }
+                        Button(String(format: lang.tr("오후 %d시"), hour12(e.start))) { resolveAmPm(e, pm: true) }
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(12).glassCard(cornerRadius: 22)
+            }
+        }
+    }
+
+    private func resolveAmPm(_ e: ParsedEvent, pm: Bool) {
+        guard let idx = amPmPending.firstIndex(where: { $0.id == e.id }) else { return }
+        var ev = amPmPending.remove(at: idx)
+        let cal = Calendar.current
+        let h12 = cal.component(.hour, from: ev.start) % 12
+        let newH = pm ? (h12 == 0 ? 12 : h12 + 12) : h12
+        let dur = max(ev.end.timeIntervalSince(ev.start), 3600)
+        if let s = cal.date(bySettingHour: newH, minute: cal.component(.minute, from: ev.start),
+                            second: 0, of: ev.start) {
+            ev.start = s; ev.end = s.addingTimeInterval(dur)
+        }
+        ev.amPmAmbiguous = false
+        results.append(ev)
+        results.sort { $0.start < $1.start }
+        Haptics.impact(.light)
     }
 
     /// "어떤 것을 삭제할까요?" 후보 목록 — 탭하면 그 일정 삭제.
@@ -262,11 +310,12 @@ struct AIScheduleView: View {
 
     private func generate() async {
         errorMessage = nil; reply = nil; results = []; clarifyCandidates = []; clarifyPrompt = nil
+        amPmPending = []
         let text = FastScheduleParser.normalizeKoreanTime(inputText)   // "한시"→"1시" — 음성 한글 수사 보정
         isLoading = true; defer { isLoading = false }
         do {
             let result = try await AppleIntelligenceClient()
-                .generateSchedule(from: text, now: .now, existing: fetchUpcoming())
+                .generateSchedule(from: text, now: .now, existing: fetchUpcoming(), context: buildParseContext())
 
             // 즉시 액션(외형/급식/일정 질문/삭제 후보) 처리 → 답변 모음
             var replies: [String] = []
@@ -287,7 +336,9 @@ struct AIScheduleView: View {
                 }
             }
 
-            results = result.events.sorted { $0.start < $1.start }
+            // 오전/오후를 확신 못 한 일정은 결과에 넣지 않고 먼저 물어봄(선택하면 결과로 이동)
+            amPmPending = result.events.filter { $0.amPmAmbiguous }.sorted { $0.start < $1.start }
+            results = result.events.filter { !$0.amPmAmbiguous }.sorted { $0.start < $1.start }
             if !replies.isEmpty { reply = replies.joined(separator: "\n\n") }
 
             if result.isEmpty {
@@ -366,6 +417,28 @@ struct AIScheduleView: View {
         return "\(label)\n\(body)"
     }
 
+    /// 맨숫자 시각(오전/오후 미표기) 해석용 맥락 — 방학 여부(학사일정) + 제목별 기존 등록 시각 패턴.
+    private func buildParseContext() -> AIParseContext {
+        var ctx = AIParseContext()
+        // 방학 여부: 나이스 학사일정에서 오늘 이전 마지막 '방학/개학' 이벤트로 판정. 데이터 없으면 nil(모름).
+        let now = Date()
+        let academic = FetchDescriptor<ScheduleEvent>(predicate: #Predicate { $0.source == "academic" })
+        if let items = try? context.fetch(academic), !items.isEmpty {
+            let markers = items.filter { $0.start <= now && ($0.title.contains("방학") || $0.title.contains("개학")) }
+                .sorted { $0.start < $1.start }
+            if let last = markers.last { ctx.vacation = last.title.contains("방학") }
+        }
+        // 학습된 패턴: 최근 60일~미래 일정의 제목별 시작 시(같은 과목은 같은 시간대일 가능성이 높음)
+        let cutoff = Calendar.current.date(byAdding: .day, value: -60, to: now) ?? now
+        var d = FetchDescriptor<ScheduleEvent>(predicate: #Predicate { $0.start >= cutoff },
+                                               sortBy: [SortDescriptor(\.start, order: .reverse)])
+        d.fetchLimit = 500
+        for e in (try? context.fetch(d)) ?? [] {
+            ctx.learnedHours[e.title, default: []].insert(Calendar.current.component(.hour, from: e.start))
+        }
+        return ctx
+    }
+
     /// 수정/삭제 대상이 될 다가오는 일정(최대 25개).
     private func fetchUpcoming() -> [ExistingEvent] {
         let start = Calendar.current.startOfDay(for: Date())   // 오늘 0시부터 → 오늘 이미 지난 일정도 삭제/수정 대상
@@ -402,7 +475,7 @@ struct AIScheduleView: View {
         do {
             try context.save()
             if applied == 0 { errorMessage = lang.tr("적용할 대상을 찾지 못했어요.") }
-            else { results = []; inputText = ""; errorMessage = nil }
+            else { results = []; amPmPending = []; inputText = ""; errorMessage = nil }
         } catch {
             errorMessage = "저장 오류: \(error.localizedDescription)"
         }
