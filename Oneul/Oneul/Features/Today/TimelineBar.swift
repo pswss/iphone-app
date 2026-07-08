@@ -15,7 +15,9 @@ struct TimelineBar: View {
 
     var body: some View {
         if live {
-            TimelineView(.animation) { context in barContent(now: context.date) }
+            // 30초 주기 — 현재선은 분당 1pt도 안 움직여 시각적으로 동일.
+            // (.animation은 매 프레임(120Hz) 전체 재렌더 → 그리드 스크롤 끊김의 주범이었음)
+            TimelineView(.periodic(from: .now, by: 30)) { context in barContent(now: context.date) }
         } else {
             barContent(now: Date())
         }
@@ -23,6 +25,7 @@ struct TimelineBar: View {
 
     @ViewBuilder
     private func barContent(now: Date) -> some View {
+        let layout = self.layout   // 한 번만 계산(계산 프로퍼티 3회 접근 = PackedLayout 3회 생성 방지)
         let current = plan.current(at: now)
         let waiting = layout.isWaiting(at: now)
         let frac = layout.fraction(at: now)

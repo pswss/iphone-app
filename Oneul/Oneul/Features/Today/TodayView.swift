@@ -60,6 +60,7 @@ struct TodayView: View {
         }
         eventsByDay = dict
         indexVersion &+= 1
+        bandCache = computeBandItems()   // 전체 일정 순회는 여기(데이터 변경 시)서만 — 스크롤 중 매 프레임 계산 금지
     }
 
     var body: some View {
@@ -99,7 +100,7 @@ struct TodayView: View {
         .onChange(of: scenePhase) { _, phase in
             // 어제 켜둔 앱이 아침에 포그라운드로 복귀하는 경로 — onAppear가 다시 안 불려
             // LA가 영영 재시작되지 않던 문제. 활성화 때마다 오늘 기준으로 재동기화.
-            if phase == .active { syncLiveActivity() }
+            if phase == .active { syncLiveActivity(); bandCache = computeBandItems() }   // 날짜 넘어간 경우 D-Day 재계산
         }
         .onReceive(NotificationCenter.default.publisher(for: .oneulNewEvent)) { _ in addStart = nil; showingAdd = true }
         .onReceive(NotificationCenter.default.publisher(for: .oneulToday)) { _ in selectedDay = .now }
@@ -231,7 +232,10 @@ struct TodayView: View {
             #endif
         }
         .padding(.top, 8)
-        .onPreferenceChange(RowHeightKey.self) { rowH.merge($0) { _, n in n } }
+        .onPreferenceChange(RowHeightKey.self) { new in
+            let merged = rowH.merging(new) { _, n in n }
+            if merged != rowH { rowH = merged }   // 같은 값이면 안 씀 — 접힘 스크롤 중 불필요한 재렌더 방지
+        }
     }
 
     #if os(macOS)
@@ -323,7 +327,11 @@ struct TodayView: View {
                     scrollHour: active ? $sharedScrollHour : .constant(sharedScrollHour),   // 보이는 페이지만 공유값에 쓰기(옆 페이지가 자정으로 덮는 것 방지)
                     onScrollDelta: active ? { y in
                         // y = 그리드 절대 스크롤량(최상단=0). 데드존 22 지나야 접히기 시작, 253pt에 걸쳐 완전히 접힘.
-                        timelineProgress = min(1, max(0, (y - 22) / 253))
+                        // 1/120 단위로 양자화 + 같은 값이면 안 씀 — 접힘 구간 밖(0/1 포화)에선 스크롤이
+                        // 뷰 갱신을 전혀 유발하지 않게(120Hz 아이패드 스크롤 끊김 방지).
+                        let p = min(1, max(0, (y - 22) / 253))
+                        let q = (p * 120).rounded() / 120
+                        if abs(q - timelineProgress) > 0.0001 { timelineProgress = q }
                     } : nil)
         .padding(.horizontal, 16)
     }
@@ -432,7 +440,11 @@ struct TodayView: View {
         let trailing: String     // 날짜
     }
 
-    private var bandItems: [BandItem] {
+    /// 밴드 항목 캐시 — 전체 일정을 순회하므로 데이터 변경(rebuildIndex)·재활성화 때만 재계산.
+    /// (예전엔 계산 프로퍼티라 접힘 스크롤 매 프레임 전체 일정을 훑어 아이패드에서 끊겼음)
+    @State private var bandCache: [BandItem] = []
+
+    private func computeBandItems() -> [BandItem] {
         let cal = Calendar.current
         let now = Date()
         let today = cal.startOfDay(for: now)
@@ -461,7 +473,7 @@ struct TodayView: View {
 
     @ViewBuilder
     private var unifiedBand: some View {
-        let items = bandItems
+        let items = bandCache
         if !items.isEmpty {
             Group {
                 #if os(iOS)
