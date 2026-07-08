@@ -501,15 +501,23 @@ enum FastScheduleParser {
     // MARK: - 반복
 
     private static func parseRecurrence(_ seg: String) -> (Recurrence, Set<Int>) {
-        if has(seg, #"격주|2주마다|이주마다"#) { return (.biweekly, []) }
-        if has(seg, #"주말마다|매\s*주말"#) { return (.weekly, [1, 7]) }
-        if has(seg, #"매주(?![가-힣])|주마다"#) { return (.weekly, weeklyDays(seg)) }
-        if has(seg, #"매일(?![가-힣])|날마다"#) { return (.daily, []) }
-        if has(seg, #"매달(?![가-힣])|매월(?![가-힣])|달마다"#) { return (.monthly, []) }
-        if has(seg, #"매년(?![가-힣])|매해(?![가-힣])|해마다"#) { return (.yearly, []) }
+        // "매주마다/매일마다" 같은 군더더기 '~마다'를 표준형으로 정규화
+        let s = seg.replacingOccurrences(of: #"(매주|매일|매달|매월|매년|매해)\s*마다"#,
+                                         with: "$1", options: .regularExpression)
+        if has(s, #"격주|2주마다|이주마다"#) { return (.biweekly, []) }
+        if has(s, #"주말마다|매\s*주말"#) { return (.weekly, [1, 7]) }
+        if has(s, #"매주(?![가-힣])|주마다"#) { return (.weekly, weeklyDays(s)) }
+        if has(s, #"매일(?![가-힣])|날마다"#) { return (.daily, []) }
+        if has(s, #"매달(?![가-힣])|매월(?![가-힣])|달마다"#) { return (.monthly, []) }
+        if has(s, #"매년(?![가-힣])|매해(?![가-힣])|해마다"#) { return (.yearly, []) }
+        let map: [Character: Int] = ["일": 1, "월": 2, "화": 3, "수": 4, "목": 5, "금": 6, "토": 7]
+        // "<요일>마다"("월요일마다"·"월수금마다") — '매주' 없이도 매주 반복
+        if let g = match(s, #"(?<![가-힣0-9])([월화수목금토일](?:\s*[월화수목금토일])*)\s*(?:요일)?\s*마다(?![가-힣])"#) {
+            let days = Set(g[1].compactMap { map[$0] })
+            if !days.isEmpty { return (.weekly, days) }
+        }
         // '매주' 없이 요일 뭉치만("월수금 수학") — 요일 2개 이상 나열은 매주 반복으로 본다(학원 관행)
-        if let g = match(seg, #"(?<![가-힣0-9])([월화수목금토일]{2,7})(?:\s*요일)?(?![가-힣])"#) {
-            let map: [Character: Int] = ["일": 1, "월": 2, "화": 3, "수": 4, "목": 5, "금": 6, "토": 7]
+        if let g = match(s, #"(?<![가-힣0-9])([월화수목금토일]{2,7})(?:\s*요일)?(?![가-힣])"#) {
             let days = Set(g[1].compactMap { map[$0] })
             if days.count >= 2 { return (.weekly, days) }
         }
@@ -520,8 +528,8 @@ enum FastScheduleParser {
     private static func weeklyDays(_ seg: String) -> Set<Int> {
         let map: [Character: Int] = ["일": 1, "월": 2, "화": 3, "수": 4, "목": 5, "금": 6, "토": 7]
         if seg.contains("주말") { return [1, 7] }                        // 주말 = 토·일
-        if let g = match(seg, #"매주\s*([월화수목금토일](?:\s*[월화수목금토일])+)(?![가-힣])"#) {
-            return Set(g[1].compactMap { map[$0] })   // "매주 월수금"·"매주 월 수 금" 모두
+        if let g = match(seg, #"매주\s*([월화수목금토일](?:\s*[월화수목금토일])+)(?:\s*(?:요일|마다))*(?![가-힣])"#) {
+            return Set(g[1].compactMap { map[$0] })   // "매주 월수금"·"매주 월 수 금"·"매주 월수금마다" 모두
         }
         let full: [(String, Int)] = [("월요일", 2), ("화요일", 3), ("수요일", 4),
                                      ("목요일", 5), ("금요일", 6), ("토요일", 7), ("일요일", 1)]
@@ -564,8 +572,10 @@ enum FastScheduleParser {
         s = removeRegex(s, #"[가-힣A-Za-z0-9]+(?:\s[가-힣A-Za-z0-9]+)?\s*에서"#)
 
         // 반복(요일 뭉치는 '매주/격주'에 붙은 것만) — 날짜어보다 먼저
+        s = removeRegex(s, #"(매주|매일|매달|매월|매년|매해)\s*마다"#)   // "매주마다" 군더더기형 통째로
         s = removeRegex(s, #"매\s*주말"#)                       // '매주말' → 주말 반복(통째로 먼저 제거)
-        s = removeRegex(s, #"(매주|격주|주마다)\s*[월화수목금토일](?:\s*[월화수목금토일])*(?:\s*요일)?(?![가-힣])"#)   // 요일 뭉치도 단어 경계 요구('매주 수학'의 '수' 보존), "월 수 금" 띄어쓰기 허용
+        s = removeRegex(s, #"(매주|격주|주마다)\s*[월화수목금토일](?:\s*[월화수목금토일])*(?:\s*요일)?(?:\s*마다)?(?![가-힣])"#)   // 요일 뭉치도 단어 경계 요구('매주 수학'의 '수' 보존), "월 수 금" 띄어쓰기·'마다' 허용
+        s = removeRegex(s, #"(?<![가-힣0-9])[월화수목금토일](?:\s*[월화수목금토일])*\s*(?:요일)?\s*마다(?![가-힣])"#)   // "월요일마다"·"월수금마다"('생일마다'는 경계로 보존)
         s = removeWords(s, ["주말마다", "매일매일", "격주", "2주마다", "이주마다",
                             "날마다", "주마다", "달마다", "해마다"])
         for p in [#"매주(?![가-힣])"#, #"매일(?![가-힣])"#, #"매달(?![가-힣])"#,
