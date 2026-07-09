@@ -99,6 +99,113 @@ enum FastScheduleParser {
                         actions: [])
     }
 
+    // MARK: - 빠른 삭제/급식/질문/외형 경로 (모델 불필요 — AI 미지원 기기에서도 동작, 즉시 응답)
+
+    /// 제목 기반 삭제("수학 지워줘", "수학 전부 삭제") — 규칙으로 즉시.
+    /// 대상이 여럿이면 clarifyDelete(후보 제시), 못 찾으면 nil(→ 모델).
+    static func tryParseDelete(text: String, now: Date, existing: [ExistingEvent],
+                               cal: Calendar = .current) -> AIResult? {
+        let t = normalizeKoreanTime(text.trimmingCharacters(in: .whitespacesAndNewlines))
+        guard !t.isEmpty, !t.contains("\n"), hasDeleteCue(t), !existing.isEmpty else { return nil }
+        // 수정·추가가 섞인 복합 문장은 모델로("수학 삭제하고 영어 추가해줘")
+        guard !hasUpdateCue(t), !["추가", "넣어", "등록", "만들"].contains(where: t.contains) else { return nil }
+        guard let kw = deleteKeyword(t, existing) else { return nil }
+
+        let bulk = ["전부", "모두", "싹", "몽땅", "죄다", "전체"].contains { t.contains($0) }
+            || has(t, #"다\s*(지워|지우|삭제|없애|빼)"#)
+        if bulk {   // 같은 제목 일괄 삭제 — 미리보기에 "N개 삭제" 경고 후 적용
+            AIDeleteContext.lastKeyword = kw
+            AIDeleteContext.lastChosen = nil
+            return AIResult(events: [ParsedEvent(title: kw, start: now, end: now,
+                                                 location: "", action: .delete, targetID: nil)], actions: [])
+        }
+
+        var cands = existing.filter { !$0.title.isEmpty && ($0.title.contains(kw) || kw.contains($0.title)) }
+            .sorted { $0.start < $1.start }
+        // 날짜 언급으로 좁힘("금요일 수학 지워줘")
+        if let rd = AIKoreanDate.parse(t, now: now, cal: cal).relativeDay,
+           let day = cal.date(byAdding: .day, value: rd, to: cal.startOfDay(for: now)) {
+            let narrowed = cands.filter { cal.isDate($0.start, inSameDayAs: day) }
+            if !narrowed.isEmpty { cands = narrowed }
+        }
+        // 시각 언급으로 좁힘("8시 수학 지워줘")
+        if let old = hourToken(t, bareOK: false) {
+            let hs: Set<Int> = [old.h, resolve1(old).0, old.h < 12 ? old.h + 12 : old.h]
+            let narrowed = cands.filter { hs.contains(cal.component(.hour, from: $0.start)) }
+            if !narrowed.isEmpty { cands = narrowed }
+        }
+        AIDeleteContext.lastKeyword = kw
+        if cands.count > 1 {
+            AIDeleteContext.lastChosen = nil
+            return AIResult(events: [], actions: [.clarifyDelete(
+                candidates: cands.map { DeleteCandidate(id: $0.id, title: $0.title, start: $0.start) },
+                prompt: AppLanguage.shared.tr("어떤 것을 삭제할까요?"))])
+        }
+        guard let target = cands.first else { return nil }
+        AIDeleteContext.lastChosen = target.id
+        return AIResult(events: [ParsedEvent(title: target.title, start: target.start, end: target.end,
+                                             location: target.location, action: .delete, targetID: target.id)],
+                        actions: [])
+    }
+
+    /// 삭제 키워드: 입력에 통째로 든 기존 제목(가장 긴 것) 우선, 없으면 제목에 들어간 단어.
+    static func deleteKeyword(_ text: String, _ existing: [ExistingEvent]) -> String? {
+        if let t = existing.filter({ !$0.title.isEmpty && text.contains($0.title) })
+            .map(\.title).max(by: { $0.count < $1.count }) { return t }
+        let words = text.components(separatedBy: CharacterSet(charactersIn: " ,.\n")).filter { $0.count >= 2 }
+        return words.first(where: { w in existing.contains { $0.title.contains(w) } })
+    }
+
+    /// "아니 그거 말고", "다른거" 같은 거부·재요청 짧은 문구인지.
+    static func isRejectionFollowup(_ text: String) -> Bool {
+        let t = text.replacingOccurrences(of: " ", with: "")
+        let cues = ["그거말고", "그게아니", "다른거", "다른걸", "딴거", "말고다른", "아니다른", "그말고"]
+        if cues.contains(where: t.contains) { return true }
+        return t.count <= 9 && (t.hasPrefix("아니") || t.hasSuffix("말고"))
+    }
+
+    /// 급식/식단 질문 — 날짜만 해석하면 됨(조회·답변은 뷰가 NEIS로).
+    static func tryParseMeal(text: String, now: Date, cal: Calendar = .current) -> AIResult? {
+        guard text.contains("급식") || text.contains("식단") else { return nil }
+        let rd = AIKoreanDate.parse(text, now: now, cal: cal).relativeDay ?? 0
+        let day = cal.date(byAdding: .day, value: rd, to: cal.startOfDay(for: now)) ?? now
+        return AIResult(events: [], actions: [.mealQuery(date: day)])
+    }
+
+    /// 일정·시험 질문("내일 뭐 있어?", "시험 언제야?") — 명확한 패턴만, 아니면 nil(→ 모델).
+    static func tryParseQuery(text: String, now: Date, cal: Calendar = .current) -> AIResult? {
+        let t = text
+        guard !t.contains("급식"), !t.contains("식단") else { return nil }   // 급식은 tryParseMeal이
+        // 시험 D-Day
+        if (t.contains("시험") || t.contains("수능")),
+           ["언제", "며칠", "몇일", "얼마나", "디데이", "d-", "D-"].contains(where: t.contains) {
+            return AIResult(events: [], actions: [.scheduleQuery(kind: .exam, day: now)])
+        }
+        // 일정 질문 단서(명확한 것만)
+        let asksSchedule = ["뭐 있", "뭐있", "뭐가 있", "무슨 일정", "일정 알려", "일정 뭐",
+                            "스케줄 알려", "스케줄 뭐", "몇 개", "몇개있", "일정 있"].contains { t.contains($0) }
+        guard asksSchedule else { return nil }
+        let rd = AIKoreanDate.parse(t, now: now, cal: cal).relativeDay
+        let day = rd.flatMap { cal.date(byAdding: .day, value: $0, to: cal.startOfDay(for: now)) } ?? now
+        let weekWord = ["이번주", "이번 주", "다음주", "다음 주", "금주"].contains { t.contains($0) }
+        let hasWeekday = has(t, #"[월화수목금토일]요일"#) || has(t, #"(?<![가-힣0-9])[월화수목금토일](?![가-힣])"#)
+        let kind: AIQueryKind = (weekWord && !hasWeekday) ? .week : .day
+        return AIResult(events: [], actions: [.scheduleQuery(kind: kind, day: day)])
+    }
+
+    /// 외형 전환("다크모드로 바꿔줘") — 모드/테마 단어 + 색상어일 때만.
+    static func tryParseAppearance(_ text: String) -> AIResult? {
+        guard !text.contains("?"), !text.contains("？") else { return nil }
+        let t = text.replacingOccurrences(of: " ", with: "")
+        guard t.contains("모드") || t.contains("테마") else { return nil }
+        let mode: Appearance
+        if t.contains("다크") || t.contains("어두") || t.contains("야간") { mode = .dark }
+        else if t.contains("라이트") || t.contains("밝") || t.contains("주간") { mode = .light }
+        else if t.contains("시스템") || t.contains("자동") { mode = .system }
+        else { return nil }
+        return AIResult(events: [], actions: [.setAppearance(mode)])
+    }
+
     /// 기간 범위 삭제 요청("다음 주 일정 다 지워줘"). [from, to) 반환. 아니면 nil.
     struct RangeDelete { var from: Date; var to: Date }
 

@@ -158,6 +158,8 @@ final class AppLanguage {
         "오후 %d시": "%d PM",
         "'%@'은(는) 반복 일정이에요. 어떻게 삭제할까요?": "'%@' is a recurring event. How should it be deleted?",
         "그 기간에 삭제할 일정이 없어요.": "No events to delete in that period.",
+        "어떤 것을 삭제할까요?": "Which one should be deleted?",
+        "그럼 이 중에 어떤 걸 삭제할까요?": "Then which of these should be deleted?",
         "일정 %d개를 찾았어요 — 적용하기를 누르면 삭제돼요.": "Found %d events — tap Apply to delete them.",
         "시간 앞에 '오전/오후'를 함께 적으면 훨씬 정확해요.\n예) 내일 오전 8시 수학 · 금요일 오후 5시 학원": "Adding AM/PM before the time makes results much more accurate.\ne.g. \"Tomorrow 8 AM math\" · \"Friday 5 PM academy\"",
         "새 일정": "New Event",

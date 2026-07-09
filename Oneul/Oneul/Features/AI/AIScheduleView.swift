@@ -293,6 +293,7 @@ struct AIScheduleView: View {
     }
 
     private func deleteCandidate(_ c: DeleteCandidate) {
+        AIDeleteContext.lastChosen = c.id   // "아니 그거 말고" 후속용
         if let e = find(c.id) {
             if e.isRecurring {
                 // 반복 일정 — 바로 지우지 않고 이번 것만/전체 확인

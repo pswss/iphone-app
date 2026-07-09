@@ -29,6 +29,22 @@ struct AppleIntelligenceClient: ScheduleAI {
         if let range = FastScheduleParser.tryParseRangeDelete(text: text, now: now) {
             return AIResult(events: [], actions: [.deleteRange(from: range.from, to: range.to)])
         }
+        // 0.7) 외형/급식/일정질문/삭제 — 전부 규칙으로(모델 불필요, AI 미지원 기기에서도 동작).
+        if let ap = FastScheduleParser.tryParseAppearance(text) { return ap }
+        if let meal = FastScheduleParser.tryParseMeal(text: text, now: now) { return meal }
+        if let query = FastScheduleParser.tryParseQuery(text: text, now: now) { return query }
+        // "아니 그거 말고" 후속 → 직전 삭제 맥락에서 다른 후보 제시
+        if FastScheduleParser.isRejectionFollowup(text), let kw = AIDeleteContext.lastKeyword {
+            let cands = existing.filter {
+                !$0.title.isEmpty && ($0.title.contains(kw) || kw.contains($0.title)) && $0.id != AIDeleteContext.lastChosen
+            }
+            if !cands.isEmpty {
+                return AIResult(events: [], actions: [.clarifyDelete(
+                    candidates: cands.map { DeleteCandidate(id: $0.id, title: $0.title, start: $0.start) },
+                    prompt: AppLanguage.shared.tr("그럼 이 중에 어떤 걸 삭제할까요?"))])
+            }
+        }
+        if let del = FastScheduleParser.tryParseDelete(text: text, now: now, existing: existing) { return del }
         #if canImport(FoundationModels)
         if #available(iOS 26, macOS 26, *) {
             return try await AppleAI.generate(from: text, now: now, existing: existing)
@@ -158,9 +174,6 @@ enum AppleAI {
     private static var _primed: LanguageModelSession?
     // 직전 사용자 요청 — '그거/그럼/거기' 같은 후속 질문의 맥락으로만 사용(세션은 누적 안 함).
     private static var lastRequest: String?
-    // 직전 삭제 맥락 — "아니 그거 말고"라고 하면 다른 후보를 제시하기 위해.
-    private static var lastDeleteKeyword: String?
-    private static var lastDeleteChosen: UUID?
 
     static func prewarm() {
         guard _primed == nil else { return }   // 이미 데웠으면 즉시 반환
@@ -183,19 +196,6 @@ enum AppleAI {
         guard case .available = SystemLanguageModel.default.availability else {
             throw AppleIntelligenceUnavailable(
                 reason: "Apple Intelligence를 사용할 수 없어요 (설정에서 켜야 할 수 있어요).")
-        }
-
-        // "아니 그거 말고" 류 후속 → 모델 호출 없이 직전 삭제 맥락에서 다른 후보 제시
-        if isRejectionFollowup(text), let kw = lastDeleteKeyword {
-            let cands = existing.filter {
-                !$0.title.isEmpty && ($0.title.contains(kw) || kw.contains($0.title)) && $0.id != lastDeleteChosen
-            }
-            if !cands.isEmpty {
-                lastRequest = text
-                return AIResult(events: [], actions: [.clarifyDelete(
-                    candidates: cands.map { DeleteCandidate(id: $0.id, title: $0.title, start: $0.start) },
-                    prompt: "그럼 이 중에 어떤 걸 삭제할까요?")])
-            }
         }
 
         func finish(_ cmds: [GenCommand]) async -> AIResult {
@@ -374,14 +374,14 @@ enum AppleAI {
                 let cands = deleteCandidates(text: text, existing: existing)
                 if cands.count > 1 {
                     // 후보가 여럿이면 바로 지우지 말고 "어떤 것을 삭제할까요?" 물어봄
-                    lastDeleteKeyword = deleteKeyword(text, existing)
-                    lastDeleteChosen = nil
+                    AIDeleteContext.lastKeyword = deleteKeyword(text, existing)
+                    AIDeleteContext.lastChosen = nil
                     actions.append(.clarifyDelete(
                         candidates: cands.map { DeleteCandidate(id: $0.id, title: $0.title, start: $0.start) },
                         prompt: "어떤 것을 삭제할까요?"))
                 } else if let t = cands.first ?? target(c, text: text, existing: existing) {
-                    lastDeleteKeyword = deleteKeyword(text, existing)
-                    lastDeleteChosen = t.id
+                    AIDeleteContext.lastKeyword = deleteKeyword(text, existing)
+                    AIDeleteContext.lastChosen = t.id
                     if seen.insert(t.id).inserted {
                         events.append(ParsedEvent(title: t.title, start: t.start, end: t.end,
                                                   location: t.location, action: .delete, targetID: t.id))
@@ -492,14 +492,6 @@ enum AppleAI {
         guard let kw = deleteKeyword(text, existing) else { return [] }
         return existing.filter { !$0.title.isEmpty && ($0.title.contains(kw) || kw.contains($0.title)) }
             .sorted { $0.start < $1.start }
-    }
-
-    /// "아니 그거 말고", "다른거" 같은 거부·재요청 짧은 문구인지.
-    private static func isRejectionFollowup(_ text: String) -> Bool {
-        let t = text.replacingOccurrences(of: " ", with: "")
-        let cues = ["그거말고", "그게아니", "다른거", "다른걸", "딴거", "말고다른", "아니다른", "그말고"]
-        if cues.contains(where: t.contains) { return true }
-        return t.count <= 9 && (t.hasPrefix("아니") || t.hasSuffix("말고"))
     }
 
     private static func shortDate(_ d: Date) -> String {

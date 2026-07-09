@@ -18,6 +18,12 @@ struct ParsedEvent: Identifiable, Hashable {
     var deleteSeries: Bool = false       // delete 시 같은 시리즈의 이후 반복 전체 삭제
 }
 
+/// 직전 삭제 맥락 — "아니 그거 말고" 후속에서 다른 후보를 제시하기 위한 공용 상태(빠른 경로·모델 공용).
+enum AIDeleteContext {
+    static var lastKeyword: String?
+    static var lastChosen: UUID?
+}
+
 /// 맨숫자 시각(오전/오후 미표기)의 해석에 쓰는 사용자 맥락.
 /// 근거: docs/AI_시간맥락모델.md (학원 조례·학교 등하교·통계청 생활시간조사 기반).
 struct AIParseContext {
