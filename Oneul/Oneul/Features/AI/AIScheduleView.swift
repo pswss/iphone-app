@@ -314,7 +314,7 @@ struct AIScheduleView: View {
         var d = FetchDescriptor<ScheduleEvent>(
             predicate: #Predicate { $0.start >= from && $0.start < to && $0.source == "" },
             sortBy: [SortDescriptor(\.start)])
-        d.fetchLimit = 300
+        d.fetchLimit = 1000   // 전체 삭제("일정 싹다")도 이 경로 — 잘리지 않게 넉넉히
         let items = (try? context.fetch(d)) ?? []
         return items.map { ParsedEvent(title: $0.title, start: $0.start, end: $0.end,
                                        location: $0.location, action: .delete, targetID: $0.id) }

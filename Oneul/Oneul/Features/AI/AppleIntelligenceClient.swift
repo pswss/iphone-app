@@ -45,6 +45,11 @@ struct AppleIntelligenceClient: ScheduleAI {
             }
         }
         if let del = FastScheduleParser.tryParseDelete(text: text, now: now, existing: existing) { return del }
+        // 전체 삭제("일정 싹다 지워줘") — 오늘 이후 전부를 목록으로 펼쳐 미리보기(과거 기록은 보존)
+        if FastScheduleParser.isDeleteAll(text) {
+            return AIResult(events: [], actions: [.deleteRange(from: Calendar.current.startOfDay(for: now),
+                                                               to: .distantFuture)])
+        }
         #if canImport(FoundationModels)
         if #available(iOS 26, macOS 26, *) {
             return try await AppleAI.generate(from: text, now: now, existing: existing)

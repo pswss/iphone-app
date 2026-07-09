@@ -148,6 +148,16 @@ enum FastScheduleParser {
                         actions: [])
     }
 
+    /// 전체 삭제("일정 싹다 지워줘") — 특정 제목·날짜 없이 일정 전체를 지우려는 요청인지.
+    /// 파괴적이므로 삭제 단어 + 전부류 단어 + '일정/스케줄/약속' 명시가 모두 있어야 한다.
+    static func isDeleteAll(_ text: String) -> Bool {
+        guard hasDeleteCue(text), !hasUpdateCue(text) else { return false }
+        let wholesale = ["전부", "모두", "싹", "몽땅", "죄다", "전체"].contains { text.contains($0) }
+            || has(text, #"다\s*(지워|지우|삭제|없애|빼)"#)
+        guard wholesale else { return false }
+        return ["일정", "스케줄", "약속"].contains { text.contains($0) }
+    }
+
     /// 삭제 키워드: 입력에 통째로 든 기존 제목(가장 긴 것) 우선, 없으면 제목에 들어간 단어.
     static func deleteKeyword(_ text: String, _ existing: [ExistingEvent]) -> String? {
         if let t = existing.filter({ !$0.title.isEmpty && text.contains($0.title) })
