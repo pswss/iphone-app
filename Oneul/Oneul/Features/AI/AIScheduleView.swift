@@ -300,8 +300,7 @@ struct AIScheduleView: View {
                 seriesPending.append(ParsedEvent(title: e.title, start: e.start, end: e.end,
                                                  location: e.location, action: .delete, targetID: e.id))
             } else {
-                context.delete(e)
-                try? context.save()
+                EventActions.deleteSingle(e, in: context)   // 톰스톤 경유 — 자동 갱신이 되살리지 않게
                 reply = lang.tr("삭제했어요") + ": \(c.title)"
             }
         }
@@ -545,12 +544,12 @@ struct AIScheduleView: View {
                 if let id = e.targetID {
                     if let t = find(id) {
                         if e.deleteSeries { EventActions.deleteFutureSeries(from: t, in: context) }
-                        else { context.delete(t) }
+                        else { EventActions.deleteSingle(t, in: context) }   // 톰스톤 경유
                         applied += 1
                     }
                 } else {
                     // bulk: 정확히 같은 제목 우선, 없을 때만 부분 일치("수학"이 "수학여행"을 지우는 오폭 방지)
-                    for t in bulkDeleteTargets(e.title) { context.delete(t); applied += 1 }
+                    for t in bulkDeleteTargets(e.title) { EventActions.deleteSingle(t, in: context); applied += 1 }
                 }
             }
         }
