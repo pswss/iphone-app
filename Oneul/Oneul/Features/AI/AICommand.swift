@@ -67,7 +67,9 @@ enum AIDateResolver {
             let mondayOffset = (todayWd + 5) % 7                     // 이번 주 월요일까지
             let monday = cal.date(byAdding: .day, value: -mondayOffset, to: today) ?? today
             let targetOffset = (wd + 5) % 7                          // 월=0…일=6
-            return cal.date(byAdding: .day, value: targetOffset + max(0, weekOffset) * 7, to: monday) ?? today
+            var d = cal.date(byAdding: .day, value: targetOffset + max(0, weekOffset) * 7, to: monday) ?? today
+            if d < today { d = cal.date(byAdding: .day, value: 7, to: d) ?? d }   // 맨 요일("월요일")이 이미 지난 요일이면 다음 주
+            return d
         }
 
         // 2) 절대 월/일 (이미 지났으면 내년)
