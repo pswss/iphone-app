@@ -275,10 +275,13 @@ struct SettingsView: View {
         .glassCard(cornerRadius: 22)
     }
 
-    /// 기기 내 모든 데이터 삭제 — 일정(SwiftData) + 학교·시간표·교시 설정(UserDefaults) + Live Activity.
+    /// 기기 내 모든 데이터 삭제 — 일정·메모(SwiftData) + 학교·시간표·교시 설정(UserDefaults) + Live Activity.
     /// 언어·외형 같은 표시 설정은 남긴다.
     private func resetAllData() {
         try? context.delete(model: ScheduleEvent.self)
+        try? context.delete(model: Memo.self)
+        try? context.delete(model: MemoAttachment.self)   // 일괄 삭제는 cascade를 안 타므로 명시 삭제
+        try? context.delete(model: MemoCheckItem.self)
         try? context.save()
         let d = UserDefaults.standard
         ["userType", "neisOffice", "neisName", "neisCode", "neisKind", "neisGrade", "neisClass",
