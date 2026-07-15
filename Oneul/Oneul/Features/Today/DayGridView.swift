@@ -174,7 +174,7 @@ struct DayGridView: View {
             Rectangle().fill(.primary.opacity(0.14)).frame(height: 1)   // 적응형 — 라이트/다크 모두 보이게
                 .padding(.leading, leftInset)                            // 시간 라벨 영역은 비우고 일정 영역만
             if showHourLabels {
-                Text(hourLabel(h))
+                Text(lang.hourLabel(h))
                     .font(.caption2).foregroundStyle(.secondary)
                     .frame(width: leftInset - 8, alignment: .leading)
                     .offset(y: -7)
@@ -634,11 +634,6 @@ struct DayGridView: View {
         return min(max(d, gridTop), hi)
     }
     private func yOffset(for date: Date) -> CGFloat { CGFloat(date.timeIntervalSince(gridTop) / 60) * (hourHeight / 60) }
-    private func hourLabel(_ h: Int) -> String {
-        let h12 = h % 12 == 0 ? 12 : h % 12
-        if lang.isEnglish { return "\(h12) \(h < 12 || h == 24 ? "AM" : "PM")" }
-        return "\(h < 12 || h == 24 ? "오전" : "오후") \(h12)시"
-    }
     private func timeText(_ d: Date) -> String { d.formatted(.dateTime.hour().minute().locale(lang.locale)) }
 }
 

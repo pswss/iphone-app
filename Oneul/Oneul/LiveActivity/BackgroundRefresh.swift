@@ -33,22 +33,15 @@ enum BackgroundRefresh {
             let shown = DayPlan.upcoming(events: events)   // 워치용
             // Live Activity는 항상 유지 — 포그라운드와 동일 규칙.
             let todayPlan = DayPlan(events: events, day: .now)
-            LiveActivityController.shared.refresh(plan: todayPlan, dayLabel: label(for: .now))
+            let lang = AppLanguage.shared
+            LiveActivityController.shared.refresh(plan: todayPlan, dayLabel: lang.dayLabel(for: .now))
             #if canImport(WatchConnectivity)
             let wp = shown?.plan ?? DayPlan(events: events, day: .now)
-            WatchSync.shared.send(wp.watchPayload(dayLabel: label(for: shown?.day ?? .now)))
+            WatchSync.shared.send(wp.watchPayload(dayLabel: lang.dayLabel(for: shown?.day ?? .now)))
             #endif
             task.setTaskCompleted(success: true)
         }
         task.expirationHandler = { task.setTaskCompleted(success: false) }
-    }
-
-    private static func label(for day: Date) -> String {
-        let f = DateFormatter()
-        let en = AppLanguage.shared.isEnglish
-        f.locale = Locale(identifier: en ? "en_US" : "ko_KR")
-        f.dateFormat = en ? "EEEE, MMM d" : "M월 d일 EEEE"
-        return f.string(from: day)
     }
 }
 #endif

@@ -351,7 +351,7 @@ enum AppleAI {
                 // (수정 요청을 삭제+생성으로 오해해 다른 일정이 사라지던 버그 방지)
                 guard FastScheduleParser.hasDeleteCue(text) else { break }
                 if c.bulk {
-                    if let key = bulkKey(text: text, existing: existing) {
+                    if let key = FastScheduleParser.deleteKeyword(text, existing) {
                         events.append(ParsedEvent(title: key, start: now, end: now,
                                                   location: "", action: .delete, targetID: nil))
                     }
@@ -360,13 +360,13 @@ enum AppleAI {
                 let cands = deleteCandidates(text: text, existing: existing)
                 if cands.count > 1 {
                     // 후보가 여럿이면 바로 지우지 말고 "어떤 것을 삭제할까요?" 물어봄
-                    AIDeleteContext.lastKeyword = deleteKeyword(text, existing)
+                    AIDeleteContext.lastKeyword = FastScheduleParser.deleteKeyword(text, existing)
                     AIDeleteContext.lastChosen = nil
                     actions.append(.clarifyDelete(
                         candidates: cands.map { DeleteCandidate(id: $0.id, title: $0.title, start: $0.start) },
                         prompt: "어떤 것을 삭제할까요?"))
                 } else if let t = cands.first ?? target(c, text: text, existing: existing) {
-                    AIDeleteContext.lastKeyword = deleteKeyword(text, existing)
+                    AIDeleteContext.lastKeyword = FastScheduleParser.deleteKeyword(text, existing)
                     AIDeleteContext.lastChosen = t.id
                     if seen.insert(t.id).inserted {
                         events.append(ParsedEvent(title: t.title, start: t.start, end: t.end,
@@ -460,22 +460,9 @@ enum AppleAI {
             .max(by: { $0.title.count < $1.title.count })
     }
 
-    /// 일괄 삭제 키워드: 입력 단어 중 기존 일정 제목에 들어간 것.
-    private static func bulkKey(text: String, existing: [ExistingEvent]) -> String? {
-        let words = text.components(separatedBy: CharacterSet(charactersIn: " ,.\n")).filter { $0.count >= 2 }
-        return words.first(where: { w in existing.contains { $0.title.contains(w) } })
-    }
-
-    /// 삭제 대상 키워드: 입력에 통째로 든 제목(가장 긴 것) 우선, 없으면 제목에 들어간 단어.
-    private static func deleteKeyword(_ text: String, _ existing: [ExistingEvent]) -> String? {
-        if let t = existing.filter({ !$0.title.isEmpty && text.contains($0.title) })
-            .map(\.title).max(by: { $0.count < $1.count }) { return t }
-        return bulkKey(text: text, existing: existing)
-    }
-
-    /// 키워드에 해당하는 삭제 후보 전부(시간 순).
+    /// 키워드에 해당하는 삭제 후보 전부(시간 순). 키워드 추출은 FastScheduleParser.deleteKeyword 공용.
     private static func deleteCandidates(text: String, existing: [ExistingEvent]) -> [ExistingEvent] {
-        guard let kw = deleteKeyword(text, existing) else { return [] }
+        guard let kw = FastScheduleParser.deleteKeyword(text, existing) else { return [] }
         return existing.filter { !$0.title.isEmpty && ($0.title.contains(kw) || kw.contains($0.title)) }
             .sorted { $0.start < $1.start }
     }

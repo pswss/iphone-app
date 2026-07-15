@@ -600,26 +600,18 @@ struct TodayView: View {
         #if os(iOS)
         // Live Activity는 항상 유지 — 일정이 없어도 '오늘 일정 없음' 상태로 상시 표시.
         let todayPlan = DayPlan(events: events, day: .now)
-        LiveActivityController.shared.refresh(plan: todayPlan, dayLabel: dayLabel(for: .now))
+        LiveActivityController.shared.refresh(plan: todayPlan, dayLabel: lang.dayLabel(for: .now))
         #endif
         NotificationManager.shared.reschedule(for: events)   // 전체 일정(가까운 알림 + 시험 전날)
         #if canImport(WatchConnectivity)
         let wp = (shown?.plan ?? DayPlan(events: events, day: .now))
-        WatchSync.shared.send(wp.watchPayload(dayLabel: dayLabel(for: shown?.day ?? .now)))
+        WatchSync.shared.send(wp.watchPayload(dayLabel: lang.dayLabel(for: shown?.day ?? .now)))
         #endif
 
         // 홈 화면 위젯 갱신(App Group 공유) — 오늘이 비면 다가오는 날, 그것도 없으면 빈 스냅샷.
         let homePlan = shown?.plan ?? DayPlan(events: events, day: .now)
-        SharedStore.writeToday(homePlan.homeSnapshot(dayLabel: dayLabel(for: shown?.day ?? .now)))
+        SharedStore.writeToday(homePlan.homeSnapshot(dayLabel: lang.dayLabel(for: shown?.day ?? .now)))
         WidgetCenter.shared.reloadAllTimelines()
-    }
-
-    private func dayLabel(for day: Date) -> String {
-        let f = DateFormatter()
-        let en = AppLanguage.shared.isEnglish
-        f.locale = Locale(identifier: en ? "en_US" : "ko_KR")
-        f.dateFormat = en ? "EEEE, MMM d" : "M월 d일 EEEE"
-        return f.string(from: day)
     }
 }
 
@@ -824,7 +816,7 @@ struct MacWeekGrid: View {
     private var hourGutter: some View {
         VStack(spacing: 0) {
             ForEach(0..<24, id: \.self) { h in
-                Text(hourLabel(h))
+                Text(lang.hourLabel(h))
                     .font(.caption2).foregroundStyle(.secondary)
                     .frame(width: gutterW - 8, alignment: .leading)
                     .frame(height: hourH, alignment: .top)
@@ -834,12 +826,6 @@ struct MacWeekGrid: View {
         .frame(width: gutterW, alignment: .leading)
         .padding(.leading, 8)
         .frame(width: gutterW)
-    }
-
-    private func hourLabel(_ h: Int) -> String {
-        let h12 = h % 12 == 0 ? 12 : h % 12
-        if lang.isEnglish { return "\(h12) \(h < 12 || h == 24 ? "AM" : "PM")" }
-        return "\(h < 12 || h == 24 ? "오전" : "오후") \(h12)시"
     }
 
     private func dayHeader(_ d: Date) -> some View {

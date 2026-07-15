@@ -123,6 +123,21 @@ final class AppLanguage {
         isEnglish ? (Self.en[ko] ?? ko) : ko
     }
 
+    /// 시간 축 라벨("오전 9시" / "9 AM") — 일간 그리드·주간 거터 공용.
+    func hourLabel(_ h: Int) -> String {
+        let h12 = h % 12 == 0 ? 12 : h % 12
+        if isEnglish { return "\(h12) \(h < 12 || h == 24 ? "AM" : "PM")" }
+        return "\(h < 12 || h == 24 ? "오전" : "오후") \(h12)시"
+    }
+
+    /// 날짜 라벨("M월 d일 EEEE" / "EEEE, MMM d") — 라이브 액티비티·워치·위젯 공용.
+    func dayLabel(for day: Date) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: isEnglish ? "en_US" : "ko_KR")
+        f.dateFormat = isEnglish ? "EEEE, MMM d" : "M월 d일 EEEE"
+        return f.string(from: day)
+    }
+
     static let en: [String: String] = [
         "오늘": "Today",
         "AI": "AI",
