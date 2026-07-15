@@ -147,23 +147,46 @@ enum Holidays {
         return substituteName(for: day, cal: cal)
     }
 
-    /// 대체공휴일 — 대상 공휴일(신정·현충일 제외)이 토/일과 겹치면 다음 월요일.
-    /// 설/추석 연휴 일요일 겹침(연휴 다음날 대체)은 근사로 월요일 규칙에 포함.
+    /// 대체공휴일 — 「관공서의 공휴일에 관한 규정」 2023 개정 기준:
+    /// · 삼일절·어린이날·광복절·개천절·한글날·부처님오신날·기독탄신일(크리스마스):
+    ///   토요일·일요일과 겹치면 그다음 첫 평일(월요일)이 대체공휴일.
+    /// · 설·추석 연휴(전날~다음날): 일요일과 겹칠 때만 연휴 다음 날이 대체공휴일(토요일 겹침은 대체 없음).
+    /// · 신정·현충일: 대체공휴일 없음.
+    // ponytail: 공휴일끼리 겹치는 해(예: 2025 어린이날=부처님오신날)의 연쇄 대체는 미처리 — 필요해지면 겹침 검사 추가
     private static func substituteName(for day: Date, cal: Calendar) -> String? {
-        guard cal.component(.weekday, from: day) == 2 else { return nil }   // 월요일만
-        let noSub: Set<String> = ["신정", "현충일"]
-        for back in 1...2 {   // 어제(일)·그제(토)
-            guard let prev = cal.date(byAdding: .day, value: -back, to: day) else { continue }
-            let pc = cal.dateComponents([.month, .day], from: prev)
-            if let name = solar["\(pc.month ?? 0)-\(pc.day ?? 0)"], !noSub.contains(name) {
-                return "대체공휴일(\(name))"
-            }
-            let y = cal.component(.year, from: prev)
-            if back == 1, let l = lunarHolidays(year: y, cal: cal)[cal.startOfDay(for: prev)] {
-                return "대체공휴일(\(l))"
+        let wd = cal.component(.weekday, from: day)
+        guard wd != 1, wd != 7 else { return nil }   // 대체일은 평일에만 생긴다
+
+        // 토·일 겹침 대체(단일 공휴일) — 월요일에서 어제(일)·그제(토)를 본다
+        if wd == 2 {
+            let noSub: Set<String> = ["신정", "현충일"]
+            for back in 1...2 {
+                guard let prev = cal.date(byAdding: .day, value: -back, to: day) else { continue }
+                let pc = cal.dateComponents([.month, .day], from: prev)
+                if let name = solar["\(pc.month ?? 0)-\(pc.day ?? 0)"], !noSub.contains(name) {
+                    return "대체공휴일(\(name))"
+                }
+                if lunarName(prev, cal: cal) == "부처님오신날" { return "대체공휴일(부처님오신날)" }
             }
         }
+
+        // 설·추석: 어제가 연휴 마지막 날이고 연휴 3일 중 일요일이 있으면 오늘이 대체공휴일
+        if let prev = cal.date(byAdding: .day, value: -1, to: day),
+           let name = lunarName(prev, cal: cal), name == "설날" || name == "추석" {
+            var d = prev
+            var hitsSunday = false
+            while lunarName(d, cal: cal) == name {
+                if cal.component(.weekday, from: d) == 1 { hitsSunday = true }
+                guard let p = cal.date(byAdding: .day, value: -1, to: d) else { break }
+                d = p
+            }
+            if hitsSunday { return "대체공휴일(\(name))" }
+        }
         return nil
+    }
+
+    private static func lunarName(_ day: Date, cal: Calendar) -> String? {
+        lunarHolidays(year: cal.component(.year, from: day), cal: cal)[cal.startOfDay(for: day)]
     }
 
     static func isRed(_ day: Date, calendar: Calendar = .current) -> Bool {
