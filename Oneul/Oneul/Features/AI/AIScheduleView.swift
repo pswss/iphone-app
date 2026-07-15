@@ -113,22 +113,25 @@ struct AIScheduleView: View {
             .overlay(alignment: .bottomTrailing) { micButton }
     }
 
-    /// 꾹(0.35초) 눌렀다 떼면 토글 — 빠른 탭 오작동 방지. 작동 중엔 아이콘이 빨간색으로만 바뀜.
+    /// 탭 = 토글(롱프레스 전용은 고장으로 오인됨) — 재탭으로 즉시 취소. 작동 중엔 아이콘이 빨간색으로만 바뀜.
     private var micButton: some View {
-        Image(systemName: "mic.fill")
-            .font(.system(size: 18, weight: .semibold))
-            .foregroundStyle(speech.isRecording ? .red : .secondary)
-            .frame(width: 46, height: 46)
-            .glassEffect(.regular.interactive(), in: Circle())
-            .contentShape(Circle())
-            .padding(10)
-            .animation(.easeInOut(duration: 0.18), value: speech.isRecording)
-            .onTapGesture {                                 // 탭 = 토글(롱프레스 전용은 고장으로 오인됨) — 재탭으로 즉시 취소
-                editorFocused = false
-                speech.onDenied = { errorMessage = lang.tr("마이크·음성 인식 권한이 꺼져 있어요. 시스템 설정에서 허용해 주세요.") }
-                speech.toggle()
-                Haptics.impact(.medium)
-            }
+        Button {
+            editorFocused = false
+            speech.onDenied = { errorMessage = lang.tr("마이크·음성 인식 권한이 꺼져 있어요. 시스템 설정에서 허용해 주세요.") }
+            speech.toggle()
+            Haptics.impact(.medium)
+        } label: {
+            Image(systemName: "mic.fill")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(speech.isRecording ? .red : .secondary)
+                .frame(width: 46, height: 46)
+                .glassEffect(.regular.interactive(), in: Circle())
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .padding(10)
+        .animation(.easeInOut(duration: 0.18), value: speech.isRecording)
+        .accessibilityLabel(lang.tr(speech.isRecording ? "음성 입력 중지" : "음성 입력"))
     }
 
     private var canGenerate: Bool {

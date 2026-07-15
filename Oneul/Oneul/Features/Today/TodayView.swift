@@ -345,11 +345,11 @@ struct TodayView: View {
                 Spacer()
                 #if os(iOS)
                 if isStudent {   // 검색은 하단 탭(role .search)으로 이동 — 헤더엔 급식만
-                    capsuleIcon("fork.knife") { showMealSheet = true }
+                    capsuleIcon("fork.knife", label: lang.tr("급식")) { showMealSheet = true }
                         .glassEffect(.regular.interactive(), in: Capsule())
                 }
                 #else
-                capsuleIcon("magnifyingglass") { showSearch = true }
+                capsuleIcon("magnifyingglass", label: lang.tr("검색")) { showSearch = true }
                     .glassEffect(.regular.interactive(), in: Capsule())
                 #endif
             }
@@ -400,7 +400,7 @@ struct TodayView: View {
     }
 
     // 연결 캡슐 안의 아이콘 버튼
-    private func capsuleIcon(_ symbol: String, action: @escaping () -> Void) -> some View {
+    private func capsuleIcon(_ symbol: String, label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.body.weight(.semibold))
@@ -409,6 +409,7 @@ struct TodayView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(label)
     }
 
 

@@ -381,14 +381,18 @@ struct FullWidthSegments: View {
     var body: some View {
         HStack(spacing: 4) {
             ForEach(options, id: \.value) { opt in
-                Text(opt.label)                       // Button 대신 탭 제스처 → 맥 포커스 링 원천 없음
-                    .font(.subheadline).bold()
-                    .frame(maxWidth: .infinity).padding(.vertical, 7)
-                    .foregroundStyle(selection == opt.value ? Color.appOnAccent : .primary)
-                    .background(selection == opt.value ? Color.appAccent : Color.clear,
-                                in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    .contentShape(Rectangle())
-                    .onTapGesture { selection = opt.value }
+                Button { selection = opt.value } label: {
+                    Text(opt.label)
+                        .font(.subheadline).bold()
+                        .frame(maxWidth: .infinity).padding(.vertical, 7)
+                        .foregroundStyle(selection == opt.value ? Color.appOnAccent : .primary)
+                        .background(selection == opt.value ? Color.appAccent : Color.clear,
+                                    in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .focusEffectDisabled()   // 맥 포커스 링 없음(기존 탭 제스처와 동일한 룩)
+                .accessibilityAddTraits(selection == opt.value ? .isSelected : [])
             }
         }
         .padding(4)

@@ -126,6 +126,8 @@ final class AppLanguage {
     static let en: [String: String] = [
         "오늘": "Today",
         "AI": "AI",
+        "음성 입력": "Voice input",
+        "음성 입력 중지": "Stop voice input",
         "설정": "Settings",
         "급식": "Meals",
         "오늘 타임라인": "Today's Timeline",
