@@ -537,6 +537,7 @@ struct AIScheduleView: View {
                 applied += 1
             case .update:
                 if let t = find(e.targetID) {
+                    EventActions.claimFromSource(t)   // 시간표 일정이면 톰스톤 + 사용자 소유로(자동 갱신 원복 방지)
                     t.title = e.title; t.start = e.start; t.end = e.end; t.location = e.location
                     applied += 1
                 }

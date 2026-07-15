@@ -243,6 +243,14 @@ enum EventActions {
         try? context.save()
     }
 
+    /// 시간표/학사일정(source != "") 일정을 사용자가 고치면: 원본 자리 톰스톤 기록 + source 비움.
+    /// → 일일 자동 재가져오기가 이 일정을 지우지도, 원래 내용으로 되살리지도 않는다.
+    static func claimFromSource(_ event: ScheduleEvent) {
+        guard !event.source.isEmpty else { return }
+        SourceTombstones.record(source: event.source, title: event.title, start: event.start)
+        event.source = ""
+    }
+
     static func deleteSingle(_ event: ScheduleEvent, in context: ModelContext) {
         SourceTombstones.record(source: event.source, title: event.title, start: event.start)   // 자동 갱신이 되살리지 않게
         context.delete(event)
