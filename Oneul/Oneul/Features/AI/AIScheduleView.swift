@@ -536,7 +536,7 @@ struct AIScheduleView: View {
             case .create:
                 EventActions.create(title: e.title, start: e.start, end: e.end, location: e.location,
                                     reminderMinutes: 10, recurrence: e.recurrence,
-                                    weekdays: e.weekdays, endDate: e.endDate, into: context)
+                                    weekdays: e.weekdays, into: context)
                 applied += 1
             case .update:
                 if let t = find(e.targetID) {

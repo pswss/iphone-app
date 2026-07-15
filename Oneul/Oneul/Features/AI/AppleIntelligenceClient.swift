@@ -6,14 +6,10 @@ import FoundationModels
 
 /// 애플 인텔리전스(온디바이스, iOS 26+) 기반 앱 비서. 키 불필요.
 /// 모델은 '의미 슬롯'만 채우고(날짜/시각 ISO 생성 금지), 실제 계산은 Swift(AIDateResolver)가 한다.
-struct AppleIntelligenceClient: ScheduleAI {
-    func generateSchedule(from text: String, now: Date, existing: [ExistingEvent]) async throws -> AIResult {
-        try await generateSchedule(from: text, now: now, existing: existing, context: AIParseContext())
-    }
-
+struct AppleIntelligenceClient {
     /// context: 맨숫자 시각(오전/오후 미표기) 해석에 쓰는 사용자 맥락(방학 여부·기존 일정 패턴).
     func generateSchedule(from text: String, now: Date, existing: [ExistingEvent],
-                          context: AIParseContext) async throws -> AIResult {
+                          context: AIParseContext = AIParseContext()) async throws -> AIResult {
         // 0) 빠른 경로: 규칙 기반 파서가 '단순 일정 생성'이라고 확신하면 모델 없이 즉시 반환.
         //    질문·수정·삭제·외형 변경·모호한 문장은 nil → 아래 Apple Intelligence 경로로 폴백.
         //    (표·여러 줄 일정도 여기서 처리 — 모델보다 빠르고 정확. AI 미지원 기기에서도 동작.)
@@ -64,15 +60,6 @@ struct AppleIntelligenceClient: ScheduleAI {
         #if canImport(FoundationModels)
         if #available(iOS 26, macOS 26, *) { AppleAI.prewarm() }
         #endif
-    }
-
-    func validate() async -> AIValidation {
-        #if canImport(FoundationModels)
-        if #available(iOS 26, macOS 26, *) {
-            return AppleAI.availability()
-        }
-        #endif
-        return .failed("iOS 26 이상 + Apple Intelligence 지원 기기 필요")
     }
 }
 
@@ -188,13 +175,6 @@ enum AppleAI {
             let s = LanguageModelSession(instructions: instructions)
             await MainActor.run { _primed = s }
             s.prewarm()
-        }
-    }
-
-    static func availability() -> AIValidation {
-        switch SystemLanguageModel.default.availability {
-        case .available: return .ok
-        case .unavailable(let reason): return .failed(describe(reason))
         }
     }
 
@@ -503,17 +483,6 @@ enum AppleAI {
     private static func shortDate(_ d: Date) -> String {
         let f = DateFormatter(); f.locale = Locale(identifier: "ko_KR"); f.dateFormat = "M/d HH:mm"
         return f.string(from: d)
-    }
-
-    private static func describe(
-        _ reason: SystemLanguageModel.Availability.UnavailableReason
-    ) -> String {
-        switch reason {
-        case .deviceNotEligible: return "지원하지 않는 기기예요."
-        case .appleIntelligenceNotEnabled: return "설정에서 Apple Intelligence를 켜주세요."
-        case .modelNotReady: return "모델 준비 중이에요. 잠시 후 다시 시도하세요."
-        @unknown default: return "사용할 수 없어요."
-        }
     }
 }
 #endif
