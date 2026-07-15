@@ -176,16 +176,17 @@ enum AppleAI {
     """
 
     // 매 요청마다 새 세션(누적 컨텍스트 초과 방지). 1개 미리 데워 첫 응답 지연만 줄인다.
-    private static var _primed: LanguageModelSession?
+    // @MainActor 격리 — prewarm의 detached Task와 respondCommands가 동시에 만지던 데이터 레이스 방지.
+    @MainActor private static var _primed: LanguageModelSession?
     // 직전 사용자 요청 — '그거/그럼/거기' 같은 후속 질문의 맥락으로만 사용(세션은 누적 안 함).
     private static var lastRequest: String?
 
     static func prewarm() {
-        guard _primed == nil else { return }   // 이미 데웠으면 즉시 반환
         Task.detached(priority: .utility) {    // 모델 워밍업을 메인 스레드 밖 낮은 우선순위로(첫 타이핑 렉↓)
+            guard await _primed == nil else { return }   // 이미 데웠으면 즉시 반환
             guard case .available = SystemLanguageModel.default.availability else { return }
             let s = LanguageModelSession(instructions: instructions)
-            _primed = s
+            await MainActor.run { _primed = s }
             s.prewarm()
         }
     }
@@ -266,8 +267,8 @@ enum AppleAI {
 
     /// 모델 1회 호출.
     private static func respondCommands(text: String, now: Date, existing: [ExistingEvent], includeExisting: Bool) async throws -> [GenCommand] {
-        let session = _primed ?? LanguageModelSession(instructions: instructions)
-        _primed = nil
+        let session = await MainActor.run { let s = _primed; _primed = nil; return s }
+            ?? LanguageModelSession(instructions: instructions)
         let cmds = try await session.respond(to: prompt(text: text, now: now, existing: existing, includeExisting: includeExisting),
                                              generating: GenResponse.self).content.commands
         prewarm()
