@@ -26,7 +26,7 @@ struct AppleIntelligenceClient: ScheduleAI {
             return edit
         }
         // 0.6) 기간 범위 삭제: "다음 주 일정 다 지워줘" — 뷰가 기간 내 일정을 목록으로 펼쳐 미리보기.
-        if let range = FastScheduleParser.tryParseRangeDelete(text: text, now: now) {
+        if let range = FastScheduleParser.tryParseRangeDelete(text: text, now: now, existing: existing) {
             return AIResult(events: [], actions: [.deleteRange(from: range.from, to: range.to)])
         }
         // 0.7) 외형/급식/일정질문/삭제 — 전부 규칙으로(모델 불필요, AI 미지원 기기에서도 동작).

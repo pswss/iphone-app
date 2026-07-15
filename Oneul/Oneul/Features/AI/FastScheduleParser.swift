@@ -221,9 +221,12 @@ enum FastScheduleParser {
 
     /// 삭제 단어 + '전부/다/모두/일정' 단서 + 날짜 범위(하루/주/주말/달)가 모두 있어야 범위 삭제로 본다.
     /// "수학 전부 삭제"(제목 일괄)나 "내일 회의 지워줘"(단건)는 nil → 기존 제목 기반 경로.
-    static func tryParseRangeDelete(text: String, now: Date, cal: Calendar = .current) -> RangeDelete? {
+    static func tryParseRangeDelete(text: String, now: Date, existing: [ExistingEvent] = [],
+                                    cal: Calendar = .current) -> RangeDelete? {
         let t = text
         guard hasDeleteCue(t) else { return nil }
+        // 기존 일정 제목이 문장에 들어 있으면("내일 수학 전부 지워줘") 제목 기반 삭제가 우선 — 날짜 전체 오폭 방지
+        guard !existing.contains(where: { $0.title.count >= 2 && t.contains($0.title) }) else { return nil }
         let wholesale = ["전부", "모두", "몽땅", "싹", "죄다", "전체", "일정"].contains { t.contains($0) }
             || has(t, #"다\s*(지워|지우|삭제|없애|빼|취소)"#)
         guard wholesale else { return nil }
