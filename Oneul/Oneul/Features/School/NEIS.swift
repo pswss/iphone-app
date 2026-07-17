@@ -265,10 +265,10 @@ enum TimetableImporter {
         let academic = (try? await NEISClient.shared.fetchSchedule(
             school: school, from: cal.startOfDay(for: Date()), to: until)) ?? []
         let ac = createAcademic(academic, into: context)
-        let examDays = examDateSet(academic)
+        let excludeDays = examDateSet(academic).union(noClassDateSet(academic))
 
         let tt = try await importTimetable(school: school, grade: grade, classNm: classNm,
-                                           until: until, excludeDays: examDays, into: context)
+                                           until: until, excludeDays: excludeDays, into: context)
         EventActions.dedupBySource(["timetable", "academic"], in: context)   // 멀티기기/CloudKit 중복 정리
         return (tt, ac)
     }
@@ -299,6 +299,7 @@ enum TimetableImporter {
             hd = nx
         }
         let excludeDays = examDateSet(academic).union(vacationDays).union(holidays)
+            .union(noClassDateSet(academic))
 
         let todayMid = cal.startOfDay(for: Date())
         let daysFromMon = (cal.component(.weekday, from: todayMid) + 5) % 7
@@ -354,8 +355,7 @@ enum TimetableImporter {
         }
         // 시험·행사 → 단일일
         for o in others {
-            guard let start = cal.date(bySettingHour: 9, minute: 0, second: 0, of: o.day),
-                  let end = cal.date(bySettingHour: o.isExam ? 12 : 10, minute: 0, second: 0, of: o.day) else { continue }
+            guard let (start, end) = academicSpan(name: o.name, isExam: o.isExam, day: o.day, cal: cal) else { continue }
             EventActions.create(title: o.name, start: start, end: end, location: "",
                                 reminderMinutes: -1, recurrence: .none, source: "academic", into: context)
             count += 1
@@ -410,16 +410,36 @@ enum TimetableImporter {
         var seen = Set<String>()
         for e in events where isWanted(e) {
             guard seen.insert("\(e.date)|\(e.name)").inserted else { continue }   // 같은 날 같은 이름 중복 제거
-            guard let day = f.date(from: e.date), !cal.isDateInWeekend(day),      // 학교 일정은 월~금만
-                  let start = cal.date(bySettingHour: 9, minute: 0, second: 0, of: day) else { continue }
+            guard let day = f.date(from: e.date), !cal.isDateInWeekend(day) else { continue }   // 학교 일정은 월~금만
             let exam = examWords.contains(where: e.name.contains)
-            let end = cal.date(bySettingHour: exam ? 12 : 10, minute: 0, second: 0, of: day)
-                ?? start.addingTimeInterval(3600)
+            guard let (start, end) = academicSpan(name: e.name, isExam: exam, day: day, cal: cal) else { continue }
             EventActions.create(title: e.name, start: start, end: end, location: "",
                                 reminderMinutes: -1, recurrence: .none, source: "academic", into: context)
             count += 1
         }
         return count
+    }
+
+    /// 학사일정 이벤트 시간대 — 방학식은 종일(00:00~23:59 → 종일 배너), 시험 9~12, 그 외 9~10.
+    private static func academicSpan(name: String, isExam: Bool, day: Date, cal: Calendar) -> (Date, Date)? {
+        if name.contains("방학식") {
+            guard let end = cal.date(bySettingHour: 23, minute: 59, second: 0, of: day) else { return nil }
+            return (cal.startOfDay(for: day), end)
+        }
+        guard let start = cal.date(bySettingHour: 9, minute: 0, second: 0, of: day),
+              let end = cal.date(bySettingHour: isExam ? 12 : 10, minute: 0, second: 0, of: day) else { return nil }
+        return (start, end)
+    }
+
+    /// 수업 없는 날 집합(NEIS kind가 휴업일인 날 + 방학식) — 평소 시간표 제외용.
+    private static func noClassDateSet(_ events: [AcademicEvent]) -> Set<Date> {
+        let cal = Calendar.current
+        let f = DateFormatter(); f.dateFormat = "yyyyMMdd"; f.locale = Locale(identifier: "ko_KR")
+        var set: Set<Date> = []
+        for e in events where e.kind.contains("휴업") || e.name.contains("방학식") {
+            if let d = f.date(from: e.date) { set.insert(cal.startOfDay(for: d)) }
+        }
+        return set
     }
 
     /// 실제 시험일(수업 제외 대상) 집합.
@@ -440,7 +460,7 @@ enum TimetableImporter {
                                      "체육대회", "수련회", "수학여행", "현장체험", "재량휴업",
                                      "대체공휴일", "개교기념일", "소풍", "발표회"]
     private static func isWanted(_ e: AcademicEvent) -> Bool {
-        if e.name.contains("토요휴업일") { return false }
+        if e.name.contains("토요휴업") { return false }   // 토요휴업일은 일정으로 아예 안 만듦
         return examWords.contains(where: e.name.contains) || majorWords.contains(where: e.name.contains)
     }
 
