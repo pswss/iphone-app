@@ -337,7 +337,7 @@ enum AppleAI {
                                                endHour: c.endHour, endMinute: c.endMinute, now: now)
                 let title = c.title.trimmingCharacters(in: .whitespaces)
                 guard r.hasTime, !title.isEmpty else { break }   // 시각 단서 없으면 생성 안 함
-                let rec = Recurrence(rawValue: c.recurrence) ?? .none
+                let rec = recurrence(from: c.recurrence)
                 let wds = rec == .weekly ? AIDateResolver.weekdaySet(c.recurrenceWeekdays) : []
                 events.append(ParsedEvent(title: title, start: r.start, end: r.end, location: c.location,
                                           action: .create, recurrence: rec, weekdays: wds))
@@ -393,6 +393,20 @@ enum AppleAI {
             }
         }
         return AIResult(events: events, actions: actions)
+    }
+
+    /// 반복 슬롯 해석 — 작은 모델이 rawValue("daily") 대신 한국어("매일")나 변형("everyday")으로
+    /// 채우는 경우가 있어, 그대로 .none이 되어 반복이 조용히 사라지지 않게 보정한다.
+    private static func recurrence(from raw: String) -> Recurrence {
+        if let r = Recurrence(rawValue: raw) { return r }
+        switch raw.lowercased().trimmingCharacters(in: .whitespaces) {
+        case "매일", "everyday", "every day", "일마다", "하루마다", "날마다": return .daily
+        case "격주", "2주마다", "이주마다": return .biweekly
+        case "매주", "주마다", "every week": return .weekly
+        case "매달", "매월", "달마다", "every month": return .monthly
+        case "매년", "매해", "해마다", "annually", "every year": return .yearly
+        default: return .none
+        }
     }
 
     /// 기간(여러 날) 일정 — 파서가 종료일을 찾았으면 멀티데이 ParsedEvent 생성.

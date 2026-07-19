@@ -276,6 +276,8 @@ enum FastScheduleParser {
 
     /// 한글 숫자 시각 → 아라비아 숫자("한시 병원" → "1시 병원", "열두시 반" → "12시 반").
     /// 음성 입력이 한글 수사로 들어와 파서·모델 모두 놓치던 문제의 근본 수정.
+    /// 구어체 표기도 표준형으로 정규화: "화욜"→"화요일", "6시 30"→"6시 30분", "6 30"→"6시 30분".
+    /// 모든 진입점(빠른 파서·수정·삭제·모델 프롬프트)이 이 함수를 거치므로 여기 한 곳만 고치면 전 경로에 적용된다.
     static func normalizeKoreanTime(_ text: String) -> String {
         let map: [(String, String)] = [   // 긴 것 먼저(열두/열한이 '열'에 먹히지 않게)
             ("열두", "12"), ("열한", "11"), ("열", "10"), ("아홉", "9"), ("여덟", "8"),
@@ -287,6 +289,14 @@ enum FastScheduleParser {
             let pattern = "(?<![가-힣])\(ko)\\s*시(?![간장])"
             out = out.replacingOccurrences(of: pattern, with: "\(num)시", options: .regularExpression)
         }
+        // 구어 요일: "화욜" → "화요일"
+        out = out.replacingOccurrences(of: #"([월화수목금토일])\s*욜"#, with: "$1요일", options: .regularExpression)
+        // '분' 생략: "6시 30" → "6시 30분" (두 자리 분만 — "3시 5교시" 같은 오인 방지)
+        out = out.replacingOccurrences(of: #"(\d{1,2})\s*시\s*([0-5]\d)(?![\d분일월주년초명개])"#,
+                                       with: "$1시 $2분", options: .regularExpression)
+        // '시' 생략 숫자 쌍: "6 30" → "6시 30분" (앞뒤가 숫자·날짜 표기와 이어지면 제외 — "2026 07 20"의 "07 20" 보호)
+        out = out.replacingOccurrences(of: #"(?<!\d\s)(?<![\d:/.\-])(\d{1,2})\s+([0-5]\d)(?![\d분시일월주년초명개:/.\-])"#,
+                                       with: "$1시 $2분", options: .regularExpression)
         return out
     }
 
@@ -741,6 +751,7 @@ enum FastScheduleParser {
         // 잔여 정리
         s = s.replacingOccurrences(of: "~", with: " ")
         s = removeRegex(s, #"[-–—]"#)
+        s = removeRegex(s, #"[(\[{]\s*[)\]}]"#)   // 날짜·요일만 있던 괄호의 빈 잔해("7월 21일 (월)" → "( )")
         s = s.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
         s = s.trimmingCharacters(in: .whitespacesAndNewlines)
         return stripEdgeParticles(s)
@@ -854,12 +865,25 @@ enum FastScheduleParser {
             for sep in ["그리고나서", "그리고는", "그리고", "그 다음에", "그다음에", "그 담에", "그담에"] {
                 line = line.replacingOccurrences(of: sep, with: ",")
             }
+            line = expandWeekdayEnumeration(line)
             for part in line.split(whereSeparator: { $0 == "," || $0 == "，" }) {
                 let s = part.trimmingCharacters(in: .whitespaces)
                 if !s.isEmpty { lines.append(contentsOf: splitChainedSchedules(s)) }
             }
         }
         return lines
+    }
+
+    /// 쉼표로 나열한 요일("화, 목, 월 6시 수학")을 요일별 개별 조각으로 확장 —
+    /// "화 6시 수학, 목 6시 수학, 월 6시 수학". 마지막 조각의 시각·내용을 모든 요일이 공유한다.
+    /// 요일이 2개 이상 나열된 경우만(단일 "화 6시 수학"은 기존 경로), 내용에 쉼표가 더 있으면 건드리지 않는다.
+    private static func expandWeekdayEnumeration(_ line: String) -> String {
+        guard let g = match(line, #"^\s*((?:[월화수목금토일](?:요일)?\s*[,，]\s*)+)([월화수목금토일](?:요일)?(?=\s))?\s*(.+)$"#),
+              !g[3].contains(","), !g[3].contains("，") else { return line }
+        var days = allMatches(g[1], #"[월화수목금토일](?:요일)?"#)
+        if !g[2].isEmpty { days.append(g[2]) }
+        guard days.count >= 2 else { return line }
+        return days.map { "\($0) \(g[3])" }.joined(separator: ", ")
     }
 
     /// 구분자 없이 한 줄에 이어 쓴 여러 일정("오늘 8시 수학 금요일 5시 수학")을 날짜 토큰 앞에서 분할.
