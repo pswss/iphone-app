@@ -143,6 +143,10 @@ final class AppLanguage {
         "AI": "AI",
         "음성 입력": "Voice input",
         "음성 입력 중지": "Stop voice input",
+        "사진으로 일정 추가": "Add schedule from photo",
+        "사진을 불러오지 못했어요. 다른 사진으로 시도해 주세요.": "Couldn't load the photo. Please try another one.",
+        "일정 관련 사진이 아닌 것 같아요. 시간표나 일정표가 보이는 사진을 올려 주세요.":
+            "This photo doesn't seem schedule-related. Please upload one showing a timetable or schedule.",
         "설정": "Settings",
         "급식": "Meals",
         "오늘 타임라인": "Today's Timeline",
