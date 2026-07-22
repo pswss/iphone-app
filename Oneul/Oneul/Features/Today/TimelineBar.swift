@@ -70,7 +70,7 @@ struct TimelineBar: View {
     private func cell(_ e: ScheduleEvent, seg: PackedLayout.Segment, multi: Bool,
                       current: ScheduleEvent?, now: Date, w: CGFloat) -> some View {
         let span: Double = max(1, seg.end.timeIntervalSince(seg.start))
-        let color: Color = EventPalette.color(plan.colorIndex(of: e), of: plan.events.count)
+        let color: Color = plan.color(of: e)   // 시간표는 과목 해시 고정색
         let isCurrent: Bool = current?.id == e.id
         let isPast: Bool = now >= e.end
         let f0: Double = min(max(e.start.timeIntervalSince(seg.start) / span, 0), 1)

@@ -73,6 +73,20 @@ struct DayPlan {
         events.firstIndex(where: { $0.id == event.id }) ?? 0
     }
 
+    /// 일정 색 — 시간표 과목은 제목 해시 고정색(요일마다 동일), 그 외는 그날 시간순 무지개.
+    func color(of event: ScheduleEvent) -> Color {
+        event.source == "timetable"
+            ? EventPalette.color(EventPalette.stableIndex(for: event.title))
+            : EventPalette.color(colorIndex(of: event), of: events.count)
+    }
+
+    /// 스냅샷(위젯·워치·LA)용 색 인덱스 — 시간표는 고정색 인덱스.
+    /// ponytail: 스냅샷 렌더가 color(_:of:)를 쓰는 8개+ 일정 날엔 고정 인덱스도 보간 스케일을 타서
+    /// 약간 밀릴 수 있음 — 문제 되면 스냅샷에 fixed 플래그 추가.
+    private func snapshotColorIndex(_ e: ScheduleEvent, order: Int) -> Int {
+        e.source == "timetable" ? EventPalette.stableIndex(for: e.title) : order
+    }
+
     #if os(iOS)
     /// Live Activity로 넘길 스냅샷 묶음(ActivityKit 런타임이 있는 iOS에서만 — macOS엔 없음).
     /// ActivityKit 콘텐츠는 4KB 제한 — 초과하면 'ActivityInput error 0'으로 시작 실패.
@@ -87,7 +101,7 @@ struct DayPlan {
         let picked = Array(past.suffix(cap - futurePick.count)) + futurePick
         let snaps = picked.map { e in
             EventSnapshot(id: e.id, title: String(e.title.prefix(16)), start: e.start, end: e.end,
-                          colorIndex: colorIndex(of: e), isMultiDay: e.isMultiDay() || e.isDayMarker())
+                          colorIndex: snapshotColorIndex(e, order: colorIndex(of: e)), isMultiDay: e.isMultiDay() || e.isDayMarker())
         }
         let cur = current(at: now)
         let nxt = next(at: now)
@@ -108,7 +122,7 @@ struct DayPlan {
     func watchPayload(dayLabel: String, at now: Date = .now) -> WatchSchedulePayload {
         let snaps = events.enumerated().map { index, e in
             EventSnapshot(id: e.id, title: e.title, start: e.start, end: e.end,
-                          colorIndex: index, isMultiDay: e.isMultiDay() || e.isDayMarker())
+                          colorIndex: snapshotColorIndex(e, order: index), isMultiDay: e.isMultiDay() || e.isDayMarker())
         }
         let cur = current(at: now)
         let nxt = next(at: now)
@@ -123,7 +137,7 @@ struct DayPlan {
     func homeSnapshot(dayLabel: String, at now: Date = .now) -> HomeSnapshot {
         let snaps = events.enumerated().map { index, e in
             EventSnapshot(id: e.id, title: e.title, start: e.start, end: e.end,
-                          colorIndex: index, isMultiDay: e.isMultiDay() || e.isDayMarker())
+                          colorIndex: snapshotColorIndex(e, order: index), isMultiDay: e.isMultiDay() || e.isDayMarker())
         }
         let cur = current(at: now)
         let nxt = next(at: now)

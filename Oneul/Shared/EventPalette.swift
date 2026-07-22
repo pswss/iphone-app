@@ -15,6 +15,13 @@ enum EventPalette {
     ]
     static let colors: [Color] = rgb.map { Color(red: $0.r, green: $0.g, blue: $0.b) }
 
+    /// 제목 해시 고정색 인덱스(시간표 과목용) — 실행·기기 간 안정(djb2, String.hashValue는 실행마다 달라짐).
+    static func stableIndex(for title: String) -> Int {
+        var h: UInt64 = 5381
+        for u in title.unicodeScalars { h = (h &* 33) &+ UInt64(u.value) }
+        return Int(h % UInt64(colors.count))
+    }
+
     /// 인덱스를 7색 안에서 순환(전체 개수를 모를 때).
     static func color(_ index: Int) -> Color {
         let n = colors.count
