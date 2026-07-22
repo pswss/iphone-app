@@ -196,7 +196,7 @@ struct RootView: View {
             }
         }
         .frame(minWidth: 840, minHeight: 560)   // 7열 주 그리드가 뭉개지지 않는 최소 크기
-        .focusEffectDisabled()   // 맥 파란 포커스 링 전역 제거(버튼/셀/월 헤더 등)
+        // 포커스 링 전역 제거는 HIG 위반(풀 키보드 액세스 사용자가 위치를 못 봄) → 그리드 등 국소 적용으로 축소
         // 메뉴/툴바 명령 릴레이 — 대상 뷰가 화면에 없으면(다른 섹션) 섹션을 먼저 바꾸고 다음 런루프에 재발행
         .onReceive(NotificationCenter.default.publisher(for: .oneulNewEvent)) { _ in
             if macSection != .today {

@@ -76,7 +76,6 @@ struct OneulApp: App {
             SettingsView()
                 .modelContainer(container)
                 .frame(width: 480, height: 600)
-                .focusEffectDisabled()   // 설정 창(별도 씬) 파란 포커스 링 제거
         }
 
         // 타임라인 = 메뉴바 아이콘 (클릭→오늘 일정 한눈에) — 위에서 미끄러져 내려오는 등장

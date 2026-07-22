@@ -248,6 +248,7 @@ struct TodayView: View {
                     isSpecial: { hasDayMarker($0) },
                     scrollHour: $sharedScrollHour)
             .padding(.horizontal, 12)
+            .focusEffectDisabled()   // 마우스 중심 그리드만 국소 제거(클릭 시 셀 파란 링 노이즈) — 전역 제거는 HIG 위반
     }
 
     // 주 이동 컨트롤(맥·아이패드 regular) — ‹ / 오늘 / › + Left/Right 화살표 단축키(주 그리드라 한 주씩 이동).
