@@ -319,13 +319,14 @@ struct EventEditorView: View {
             } else if recurrence != .none || event.isRecurring {
                 // 반복 설정/변경/해제 → 이 일정(+이후 시리즈)을 지우고 새 규칙으로 재생성
                 // (weekdays·endDate는 load()에서 시리즈 전체 기준으로 복원돼 있어 유실 없음)
-                EventActions.deleteFutureSeries(from: event, in: context)
-                EventActions.create(title: title, start: start, end: end, location: location,
-                                    reminderMinutes: reminderMinutes,
-                                    reminderMinutes2: reminderMinutes != -1 ? reminderMinutes2 : -1,
-                                    recurrence: recurrence,
-                                    weekdays: recurrence == .weekly ? weekdays : [],
-                                    endDate: hasEndDate ? endDate : nil, source: event.source, pinned: pinned, into: context)
+                // 재생성분은 editFutureSeries가 사용자 소유(source "")로 claim — 톰스톤 자기충돌로
+                // 시리즈가 증발하거나 NEIS 자동 갱신이 원복하는 버그 방지
+                EventActions.editFutureSeries(from: event, title: title, start: start, end: end,
+                                              location: location, reminderMinutes: reminderMinutes,
+                                              reminderMinutes2: reminderMinutes != -1 ? reminderMinutes2 : -1,
+                                              recurrence: recurrence,
+                                              weekdays: recurrence == .weekly ? weekdays : [],
+                                              endDate: hasEndDate ? endDate : nil, pinned: pinned, in: context)
             } else {
                 EventActions.claimFromSource(event)   // 시간표 일정이면 원본에 톰스톤 + 사용자 소유로
                 event.title = title; event.location = location

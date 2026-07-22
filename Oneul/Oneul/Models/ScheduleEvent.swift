@@ -158,6 +158,13 @@ enum SourceTombstones {
         "\(source)|\(title)|\(Int(start.timeIntervalSince1970))"
     }
 
+    /// 순수 판정: 이 (source·제목·시작) 인스턴스 생성이 톰스톤 키 집합에 막히는가.
+    /// 사용자 소유(source == "")는 절대 막히지 않는다. 하네스 테스트 대상.
+    static func isBlocked(source: String, title: String, start: Date, in keys: Set<String>) -> Bool {
+        guard !source.isEmpty else { return false }
+        return keys.contains(instanceKey(source: source, title: title, start: start))
+    }
+
     static func record(source: String, title: String, start: Date) {
         guard !source.isEmpty else { return }
         var all = Set(UserDefaults.standard.stringArray(forKey: key) ?? [])
@@ -169,9 +176,8 @@ enum SourceTombstones {
     }
 
     static func contains(source: String, title: String, start: Date) -> Bool {
-        guard !source.isEmpty else { return false }
-        let all = UserDefaults.standard.stringArray(forKey: key) ?? []
-        return all.contains(instanceKey(source: source, title: title, start: start))
+        isBlocked(source: source, title: title, start: start,
+                  in: Set(UserDefaults.standard.stringArray(forKey: key) ?? []))
     }
 }
 
@@ -280,6 +286,25 @@ enum EventActions {
             for e in items { context.delete(e) }
         }
         try? context.save()
+    }
+
+    /// 반복 시리즈 편집(이후 회차 전체): 이후 회차 삭제(원본 자리 톰스톤 기록) 후 새 규칙으로 재생성.
+    /// 재생성분은 반드시 사용자 소유(source "")로 claim — 원래 source("timetable")를 그대로 쓰면
+    /// ① 방금 기록한 톰스톤이 재생성을 막아 시리즈가 통째로 증발하고(제목·시각 동일 시),
+    /// ② 살아남아도 다음 NEIS 자동 갱신(deleteBySource)이 편집 내용을 지워 원복한다.
+    /// 원본 자리 톰스톤은 남겨 자동 갱신이 원래 수업을 되살리지 않게 한다(진짜 삭제와 동일 의미).
+    static func editFutureSeries(
+        from event: ScheduleEvent,
+        title: String, start: Date, end: Date, location: String,
+        reminderMinutes: Int, reminderMinutes2: Int = -1, recurrence: Recurrence,
+        weekdays: Set<Int> = [], endDate: Date? = nil, pinned: Bool = false,
+        in context: ModelContext
+    ) {
+        deleteFutureSeries(from: event, in: context)
+        create(title: title, start: start, end: end, location: location,
+               reminderMinutes: reminderMinutes, reminderMinutes2: reminderMinutes2,
+               recurrence: recurrence, weekdays: weekdays, endDate: endDate,
+               source: "", pinned: pinned, into: context)
     }
 
     /// 이 일정 + 같은 시리즈의 이후(시작 ≥) 일정 모두 삭제.
