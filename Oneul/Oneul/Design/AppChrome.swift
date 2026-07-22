@@ -414,6 +414,7 @@ final class AppLanguage {
         "이전 주": "Previous Week",
         "다음 주": "Next Week",
         "Oneul 타임라인": "Oneul Timeline",
-        "메뉴 막대": "Menu Bar"
+        "메뉴 막대": "Menu Bar",
+        "저장하지 못했어요": "Couldn't save"
     ]
 }

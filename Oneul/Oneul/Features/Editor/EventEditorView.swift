@@ -28,6 +28,7 @@ struct EventEditorView: View {
     @State private var showPlaceSheet = false
     @State private var pinned = false            // 주요 일정(상단 스와이프 밴드)
     @State private var loadedOnce = false        // load() 이후에만 시작-종료 연동(초기 세팅 오염 방지)
+    @State private var saveError: String?        // 저장 실패를 조용히 삼키지 않고 사용자에게 표시
     @FocusState private var focusedField: Field?
     private let lang = AppLanguage.shared
 
@@ -147,6 +148,10 @@ struct EventEditorView: View {
                 #endif
             }
             .sheet(isPresented: $showPlaceSheet) { PlaceSearchSheet(location: $location) }
+            .alert(lang.tr("저장하지 못했어요"), isPresented: Binding(get: { saveError != nil },
+                                                               set: { if !$0 { saveError = nil } })) {
+                Button(lang.tr("확인"), role: .cancel) {}
+            } message: { Text(saveError ?? "") }
             .confirmationDialog(lang.tr("반복 일정 수정"), isPresented: $showScopeOptions, titleVisibility: .visible) {
                 Button(lang.tr("이 일정만 수정")) { performSave(singleOnly: true) }
                 Button(lang.tr("이후 일정 모두 수정")) { performSave(singleOnly: false) }
@@ -315,7 +320,7 @@ struct EventEditorView: View {
                 event.reminderMinutes = reminderMinutes
                 event.reminderMinutes2 = reminderMinutes != -1 ? reminderMinutes2 : -1
                 event.pinned = pinned; event.notes = notes
-                try? context.save()
+                guard saveContext() else { return }   // 실패 시 시트 유지 + 알림(조용한 유실 방지)
             } else if recurrence != .none || event.isRecurring {
                 // 반복 설정/변경/해제 → 이 일정(+이후 시리즈)을 지우고 새 규칙으로 재생성
                 // (weekdays·endDate는 load()에서 시리즈 전체 기준으로 복원돼 있어 유실 없음)
@@ -334,7 +339,7 @@ struct EventEditorView: View {
                 event.reminderMinutes = reminderMinutes
                 event.reminderMinutes2 = reminderMinutes != -1 ? reminderMinutes2 : -1
                 event.pinned = pinned; event.notes = notes
-                try? context.save()
+                guard saveContext() else { return }
             }
         } else {
             EventActions.create(title: title, start: start, end: end, location: location, notes: notes,
@@ -346,5 +351,11 @@ struct EventEditorView: View {
         }
         Haptics.notify(.success)   // 저장 확인 촉각 피드백
         dismiss()
+    }
+
+    /// 편집기 저장 — 실패하면 saveError에 담아 알림 표시. try? 삼킴으로 인한 조용한 유실 방지.
+    private func saveContext() -> Bool {
+        do { try context.save(); return true }
+        catch { saveError = error.localizedDescription; return false }
     }
 }
