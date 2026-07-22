@@ -609,7 +609,20 @@ struct TodayView: View {
         try? context.save()
     }
 
+    @State private var syncLATask: Task<Void, Never>?
+
+    /// 0.6s 디바운스 — 드래그 커밋 등 연속 SwiftData 저장마다 removeAllPending+재등록·워치 전송·
+    /// 위젯 전체 리로드가 통째로 도는 것을 방지. 마지막 호출만 실제 동기화.
     private func syncLiveActivity() {
+        syncLATask?.cancel()
+        syncLATask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(0.6))
+            guard !Task.isCancelled else { return }
+            performSyncLiveActivity()
+        }
+    }
+
+    private func performSyncLiveActivity() {
         let shown = DayPlan.upcoming(events: events)   // 위젯·워치용(다가오는 날 폴백)
         #if os(iOS)
         // Live Activity는 항상 유지 — 일정이 없어도 '오늘 일정 없음' 상태로 상시 표시.

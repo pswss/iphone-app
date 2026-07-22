@@ -17,8 +17,7 @@ final class LiveActivityController {
     /// 마지막 시작/갱신 시도 결과 — 진단용(Xcode 콘솔에서도 같은 내용 출력).
     var status = "아직 시도 안 함 — 오늘 탭을 열어 보세요." {
         didSet {
-            log.info("\(self.status, privacy: .public)")
-            print("[LA]", Date().formatted(date: .omitted, time: .standard), status)   // devicectl --console 캡처용
+            log.info("\(self.status, privacy: .public)")   // devicectl 콘솔에서도 unified log로 확인
         }
     }
 
@@ -38,7 +37,7 @@ final class LiveActivityController {
         if let a = activity { PushSync.shared.observe(a) }   // update 푸시 토큰 구독(재연결 포함)
         if running.count > 1 {
             let keepID = activity?.id
-            print("[LA] 중복 정리: \(running.count)개 중 \(keepID?.prefix(6) ?? "nil") 유지")
+            log.info("중복 정리: \(running.count)개 중 \(keepID?.prefix(6) ?? "nil", privacy: .public) 유지")
             Task { for a in running where a.id != keepID { await a.end(nil, dismissalPolicy: .immediate) } }
         }
 
@@ -82,14 +81,14 @@ final class LiveActivityController {
         watchedID = a.id
         Task {
             for await st in a.activityStateUpdates {
-                print("[LA]", Date().formatted(date: .omitted, time: .standard), "상태 변화: \(String(describing: st)) (id \(a.id.prefix(6)))")
+                log.info("상태 변화: \(String(describing: st), privacy: .public) (id \(a.id.prefix(6), privacy: .public))")
             }
         }
     }
 
     /// 진행 중인 모든 Activity 종료.
     func end() async {
-        print("[LA] end() 호출됨 — 스택:", Thread.callStackSymbols.prefix(4).joined(separator: " | "))
+        log.info("end() 호출됨")
         for activity in Activity<ScheduleActivityAttributes>.activities {
             await activity.end(nil, dismissalPolicy: .immediate)
         }
