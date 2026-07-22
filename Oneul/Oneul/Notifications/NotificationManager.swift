@@ -20,44 +20,47 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         }
     }
 
-    /// 전체 일정에 대해 알림 재설정. (iOS 64개 제한 → 가까운 일정 + 다가오는 시험만)
-    /// - 가까운 일정(7일 내): 1·2차 알림 — 창을 넉넉히 잡아 앱을 며칠 안 열어도 알림 유지
+    /// 전체 일정에 대해 알림 재설정.
+    /// 7일 창 없이 모든 미래 알림 후보를 발화 시각순으로 모아 iOS 한도 64슬롯을 채운다 —
+    /// 몇 주 앱을 안 열고 BGAppRefresh가 안 돌아도 예약된 알림이 끊기지 않는다.
+    /// - 일정 1·2차 알림: 전체 미래 일정
     /// - 다가오는 시험(30일 내): 전날 저녁 8시 준비물·응원 알림
     func reschedule(for events: [ScheduleEvent]) {
         center.removeAllPendingNotificationRequests()
         let now = Date()
         let cal = Calendar.current
-        let soon = cal.date(byAdding: .day, value: 7, to: now) ?? now
         let examHorizon = cal.date(byAdding: .day, value: 30, to: now) ?? now
-        let sorted = events.sorted { $0.start < $1.start }
-        var count = 0
-        let limit = 60
+        struct Candidate { let id: String; let title: String; let body: String; let fire: Date; let eventStart: Date }
+        var candidates: [Candidate] = []
 
-        // 1) 가까운 일정의 1·2차 알림 (시작 시각 순 → 한도 도달 시 먼 알림부터 잘림)
-        for e in sorted where e.start > now && e.start <= soon {
+        // 1) 일정의 1·2차 알림 — 미래 전체가 후보
+        for e in events where e.start > now {
             for (i, mins) in [e.reminderMinutes, e.reminderMinutes2].enumerated() where mins >= 0 {
-                guard count < limit else { break }
                 let fire = e.start.addingTimeInterval(TimeInterval(-mins * 60))
                 guard fire > now else { continue }
-                add(id: "\(e.id.uuidString)-r\(i)",
+                candidates.append(Candidate(
+                    id: "\(e.id.uuidString)-r\(i)",
                     title: e.title.isEmpty ? (AppLanguage.shared.isEnglish ? "Event" : "일정") : e.title,
-                    body: Self.subtitle(for: e), at: fire, eventStart: e.start)
-                count += 1
+                    body: Self.subtitle(for: e), fire: fire, eventStart: e.start))
             }
         }
 
         // 2) 다가오는 시험 — 전날 20:00 준비물 + 응원
-        for e in sorted where e.examKind.isExam && e.start > now && e.start <= examHorizon {
-            guard count < limit else { break }
+        for e in events where e.examKind.isExam && e.start > now && e.start <= examHorizon {
             guard let prevDay = cal.date(byAdding: .day, value: -1, to: cal.startOfDay(for: e.start)),
                   let fire = cal.date(bySettingHour: 20, minute: 0, second: 0, of: prevDay),
                   fire > now else { continue }
             let items = e.examKind.checklist.joined(separator: ", ")
             let en = AppLanguage.shared.isEnglish
-            let body = en ? "Bring: \(items)" : "준비물: \(items)\n\(Self.cheer(for: e.start))"
-            add(id: "\(e.id.uuidString)-exam", title: en ? "Tomorrow: \(e.title)" : "내일 \(e.title)",
-                body: body, at: fire, eventStart: e.start)
-            count += 1
+            candidates.append(Candidate(
+                id: "\(e.id.uuidString)-exam", title: en ? "Tomorrow: \(e.title)" : "내일 \(e.title)",
+                body: en ? "Bring: \(items)" : "준비물: \(items)\n\(Self.cheer(for: e.start))",
+                fire: fire, eventStart: e.start))
+        }
+
+        // 발화 시각순으로 64슬롯 채우기 — 가까운 알림이 항상 우선, 먼 알림부터 잘림
+        for c in candidates.sorted(by: { $0.fire < $1.fire }).prefix(64) {
+            add(id: c.id, title: c.title, body: c.body, at: c.fire, eventStart: c.eventStart)
         }
     }
 

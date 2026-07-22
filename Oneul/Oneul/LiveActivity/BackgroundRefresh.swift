@@ -29,7 +29,7 @@ enum BackgroundRefresh {
         Task { @MainActor in
             let context = ModelContext(container)
             let events = (try? context.fetch(FetchDescriptor<ScheduleEvent>())) ?? []
-            NotificationManager.shared.reschedule(for: events)   // 앱을 안 열어도 알림 창(7일) 유지
+            NotificationManager.shared.reschedule(for: events)   // 앱을 안 열어도 64슬롯 알림 최신화
             let shown = DayPlan.upcoming(events: events)   // 워치용
             // Live Activity는 항상 유지 — 포그라운드와 동일 규칙.
             let todayPlan = DayPlan(events: events, day: .now)
