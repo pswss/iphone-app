@@ -45,10 +45,14 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
             }
         }
 
-        // 2) 다가오는 시험 — 전날 20:00 준비물 + 응원
-        for e in events where e.examKind.isExam && e.start > now && e.start <= examHorizon {
+        // 2) 다가오는 시험 — 전날 준비물 + 응원 (기본 20:00, 설정에서 끄기/시각 변경 가능)
+        let d = UserDefaults.standard
+        let examEveEnabled = d.object(forKey: "examEveEnabled") as? Bool ?? true
+        let examEveMinutes = d.object(forKey: "examEveMinutes") as? Int ?? 20 * 60
+        for e in events where examEveEnabled && e.examKind.isExam && e.start > now && e.start <= examHorizon {
             guard let prevDay = cal.date(byAdding: .day, value: -1, to: cal.startOfDay(for: e.start)),
-                  let fire = cal.date(bySettingHour: 20, minute: 0, second: 0, of: prevDay),
+                  let fire = cal.date(bySettingHour: examEveMinutes / 60, minute: examEveMinutes % 60,
+                                      second: 0, of: prevDay),
                   fire > now else { continue }
             let items = e.examKind.checklist.joined(separator: ", ")
             let en = AppLanguage.shared.isEnglish

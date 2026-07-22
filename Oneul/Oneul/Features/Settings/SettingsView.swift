@@ -1,7 +1,11 @@
 import SwiftUI
 import SwiftData
+import UserNotifications
 #if canImport(UIKit)
 import UIKit
+#endif
+#if canImport(AppKit)
+import AppKit
 #endif
 
 private struct ConditionalGlass: ViewModifier {
@@ -33,6 +37,9 @@ struct SettingsView: View {
                         sectionTitle(lang.tr("외형"))
                         appearanceCard
 
+                        sectionTitle(lang.tr("알림 설정"))
+                        notificationCard
+
                         sectionTitle(lang.tr("가져오기"))
                         calendarImportCard
 
@@ -56,6 +63,91 @@ struct SettingsView: View {
             }
             .navigationTitle(lang.tr("설정"))
         }
+    }
+
+    // MARK: 알림 — 권한 상태 + 시험 전날 알림 끄기/시각 변경
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var notifStatus: UNAuthorizationStatus?
+    @AppStorage("examEveEnabled") private var examEveEnabled = true
+    @AppStorage("examEveMinutes") private var examEveMinutes = 20 * 60   // 자정 기준 분 (기본 20:00)
+
+    private var examEveTime: Binding<Date> {
+        Binding {
+            Calendar.current.date(bySettingHour: examEveMinutes / 60, minute: examEveMinutes % 60,
+                                  second: 0, of: Date()) ?? Date()
+        } set: { new in
+            let c = Calendar.current.dateComponents([.hour, .minute], from: new)
+            examEveMinutes = (c.hour ?? 20) * 60 + (c.minute ?? 0)
+        }
+    }
+
+    private var notificationCard: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Text(lang.tr("권한")).foregroundStyle(.secondary)
+                Spacer()
+                switch notifStatus {
+                case .denied:
+                    Button(lang.tr("거부됨 — 설정에서 허용")) { openSystemNotificationSettings() }
+                        .font(.subheadline).tint(Color.appAccentText)
+                case .notDetermined:
+                    Button(lang.tr("알림 허용")) {
+                        UNUserNotificationCenter.current()
+                            .requestAuthorization(options: [.alert, .sound]) { _, _ in refreshNotifStatus() }
+                    }
+                    .font(.subheadline).tint(Color.appAccentText)
+                case .some:
+                    Text(lang.tr("허용됨")).foregroundStyle(.secondary)
+                case nil:
+                    Text("")
+                }
+            }
+            Divider()
+            HStack {
+                Text(lang.tr("시험 전날 알림"))
+                Spacer()
+                Toggle("", isOn: $examEveEnabled).labelsHidden().tint(Color.appAccent)
+            }
+            if examEveEnabled {
+                HStack {
+                    Text(lang.tr("알림 시각")).foregroundStyle(.secondary)
+                    Spacer()
+                    DatePicker("", selection: examEveTime, displayedComponents: .hourAndMinute)
+                        .labelsHidden()
+                }
+            }
+        }
+        .padding(14)
+        .glassCard(cornerRadius: 22)
+        .onAppear(perform: refreshNotifStatus)
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { refreshNotifStatus() }   // 시스템 설정에서 돌아오면 상태 갱신
+        }
+        .onChange(of: examEveEnabled) { rescheduleNotifications() }
+        .onChange(of: examEveMinutes) { rescheduleNotifications() }
+    }
+
+    private func refreshNotifStatus() {
+        UNUserNotificationCenter.current().getNotificationSettings { s in
+            DispatchQueue.main.async { notifStatus = s.authorizationStatus }
+        }
+    }
+
+    /// 권한 거부 시 시스템 설정의 이 앱 알림 화면으로 딥링크.
+    private func openSystemNotificationSettings() {
+        #if os(iOS)
+        if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+        #elseif os(macOS)
+        if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=com.oneul.app") {
+            NSWorkspace.shared.open(url)
+        }
+        #endif
+    }
+
+    /// 시험 전날 알림 설정 변경 즉시 반영.
+    private func rescheduleNotifications() {
+        let events = (try? context.fetch(FetchDescriptor<ScheduleEvent>())) ?? []
+        NotificationManager.shared.reschedule(for: events)
     }
 
     // MARK: 애플 캘린더 가져오기(EventKit) — 기존 일정 이사 경로

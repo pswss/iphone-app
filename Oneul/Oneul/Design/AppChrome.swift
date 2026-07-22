@@ -385,6 +385,14 @@ final class AppLanguage {
         "닫기": "Close",
         "주": "Week",
         "주요 일정": "Featured",
-        "진행 중": "Ongoing"
+        "진행 중": "Ongoing",
+        // 설정 · 알림
+        "알림 설정": "Notifications",
+        "권한": "Permission",
+        "허용됨": "Allowed",
+        "거부됨 — 설정에서 허용": "Denied — allow in Settings",
+        "알림 허용": "Allow notifications",
+        "시험 전날 알림": "Exam-eve reminder",
+        "알림 시각": "Time"
     ]
 }
