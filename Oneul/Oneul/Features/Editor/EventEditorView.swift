@@ -322,7 +322,7 @@ struct EventEditorView: View {
                 // 재생성분은 editFutureSeries가 사용자 소유(source "")로 claim — 톰스톤 자기충돌로
                 // 시리즈가 증발하거나 NEIS 자동 갱신이 원복하는 버그 방지
                 EventActions.editFutureSeries(from: event, title: title, start: start, end: end,
-                                              location: location, reminderMinutes: reminderMinutes,
+                                              location: location, notes: notes, reminderMinutes: reminderMinutes,
                                               reminderMinutes2: reminderMinutes != -1 ? reminderMinutes2 : -1,
                                               recurrence: recurrence,
                                               weekdays: recurrence == .weekly ? weekdays : [],
@@ -337,7 +337,7 @@ struct EventEditorView: View {
                 try? context.save()
             }
         } else {
-            EventActions.create(title: title, start: start, end: end, location: location,
+            EventActions.create(title: title, start: start, end: end, location: location, notes: notes,
                                 reminderMinutes: reminderMinutes,
                                 reminderMinutes2: reminderMinutes != -1 ? reminderMinutes2 : -1,
                                 recurrence: recurrence,

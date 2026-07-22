@@ -542,8 +542,8 @@ struct DayGridView: View {
     private func dismissMenu() { deleteBubbleID = nil; selectedID = nil }
     private func duplicate(_ e: ScheduleEvent) {
         EventActions.create(title: e.title, start: e.start, end: e.end, location: e.location,
-                            reminderMinutes: e.reminderMinutes, reminderMinutes2: e.reminderMinutes2,
-                            recurrence: .none, into: context)
+                            notes: e.notes, reminderMinutes: e.reminderMinutes, reminderMinutes2: e.reminderMinutes2,
+                            recurrence: .none, pinned: e.pinned, into: context)
         Haptics.impact(.soft)
     }
 
@@ -573,8 +573,9 @@ struct DayGridView: View {
         let date = gridTop.addingTimeInterval(snapped * 60)
         if let c = EventClipboard.shared.item {                   // 복사/잘라낸 일정이 있으면 그 자리에 붙여넣기(상단 칩으로 모드 표시·취소 가능)
             EventActions.create(title: c.title, start: date, end: date.addingTimeInterval(c.duration),
-                                location: c.location, reminderMinutes: c.reminderMinutes,
-                                reminderMinutes2: c.reminderMinutes2, recurrence: .none, into: context)
+                                location: c.location, notes: c.notes, reminderMinutes: c.reminderMinutes,
+                                reminderMinutes2: c.reminderMinutes2, recurrence: .none,
+                                pinned: c.pinned, into: context)
             Haptics.impact(.soft)
         } else {
             onAdd(date)
@@ -643,8 +644,10 @@ struct CopiedEvent {
     var title: String
     var duration: TimeInterval
     var location: String
+    var notes: String
     var reminderMinutes: Int
     var reminderMinutes2: Int
+    var pinned: Bool
 }
 @Observable final class EventClipboard {
     static let shared = EventClipboard()
@@ -652,8 +655,8 @@ struct CopiedEvent {
     var item: CopiedEvent?
     func copy(_ e: ScheduleEvent) {
         item = CopiedEvent(title: e.title, duration: max(300, e.end.timeIntervalSince(e.start)),
-                           location: e.location, reminderMinutes: e.reminderMinutes,
-                           reminderMinutes2: e.reminderMinutes2)
+                           location: e.location, notes: e.notes, reminderMinutes: e.reminderMinutes,
+                           reminderMinutes2: e.reminderMinutes2, pinned: e.pinned)
     }
     func clear() { item = nil }
 }

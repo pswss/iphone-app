@@ -186,7 +186,7 @@ enum EventActions {
     /// - 반복이 매주이고 `weekdays`(1=일…7=토)가 있으면 그 요일마다 생성.
     /// - `endDate`가 있으면 그날까지, 없으면 1년(최대 800개)까지.
     static func create(
-        title: String, start: Date, end: Date, location: String,
+        title: String, start: Date, end: Date, location: String, notes: String = "",
         reminderMinutes: Int, reminderMinutes2: Int = -1, recurrence: Recurrence,
         weekdays: Set<Int> = [], endDate: Date? = nil, source: String = "",
         excludeDays: Set<Date> = [], pinned: Bool = false, into context: ModelContext
@@ -196,7 +196,7 @@ enum EventActions {
         guard recurrence != .none else {
             if !SourceTombstones.contains(source: source, title: title, start: start) {
                 context.insert(ScheduleEvent(title: title, start: start, end: end,
-                                             location: location, reminderMinutes: reminderMinutes,
+                                             location: location, notes: notes, reminderMinutes: reminderMinutes,
                                              reminderMinutes2: reminderMinutes2, source: source, pinned: pinned))
                 try? context.save()
             }
@@ -221,7 +221,7 @@ enum EventActions {
                    !SourceTombstones.contains(source: source, title: title, start: s) {
                     context.insert(ScheduleEvent(
                         title: title, start: s, end: s.addingTimeInterval(duration),
-                        location: location, reminderMinutes: reminderMinutes,
+                        location: location, notes: notes, reminderMinutes: reminderMinutes,
                         reminderMinutes2: reminderMinutes2,
                         recurrenceRaw: recurrence.rawValue, seriesID: seriesID, source: source, pinned: pinned))
                     count += 1
@@ -238,7 +238,7 @@ enum EventActions {
                 }
                 context.insert(ScheduleEvent(
                     title: title, start: date, end: date.addingTimeInterval(duration),
-                    location: location, reminderMinutes: reminderMinutes,
+                    location: location, notes: notes, reminderMinutes: reminderMinutes,
                     reminderMinutes2: reminderMinutes2,
                     recurrenceRaw: recurrence.rawValue, seriesID: seriesID, source: source, pinned: pinned))
                 count += 1
@@ -295,13 +295,13 @@ enum EventActions {
     /// 원본 자리 톰스톤은 남겨 자동 갱신이 원래 수업을 되살리지 않게 한다(진짜 삭제와 동일 의미).
     static func editFutureSeries(
         from event: ScheduleEvent,
-        title: String, start: Date, end: Date, location: String,
+        title: String, start: Date, end: Date, location: String, notes: String = "",
         reminderMinutes: Int, reminderMinutes2: Int = -1, recurrence: Recurrence,
         weekdays: Set<Int> = [], endDate: Date? = nil, pinned: Bool = false,
         in context: ModelContext
     ) {
         deleteFutureSeries(from: event, in: context)
-        create(title: title, start: start, end: end, location: location,
+        create(title: title, start: start, end: end, location: location, notes: notes,
                reminderMinutes: reminderMinutes, reminderMinutes2: reminderMinutes2,
                recurrence: recurrence, weekdays: weekdays, endDate: endDate,
                source: "", pinned: pinned, into: context)
