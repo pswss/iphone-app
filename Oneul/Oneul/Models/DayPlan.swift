@@ -115,7 +115,8 @@ struct DayPlan {
         return WatchSchedulePayload(
             dayLabel: dayLabel, dayStart: dayStart, dayEnd: dayEnd, events: snaps,
             currentTitle: cur?.title, currentEnd: cur?.end,
-            nextTitle: nxt?.title, nextStart: nxt?.start, updatedAt: now)
+            nextTitle: nxt?.title, nextStart: nxt?.start,
+            isEnglish: AppLanguage.shared.isEnglish, updatedAt: now)
     }
 
     /// 홈 화면 위젯으로 넘길 오늘 스냅샷(App Group 공유). contentState()와 같은 값을 ActivityKit 비의존 형태로.

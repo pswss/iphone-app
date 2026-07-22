@@ -130,6 +130,15 @@ final class AppLanguage {
         return "\(h < 12 || h == 24 ? "오전" : "오후") \(h12)시"
     }
 
+    /// 요일 나열("월수금" / "Mon·Wed·Fri") — AI 반복 배지 공용.
+    func weekdayShortList(_ weekdays: Set<Int>) -> String {
+        let ko = ["일", "월", "화", "수", "목", "금", "토"]
+        let en = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+        let syms = isEnglish ? en : ko
+        return weekdays.sorted().compactMap { (1...7).contains($0) ? syms[$0 - 1] : nil }
+            .joined(separator: isEnglish ? "·" : "")
+    }
+
     /// 날짜 라벨("M월 d일 EEEE" / "EEEE, MMM d") — 라이브 액티비티·워치·위젯 공용.
     func dayLabel(for day: Date) -> String {
         let f = DateFormatter()
@@ -393,6 +402,17 @@ final class AppLanguage {
         "거부됨 — 설정에서 허용": "Denied — allow in Settings",
         "알림 허용": "Allow notifications",
         "시험 전날 알림": "Exam-eve reminder",
-        "알림 시각": "Time"
+        "알림 시각": "Time",
+        // 맥 메뉴 명령
+        "AI로 일정 입력…": "Enter Events with AI…",
+        "시간표·학사 새로 고침": "Refresh Timetable & Calendar",
+        "일정 검색…": "Search Events…",
+        "오늘 보기": "Show Today",
+        "메모 보기": "Show Notes",
+        "급식 보기": "Show Meals",
+        "오늘로": "Go to Today",
+        "이전 주": "Previous Week",
+        "다음 주": "Next Week",
+        "Oneul 타임라인": "Oneul Timeline"
     ]
 }

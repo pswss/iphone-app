@@ -42,14 +42,19 @@ struct HomeProvider: TimelineProvider {
     }
 }
 
+/// 위젯 갤러리 문구 — 앱이 마지막으로 쓴 스냅샷의 언어 설정을 따라감(위젯은 앱 UserDefaults 접근 불가).
+private func wtr(_ ko: String, _ en: String) -> String {
+    (SharedStore.readToday()?.isEnglish ?? false) ? en : ko
+}
+
 struct OneulHomeWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "OneulHomeWidget", provider: HomeProvider()) { entry in
             HomeWidgetView(entry: entry)
                 .containerBackground(for: .widget) { Color.black.opacity(0.85) }
         }
-        .configurationDisplayName("오늘 타임라인")
-        .description("오늘 일정과 진행 상황을 한눈에 봅니다.")
+        .configurationDisplayName(wtr("오늘 타임라인", "Today's Timeline"))
+        .description(wtr("오늘 일정과 진행 상황을 한눈에 봅니다.", "See today's events and progress at a glance."))
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
@@ -126,8 +131,8 @@ struct OneulLockWidget: Widget {
             LockAccessoryView(entry: entry)
                 .containerBackground(for: .widget) { Color.clear }
         }
-        .configurationDisplayName("오늘 일정 (잠금화면)")
-        .description("잠금화면·StandBy에 현재/다음 일정을 표시합니다.")
+        .configurationDisplayName(wtr("오늘 일정 (잠금화면)", "Today (Lock Screen)"))
+        .description(wtr("잠금화면·StandBy에 현재/다음 일정을 표시합니다.", "Shows the current/next event on the Lock Screen and StandBy."))
         .supportedFamilies([.accessoryRectangular, .accessoryInline, .accessoryCircular])
     }
 }

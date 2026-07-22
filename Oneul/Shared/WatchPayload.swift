@@ -11,10 +11,11 @@ struct WatchSchedulePayload: Codable, Equatable {
     var currentEnd: Date?
     var nextTitle: String?
     var nextStart: Date?
+    var isEnglish: Bool = false
     var updatedAt: Date
 
     static let empty = WatchSchedulePayload(
         dayLabel: "", dayStart: .now, dayEnd: .now, events: [],
         currentTitle: nil, currentEnd: nil, nextTitle: nil, nextStart: nil,
-        updatedAt: .distantPast)
+        isEnglish: false, updatedAt: .distantPast)
 }

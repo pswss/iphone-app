@@ -4,6 +4,7 @@ struct WatchTodayView: View {
     @Environment(WatchStore.self) private var store
 
     private var p: WatchSchedulePayload { store.payload }
+    private var en: Bool { p.isEnglish }   // 폰 앱 언어 설정을 따라감
 
     var body: some View {
         NavigationStack {
@@ -11,7 +12,7 @@ struct WatchTodayView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     highlight
                     if p.events.isEmpty {
-                        Text("오늘 일정이 없어요")
+                        Text(en ? "No events today" : "오늘 일정이 없어요")
                             .font(.footnote).foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity, alignment: .center)
                             .padding(.top, 8)
@@ -21,16 +22,16 @@ struct WatchTodayView: View {
                 }
                 .padding(.horizontal, 4)
             }
-            .navigationTitle("오늘")
+            .navigationTitle(en ? "Today" : "오늘")
         }
     }
 
     /// 다음 일정(없으면 진행 중) 강조 카드.
     @ViewBuilder private var highlight: some View {
         if let title = p.nextTitle, let start = p.nextStart {
-            card(tag: "다음", title: title, time: start, accent: .orange)
+            card(tag: en ? "Next" : "다음", title: title, time: start, accent: .orange)
         } else if let title = p.currentTitle, let end = p.currentEnd {
-            card(tag: "진행 중", title: title, time: end, accent: .green, isEnd: true)
+            card(tag: en ? "Ongoing" : "진행 중", title: title, time: end, accent: .green, isEnd: true)
         }
     }
 
@@ -40,7 +41,8 @@ struct WatchTodayView: View {
             Text(title).font(.headline).lineLimit(2)
             Text(time, style: .relative)
                 .font(.caption2).foregroundStyle(.secondary)
-                + Text(isEnd ? " 남음" : " 후").font(.caption2).foregroundStyle(.secondary)
+                + Text(en ? (isEnd ? " left" : " to go") : (isEnd ? " 남음" : " 후"))
+                    .font(.caption2).foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)

@@ -38,34 +38,34 @@ struct OneulApp: App {
         .defaultSize(width: 1080, height: 720)
         .commands {
             CommandGroup(before: .newItem) {   // replacing이면 'New Window'(⌘N 기본)가 사라짐 → before로 보존
-                Button("새 일정") { NotificationCenter.default.post(name: .oneulNewEvent, object: nil) }
+                Button(AppLanguage.shared.tr("새 일정")) { NotificationCenter.default.post(name: .oneulNewEvent, object: nil) }
                     .keyboardShortcut("n")
-                Button("새 메모") { NotificationCenter.default.post(name: .oneulNewMemo, object: nil) }
+                Button(AppLanguage.shared.tr("새 메모")) { NotificationCenter.default.post(name: .oneulNewMemo, object: nil) }
                     .keyboardShortcut("n", modifiers: [.command, .shift])
                 Divider()
-                Button("AI로 일정 입력…") { NotificationCenter.default.post(name: .oneulAI, object: nil) }
+                Button(AppLanguage.shared.tr("AI로 일정 입력…")) { NotificationCenter.default.post(name: .oneulAI, object: nil) }
                     .keyboardShortcut("a", modifiers: [.command, .shift])
-                Button("시간표·학사 새로 고침") { NotificationCenter.default.post(name: .oneulRefresh, object: nil) }
+                Button(AppLanguage.shared.tr("시간표·학사 새로 고침")) { NotificationCenter.default.post(name: .oneulRefresh, object: nil) }
                     .keyboardShortcut("r")
             }
             CommandGroup(after: .textEditing) {
-                Button("일정 검색…") { NotificationCenter.default.post(name: .oneulSearch, object: nil) }
+                Button(AppLanguage.shared.tr("일정 검색…")) { NotificationCenter.default.post(name: .oneulSearch, object: nil) }
                     .keyboardShortcut("f")
             }
             CommandGroup(after: .sidebar) {
-                Button("오늘 보기") { NotificationCenter.default.post(name: .oneulSelectSection, object: 0) }
+                Button(AppLanguage.shared.tr("오늘 보기")) { NotificationCenter.default.post(name: .oneulSelectSection, object: 0) }
                     .keyboardShortcut("1")
-                Button("메모 보기") { NotificationCenter.default.post(name: .oneulSelectSection, object: 1) }
+                Button(AppLanguage.shared.tr("메모 보기")) { NotificationCenter.default.post(name: .oneulSelectSection, object: 1) }
                     .keyboardShortcut("2")
-                Button("급식 보기") { NotificationCenter.default.post(name: .oneulSelectSection, object: 2) }
+                Button(AppLanguage.shared.tr("급식 보기")) { NotificationCenter.default.post(name: .oneulSelectSection, object: 2) }
                     .keyboardShortcut("3")
                 Divider()
-                Button("오늘로") { NotificationCenter.default.post(name: .oneulToday, object: nil) }
+                Button(AppLanguage.shared.tr("오늘로")) { NotificationCenter.default.post(name: .oneulToday, object: nil) }
                     .keyboardShortcut("t")
                 // 맥 화면은 주 그리드 — 하루 이동은 화면 변화가 없어 주 단위로 통일(상단 ‹›와 동일)
-                Button("이전 주") { NotificationCenter.default.post(name: .oneulShiftDay, object: -7) }
+                Button(AppLanguage.shared.tr("이전 주")) { NotificationCenter.default.post(name: .oneulShiftDay, object: -7) }
                     .keyboardShortcut(.leftArrow, modifiers: .command)
-                Button("다음 주") { NotificationCenter.default.post(name: .oneulShiftDay, object: 7) }
+                Button(AppLanguage.shared.tr("다음 주")) { NotificationCenter.default.post(name: .oneulShiftDay, object: 7) }
                     .keyboardShortcut(.rightArrow, modifiers: .command)
             }
         }
@@ -80,7 +80,7 @@ struct OneulApp: App {
         }
 
         // 타임라인 = 메뉴바 아이콘 (클릭→오늘 일정 한눈에) — 위에서 미끄러져 내려오는 등장
-        MenuBarExtra("Oneul 타임라인", systemImage: "calendar.day.timeline.left") {
+        MenuBarExtra(AppLanguage.shared.tr("Oneul 타임라인"), systemImage: "calendar.day.timeline.left") {
             MenuBarTimelineView()
                 .modelContainer(container)
                 .frame(width: 340)

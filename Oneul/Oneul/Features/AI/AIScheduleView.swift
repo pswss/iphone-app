@@ -382,9 +382,7 @@ struct AIScheduleView: View {
     private func repeatLabel(_ e: ParsedEvent) -> String {
         guard e.recurrence != .none else { return "" }
         if e.recurrence == .weekly && !e.weekdays.isEmpty {
-            let syms = ["일", "월", "화", "수", "목", "금", "토"]
-            let days = e.weekdays.sorted().compactMap { (1...7).contains($0) ? syms[$0 - 1] : nil }.joined()
-            return lang.tr(e.recurrence.label) + " " + days
+            return lang.tr(e.recurrence.label) + " " + lang.weekdayShortList(e.weekdays)
         }
         return lang.tr(e.recurrence.label)
     }
@@ -734,9 +732,7 @@ private struct AIResultEditView: View {
 
     private var repeatText: String {
         if event.recurrence == .weekly && !event.weekdays.isEmpty {
-            let syms = ["일", "월", "화", "수", "목", "금", "토"]
-            let days = event.weekdays.sorted().compactMap { (1...7).contains($0) ? syms[$0 - 1] : nil }.joined()
-            return lang.tr(event.recurrence.label) + " " + days
+            return lang.tr(event.recurrence.label) + " " + lang.weekdayShortList(event.weekdays)
         }
         return lang.tr(event.recurrence.label)
     }
