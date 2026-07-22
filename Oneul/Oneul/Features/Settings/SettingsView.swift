@@ -285,7 +285,9 @@ struct SettingsView: View {
         try? context.save()
         let d = UserDefaults.standard
         ["userType", "neisOffice", "neisName", "neisCode", "neisKind", "neisGrade", "neisClass",
-         "ttSetup", "ttGrade", "ttClass", "ttElectives", "ttCommonOverride", "lastSchoolRefresh", "neisApiKey"]
+         "ttSetup", "ttGrade", "ttClass", "ttElectives", "ttCommonOverride", "lastSchoolRefresh", "neisApiKey",
+         "sourceTombstones",   // 안 지우면 초기화 후 같은 학교 재등록 시 과거 삭제 수업이 빠진 시간표가 생성됨
+         "promoSnoozeYear"]    // 진급 안내 스누즈도 초기 상태로
             .forEach { d.removeObject(forKey: $0) }
         for p in 1...PeriodSchedule.count {
             d.removeObject(forKey: "bell.\(p).start")
