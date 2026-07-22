@@ -571,12 +571,16 @@ struct AIScheduleView: View {
         return ctx
     }
 
-    /// 수정/삭제 대상이 될 다가오는 일정(최대 25개).
+    /// 수정/삭제 대상이 될 다가오는 일정 — 오늘부터 60일 창(규칙 경로용, 최대 400개).
+    /// "다음주 화요일 학원 지워줘"가 15개 한도에 잘려 대상을 못 찾던 문제 해결.
+    /// 모델 경로는 클라이언트에서 앞 15개만 잘라 씀(컨텍스트 예산 유지).
+    /// 과거는 안 넣음 — 수정/삭제의 '가장 이른 후보' 선택이 지난 일정을 집는 오폭 방지.
     private func fetchUpcoming() -> [ExistingEvent] {
         let start = Calendar.current.startOfDay(for: Date())   // 오늘 0시부터 → 오늘 이미 지난 일정도 삭제/수정 대상
+        let horizon = Calendar.current.date(byAdding: .day, value: 60, to: start) ?? start
         var d = FetchDescriptor<ScheduleEvent>(
-            predicate: #Predicate { $0.start >= start }, sortBy: [SortDescriptor(\.start)])
-        d.fetchLimit = 15   // 컨텍스트 절약 vs 삭제 커버리지 균형
+            predicate: #Predicate { $0.start >= start && $0.start < horizon }, sortBy: [SortDescriptor(\.start)])
+        d.fetchLimit = 400
         let items = (try? context.fetch(d)) ?? []
         return items.map { ExistingEvent(id: $0.id, title: $0.title, start: $0.start, end: $0.end, location: $0.location) }
     }

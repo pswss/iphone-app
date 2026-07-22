@@ -48,7 +48,8 @@ struct AppleIntelligenceClient {
         }
         #if canImport(FoundationModels)
         if #available(iOS 26, macOS 26, *) {
-            return try await AppleAI.generate(from: text, now: now, existing: existing)
+            // 규칙 경로는 60일치 큰 목록을 그대로 쓰지만, 모델은 컨텍스트 예산상 가까운 15개만(기존과 동일)
+            return try await AppleAI.generate(from: text, now: now, existing: Array(existing.prefix(15)))
         }
         #endif
         throw AppleIntelligenceUnavailable(
