@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI   // color(of:) — EventPalette Color 반환용
 
 /// 하루치 일정을 받아 무지개 바/Live Activity에 필요한 값들을 계산하는 순수 로직.
 /// UI·위젯·Live Activity가 모두 같은 규칙(색=시간순, 현재/다음 판정)을 쓰도록 한 곳에 모읍니다.
