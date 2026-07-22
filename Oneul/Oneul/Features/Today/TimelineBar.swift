@@ -62,7 +62,7 @@ struct TimelineBar: View {
             }
         }
         .frame(height: height + 14)
-        .animation(.easeInOut(duration: 0.35), value: current?.id)
+        .animation(.smooth(duration: 0.35), value: current?.id)
     }
 
     /// 일정 유리판 하나 — Double/CGFloat 혼합 산술을 명시적 타입 let으로 분리.

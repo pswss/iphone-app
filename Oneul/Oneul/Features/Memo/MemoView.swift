@@ -419,7 +419,8 @@ struct MemoEditor: View {
     private func checkRow(_ item: MemoCheckItem) -> some View {
         HStack(spacing: 10) {
             Button {
-                item.done.toggle(); touch(); Haptics.impact(.light)
+                withAnimation(.snappy(duration: 0.2)) { item.done.toggle() }   // 체크·취소선 부드럽게
+                touch(); Haptics.impact(.light)
             } label: {
                 Image(systemName: item.done ? "checkmark.circle.fill" : "circle")
                     .font(.title3)

@@ -4,6 +4,7 @@ import SwiftData
 struct EventEditorView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     let event: ScheduleEvent?
     let day: Date
@@ -32,6 +33,7 @@ struct EventEditorView: View {
 
     private enum Field { case title }
     private var isEditing: Bool { event != nil }
+    private var rowAnim: Animation? { reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 1.0) }
 
     private let reminderOptions: [(label: String, value: Int)] = [
         ("없음", -1), ("정시", 0), ("5분 전", 5), ("10분 전", 10), ("30분 전", 30), ("1시간 전", 60), ("하루 전", 1440)
@@ -118,6 +120,10 @@ struct EventEditorView: View {
                         if isEditing { deleteSection }
                     }
                     .padding(16)
+                    // 조건부 행(2차 알림·요일·반복 종료일)이 툭 튀지 않게 — 스프링으로 밀려나며 등장
+                    .animation(rowAnim, value: reminderMinutes == -1)
+                    .animation(rowAnim, value: recurrence)
+                    .animation(rowAnim, value: hasEndDate)
                     .contentShape(Rectangle())
                     .onTapGesture { endEditingGlobally() }
                 }
@@ -218,7 +224,9 @@ struct EventEditorView: View {
             ForEach(1...7, id: \.self) { wd in
                 let on = weekdays.contains(wd)
                 Button {
-                    if on { weekdays.remove(wd) } else { weekdays.insert(wd) }
+                    withAnimation(.snappy(duration: 0.2)) {
+                        if on { weekdays.remove(wd) } else { weekdays.insert(wd) }
+                    }
                 } label: {
                     Text(weekdaySymbol(wd))
                         .font(.subheadline).bold()

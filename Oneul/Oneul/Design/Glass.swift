@@ -38,6 +38,8 @@ struct AccentButtonStyle: ButtonStyle {
             .background(Color.appAccent, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(.white.opacity(0.22), lineWidth: 1))
             .opacity(configuration.isPressed ? 0.7 : 1)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)   // 누름 즉시 살짝 눌리는 피드백
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
             .shadow(color: .black.opacity(0.18), radius: 8, y: 4)
     }
 }

@@ -385,7 +385,9 @@ struct TodayView: View {
                     .font(.caption).bold()
                 Spacer(minLength: 4)
                 Button {
-                    promoSnoozeYear = currentSchoolYear   // 이번 학년도 동안 숨김
+                    withAnimation(.spring(response: 0.35, dampingFraction: 1.0)) {
+                        promoSnoozeYear = currentSchoolYear   // 이번 학년도 동안 숨김
+                    }
                 } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary) }
                 .buttonStyle(.plain)
             }
