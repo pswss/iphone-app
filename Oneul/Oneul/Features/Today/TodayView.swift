@@ -35,6 +35,8 @@ struct TodayView: View {
 
     #if os(iOS)
     private var wide: Bool { hSize == .regular }
+    /// 아이패드 regular 폭 → 맥과 같은 주간 그리드 재사용. 아이폰(가로 regular 포함)은 기존 그대로.
+    private var padWeekMode: Bool { UIDevice.current.userInterfaceIdiom == .pad && wide }
     #else
     private var wide: Bool { true }   // macOS: 항상 넓은(regular) 레이아웃
     #endif
@@ -66,11 +68,11 @@ struct TodayView: View {
     var body: some View {
         ZStack {
             AppBackground()
-            // 아이패드도 검증된 단일 컬럼(narrowContent)을 중앙 정렬로 — 2단 레이아웃의 동작 불량 해결
+            // 아이폰은 검증된 단일 컬럼(narrowContent) 중앙 정렬, 아이패드 regular·맥은 주간 그리드가 전체 폭 사용
             #if os(macOS)
             narrowContent   // 맥: 주 그리드가 창 전체 폭을 알뜰히 사용
             #else
-            narrowContent.frame(maxWidth: wide ? 760 : .infinity)
+            narrowContent.frame(maxWidth: (wide && !padWeekMode) ? 760 : .infinity)
             #endif
         }
         .overlay(alignment: .top) { clipboardChip }          // 복사/잘라내기 활성 표시 + 취소(빈 곳 추가 하이재킹 방지)
@@ -214,21 +216,18 @@ struct TodayView: View {
             collapsingChrome   // 헤더·D-Day·캘린더·타임라인이 아래→위 순으로 하나씩 계단식 접힘
 
             #if os(iOS)
-            DayPager(selectedDay: $selectedDay, refreshID: gridToken, swipeDisabled: gridInteracting) { day in   // UIPageViewController 3페이지 재사용
-                gridPage(day)
+            if padWeekMode {
+                // 아이패드 regular: 맥 주간 그리드 재사용 — 한 주(월~일) 7열을 한눈에
+                macDayNav
+                weekGrid
+            } else {
+                DayPager(selectedDay: $selectedDay, refreshID: gridToken, swipeDisabled: gridInteracting) { day in   // UIPageViewController 3페이지 재사용
+                    gridPage(day)
+                }
             }
             #else
             macDayNav
-            MacWeekGrid(weekStart: weekStart(of: selectedDay),
-                        dayPlan: { dayPlan(for: $0) },
-                        onEdit: { editing = $0 },
-                        onAdd: { addStart = $0; showingAdd = true },
-                        previewStart: { previewFor($0) },   // 추가 시트 열려 있는 동안 점선 미리보기(iOS와 동일)
-                        isSpecial: { hasDayMarker($0) },
-                        scrollHour: $sharedScrollHour)   // macOS: 한 주(월~일) 7열을 한눈에
-                .padding(.horizontal, 12)
-                // .id(gridToken) 금지 — 데이터 변경마다 뷰 아이덴티티가 바뀌면 드래그/리사이즈 커밋 때
-                // 스크롤이 초기 위치로 점프하고 선택이 풀림. 맥은 상태 기반 갱신으로 충분(미리보기도 안 씀).
+            weekGrid
             #endif
         }
         .padding(.top, 8)
@@ -238,8 +237,20 @@ struct TodayView: View {
         }
     }
 
-    #if os(macOS)
-    // macOS 주 이동 컨트롤 — ‹ / 오늘 / › + Left/Right 화살표 단축키(주 그리드라 한 주씩 이동).
+    // 주간 그리드(맥·아이패드 regular 공용) — 상태 기반 갱신, .id(gridToken) 금지
+    // (데이터 변경마다 뷰 아이덴티티가 바뀌면 드래그/리사이즈 커밋 때 스크롤 점프·선택 풀림)
+    private var weekGrid: some View {
+        MacWeekGrid(weekStart: weekStart(of: selectedDay),
+                    dayPlan: { dayPlan(for: $0) },
+                    onEdit: { editing = $0 },
+                    onAdd: { addStart = $0; showingAdd = true },
+                    previewStart: { previewFor($0) },   // 추가 시트 열려 있는 동안 점선 미리보기
+                    isSpecial: { hasDayMarker($0) },
+                    scrollHour: $sharedScrollHour)
+            .padding(.horizontal, 12)
+    }
+
+    // 주 이동 컨트롤(맥·아이패드 regular) — ‹ / 오늘 / › + Left/Right 화살표 단축키(주 그리드라 한 주씩 이동).
     private var macDayNav: some View {
         HStack(spacing: 12) {
             Button { shiftWeek(-1) } label: { Image(systemName: "chevron.left") }
@@ -268,7 +279,6 @@ struct TodayView: View {
         let c = Calendar.current
         return c.dateInterval(of: .weekOfYear, for: day)?.start ?? c.startOfDay(for: day)
     }
-    #endif
 
     private let compactTitleH: CGFloat = 34
 
@@ -285,11 +295,11 @@ struct TodayView: View {
             chromeRow(index: 0, order: 3) { header }
             chromeRow(index: 1, order: 2) { unifiedBand }   // 주요 알림(시험 D-Day·방학) — 독립 위젯 행
             #if os(iOS)
-            chromeRow(index: 2, order: 1) { CalendarBar(selectedDay: $selectedDay,
-                                                     isSpecial: { hasDayMarker($0) }) }   // 맥은 주 그리드가 대신함 → 주간 스트립 불필요
-            #endif
-            #if os(iOS)
-            chromeRow(index: 3, order: 0) { timelineCard(plan, live: Calendar.current.isDateInToday(selectedDay)) }   // 맥은 주 그리드가 타임라인 → 하루짜리 타임라인 카드 불필요
+            if !padWeekMode {   // 주간 그리드 모드(아이패드 regular)는 맥처럼 스트립·타임라인 카드 불필요
+                chromeRow(index: 2, order: 1) { CalendarBar(selectedDay: $selectedDay,
+                                                         isSpecial: { hasDayMarker($0) }) }   // 맥은 주 그리드가 대신함 → 주간 스트립 불필요
+                chromeRow(index: 3, order: 0) { timelineCard(plan, live: Calendar.current.isDateInToday(selectedDay)) }   // 맥은 주 그리드가 타임라인 → 하루짜리 타임라인 카드 불필요
+            }
             #endif
         }
         .padding(.horizontal, 16)
@@ -735,8 +745,7 @@ private extension View {
 }
 
 
-#if os(macOS)
-/// 맥 주 그리드 — 한 주(월~일) 7일을 가로로 나란히. 첫 열만 시각축, 세로 스크롤 공유.
+/// 주간 그리드(맥·아이패드 regular) — 한 주(월~일) 7일을 가로로 나란히. 첫 열만 시각축, 세로 스크롤 공유.
 struct MacWeekGrid: View {
     let weekStart: Date
     let dayPlan: (Date) -> DayPlan
@@ -922,7 +931,6 @@ struct MacWeekGrid: View {
         let openRight: Bool
     }
 }
-#endif
 
 // MARK: - 일정 검색 시트 — 제목·장소 매칭, 결과 탭 → 그 날짜로 이동
 private struct EventSearchSheet: View {
