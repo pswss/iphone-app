@@ -17,6 +17,10 @@ extension Notification.Name {
 @main
 struct OneulApp: App {
     let container = Persistence.makeContainer()
+    #if os(macOS)
+    @AppStorage("menuBarTimeline") private var menuBarTimeline = true   // 메뉴바 타임라인 표시(설정 토글)
+    @AppStorage("menuBarAI") private var menuBarAI = true               // 메뉴바 AI 표시(설정 토글)
+    #endif
 
     init() {
         _ = NotificationManager.shared   // delegate 연결(권한 요청은 온보딩 완료 후 — HIG 컨텍스트 요청)
@@ -79,7 +83,8 @@ struct OneulApp: App {
         }
 
         // 타임라인 = 메뉴바 아이콘 (클릭→오늘 일정 한눈에) — 위에서 미끄러져 내려오는 등장
-        MenuBarExtra(AppLanguage.shared.tr("Oneul 타임라인"), systemImage: "calendar.day.timeline.left") {
+        MenuBarExtra(AppLanguage.shared.tr("Oneul 타임라인"), systemImage: "calendar.day.timeline.left",
+                     isInserted: $menuBarTimeline) {
             MenuBarTimelineView()
                 .modelContainer(container)
                 .frame(width: 340)
@@ -89,7 +94,7 @@ struct OneulApp: App {
         .menuBarExtraStyle(.window)
 
         // AI = 메뉴바 상단 ✨ (클릭→자연어 입력 팝오버, 바깥 클릭으로 닫힘) — 반짝 튀어나오는 등장
-        MenuBarExtra("Oneul AI", systemImage: "sparkles") {
+        MenuBarExtra("Oneul AI", systemImage: "sparkles", isInserted: $menuBarAI) {
             AIScheduleView()
                 .modelContainer(container)
                 .frame(width: 420)

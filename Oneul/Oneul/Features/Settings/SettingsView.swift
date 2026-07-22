@@ -40,6 +40,11 @@ struct SettingsView: View {
                         sectionTitle(lang.tr("알림 설정"))
                         notificationCard
 
+                        #if os(macOS)
+                        sectionTitle(lang.tr("메뉴 막대"))
+                        menuBarCard
+                        #endif
+
                         sectionTitle(lang.tr("가져오기"))
                         calendarImportCard
 
@@ -64,6 +69,29 @@ struct SettingsView: View {
             .navigationTitle(lang.tr("설정"))
         }
     }
+
+    #if os(macOS)
+    // MARK: 메뉴 막대 아이콘 켜기/끄기
+    @AppStorage("menuBarTimeline") private var menuBarTimeline = true
+    @AppStorage("menuBarAI") private var menuBarAI = true
+
+    private var menuBarCard: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Label(lang.tr("타임라인"), systemImage: "calendar.day.timeline.left")
+                Spacer()
+                Toggle("", isOn: $menuBarTimeline).labelsHidden().tint(Color.appAccent)
+            }
+            HStack {
+                Label("AI", systemImage: "sparkles")
+                Spacer()
+                Toggle("", isOn: $menuBarAI).labelsHidden().tint(Color.appAccent)
+            }
+        }
+        .padding(14)
+        .glassCard(cornerRadius: 22)
+    }
+    #endif
 
     // MARK: 알림 — 권한 상태 + 시험 전날 알림 끄기/시각 변경
     @Environment(\.scenePhase) private var scenePhase

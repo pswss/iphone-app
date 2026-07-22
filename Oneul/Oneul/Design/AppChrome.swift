@@ -413,6 +413,7 @@ final class AppLanguage {
         "오늘로": "Go to Today",
         "이전 주": "Previous Week",
         "다음 주": "Next Week",
-        "Oneul 타임라인": "Oneul Timeline"
+        "Oneul 타임라인": "Oneul Timeline",
+        "메뉴 막대": "Menu Bar"
     ]
 }
