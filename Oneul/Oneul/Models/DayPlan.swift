@@ -4,7 +4,7 @@ import SwiftUI   // color(of:) — EventPalette Color 반환용
 /// 하루치 일정을 받아 무지개 바/Live Activity에 필요한 값들을 계산하는 순수 로직.
 /// UI·위젯·Live Activity가 모두 같은 규칙(색=시간순, 현재/다음 판정)을 쓰도록 한 곳에 모읍니다.
 struct DayPlan {
-    /// 시간 순으로 정렬된 일정(색 인덱스 = 배열 인덱스).
+    /// 시간 순으로 정렬된 일정.
     let events: [ScheduleEvent]
     /// 바가 그릴 하루 범위.
     let dayStart: Date
@@ -51,6 +51,11 @@ struct DayPlan {
     /// 종일 배너 대상 — 이틀 이상 걸치는 일정 + 하루짜리 데이마커(생일·기념일·종일격).
     var multiDayEvents: [ScheduleEvent] { events.filter { $0.isMultiDay() || $0.isDayMarker() } }
 
+    /// 현재/다음은 당일 시간제 일정 우선. 없는 날에만 장기·종일 일정을 쓴다.
+    private var statusEvents: [ScheduleEvent] {
+        singleDayEvents.isEmpty ? multiDayEvents : singleDayEvents
+    }
+
     /// 0...1 사이의 가로 위치(바 안에서의 비율).
     func fraction(for date: Date) -> Double {
         let total = dayEnd.timeIntervalSince(dayStart)
@@ -61,31 +66,32 @@ struct DayPlan {
 
     /// 지금 진행 중인 일정.
     func current(at now: Date = .now) -> ScheduleEvent? {
-        events.first { now >= $0.start && now < $0.end }
+        statusEvents.first { now >= $0.start && now < $0.end }
     }
 
     /// 아직 시작 안 한 다음 일정.
     func next(at now: Date = .now) -> ScheduleEvent? {
-        events.first { $0.start > now }
+        statusEvents.first { $0.start > now }
     }
 
-    /// 색 인덱스(시간 순서).
+    /// 색 인덱스(당일 시간제 일정 순서). 종일 일정이 앞에 있어도 첫 시간제 일정은 0.
     func colorIndex(of event: ScheduleEvent) -> Int {
-        events.firstIndex(where: { $0.id == event.id }) ?? 0
+        singleDayEvents.firstIndex(where: { $0.id == event.id })
+            ?? events.firstIndex(where: { $0.id == event.id }) ?? 0
     }
 
     /// 일정 색 — 시간표 과목은 제목 해시 고정색(요일마다 동일), 그 외는 그날 시간순 무지개.
     func color(of event: ScheduleEvent) -> Color {
         event.source == "timetable"
             ? EventPalette.color(EventPalette.stableIndex(for: event.title))
-            : EventPalette.color(colorIndex(of: event), of: events.count)
+            : EventPalette.color(colorIndex(of: event), of: singleDayEvents.count)
     }
 
     /// 스냅샷(위젯·워치·LA)용 색 인덱스 — 시간표는 고정색 인덱스.
     /// ponytail: 스냅샷 렌더가 color(_:of:)를 쓰는 8개+ 일정 날엔 고정 인덱스도 보간 스케일을 타서
     /// 약간 밀릴 수 있음 — 문제 되면 스냅샷에 fixed 플래그 추가.
-    private func snapshotColorIndex(_ e: ScheduleEvent, order: Int) -> Int {
-        e.source == "timetable" ? EventPalette.stableIndex(for: e.title) : order
+    private func snapshotColorIndex(_ e: ScheduleEvent) -> Int {
+        e.source == "timetable" ? EventPalette.stableIndex(for: e.title) : colorIndex(of: e)
     }
 
     #if os(iOS)
@@ -102,7 +108,7 @@ struct DayPlan {
         let picked = Array(past.suffix(cap - futurePick.count)) + futurePick
         let snaps = picked.map { e in
             EventSnapshot(id: e.id, title: String(e.title.prefix(16)), start: e.start, end: e.end,
-                          colorIndex: snapshotColorIndex(e, order: colorIndex(of: e)), isMultiDay: e.isMultiDay() || e.isDayMarker())
+                          colorIndex: snapshotColorIndex(e), isMultiDay: e.isMultiDay() || e.isDayMarker())
         }
         let cur = current(at: now)
         let nxt = next(at: now)
@@ -121,9 +127,9 @@ struct DayPlan {
 
     /// 애플워치로 보낼 오늘 일정 스냅샷.
     func watchPayload(dayLabel: String, at now: Date = .now) -> WatchSchedulePayload {
-        let snaps = events.enumerated().map { index, e in
+        let snaps = events.map { e in
             EventSnapshot(id: e.id, title: e.title, start: e.start, end: e.end,
-                          colorIndex: snapshotColorIndex(e, order: index), isMultiDay: e.isMultiDay() || e.isDayMarker())
+                          colorIndex: snapshotColorIndex(e), isMultiDay: e.isMultiDay() || e.isDayMarker())
         }
         let cur = current(at: now)
         let nxt = next(at: now)
@@ -136,9 +142,9 @@ struct DayPlan {
 
     /// 홈 화면 위젯으로 넘길 오늘 스냅샷(App Group 공유). contentState()와 같은 값을 ActivityKit 비의존 형태로.
     func homeSnapshot(dayLabel: String, at now: Date = .now) -> HomeSnapshot {
-        let snaps = events.enumerated().map { index, e in
+        let snaps = events.map { e in
             EventSnapshot(id: e.id, title: e.title, start: e.start, end: e.end,
-                          colorIndex: snapshotColorIndex(e, order: index), isMultiDay: e.isMultiDay() || e.isDayMarker())
+                          colorIndex: snapshotColorIndex(e), isMultiDay: e.isMultiDay() || e.isDayMarker())
         }
         let cur = current(at: now)
         let nxt = next(at: now)

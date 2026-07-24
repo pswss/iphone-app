@@ -48,7 +48,7 @@ struct WidgetTimelineBar: View {
                 let isOverlap = sl.eventIndices.count > 1
                 for i in sl.eventIndices.sorted(by: { single[$0].start > single[$1].start }) {
                     let e = single[i]
-                    let color = EventPalette.color(e.colorIndex, of: segments.count)
+                    let color = EventPalette.color(e.colorIndex, of: single.count)
                     let isCurrent = now >= e.start && now < e.end
                     let isPast = now >= e.end
                     let f0 = min(max(e.start.timeIntervalSince(sl.start) / span, 0), 1)
