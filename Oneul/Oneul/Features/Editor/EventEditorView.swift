@@ -141,6 +141,12 @@ struct EventEditorView: View {
                     Button(isEditing ? lang.tr("저장") : lang.tr("추가"), action: save)
                         .bold().tint(Color.appAccentText)
                         .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
+                        .confirmationDialog(lang.tr("반복 일정 수정"), isPresented: $showScopeOptions,
+                                            titleVisibility: .visible) {
+                            Button(lang.tr("이 일정만 수정")) { performSave(singleOnly: true) }
+                            Button(lang.tr("이후 일정 모두 수정")) { performSave(singleOnly: false) }
+                            Button(lang.tr("취소"), role: .cancel) {}
+                        }
                 }
                 #if os(iOS)
                 ToolbarItemGroup(placement: .keyboard) {
@@ -153,11 +159,6 @@ struct EventEditorView: View {
                                                                set: { if !$0 { saveError = nil } })) {
                 Button(lang.tr("확인"), role: .cancel) {}
             } message: { Text(saveError ?? "") }
-            .confirmationDialog(lang.tr("반복 일정 수정"), isPresented: $showScopeOptions, titleVisibility: .visible) {
-                Button(lang.tr("이 일정만 수정")) { performSave(singleOnly: true) }
-                Button(lang.tr("이후 일정 모두 수정")) { performSave(singleOnly: false) }
-                Button(lang.tr("취소"), role: .cancel) {}
-            }
             .onAppear(perform: load)
         }
     }
