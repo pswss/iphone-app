@@ -373,7 +373,7 @@ struct AIScheduleView: View {
             errorMessage = lang.tr("사진을 불러오지 못했어요. 다른 사진으로 시도해 주세요.")
             return
         }
-        let text = (try? await Self.recognizeText(in: data)) ?? ""
+        let text = await Self.recognizeText(in: data)
         isLoading = false
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             errorMessage = lang.tr("일정 관련 사진이 아닌 것 같아요. 시간표나 일정표가 보이는 사진을 올려 주세요.")
@@ -382,8 +382,25 @@ struct AIScheduleView: View {
         await generate(text: text, fromPhoto: true)
     }
 
-    /// Vision 문서 인식 — 표는 행/열을 보존하고, 일반 문서는 전체 텍스트로 넘긴다.
-    private static func recognizeText(in data: Data) async throws -> String {
+    /// Vision 좌표로 시간표를 복원하고, 확신이 없으면 문서 표·전체 텍스트로 폴백한다.
+    private static func recognizeText(in data: Data) async -> String {
+        var textRequest = RecognizeTextRequest()
+        textRequest.recognitionLevel = .accurate
+        textRequest.recognitionLanguages = [
+            Locale.Language(identifier: "ko-KR"),
+            Locale.Language(identifier: "en-US")
+        ]
+
+        let boxes = ((try? await textRequest.perform(on: data)) ?? []).map { observation in
+            let rect = observation.boundingRegion.boundingBox.cgRect
+            return PhotoTextBox(text: observation.transcript, x: rect.origin.x, y: rect.origin.y,
+                                width: rect.width, height: rect.height)
+        }
+        if let normalized = PhotoScheduleLayout.normalizedScheduleText(boxes: boxes, now: .now, calendar: .current),
+           !normalized.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return normalized
+        }
+
         var request = RecognizeDocumentsRequest()
         request.textRecognitionOptions.recognitionLanguages = [
             Locale.Language(identifier: "ko-KR"),
@@ -392,17 +409,16 @@ struct AIScheduleView: View {
         request.textRecognitionOptions.automaticallyDetectLanguage = true
         request.textRecognitionOptions.useLanguageCorrection = true
 
-        let documents = try await request.perform(on: data).map(\.document)
+        let documents = (try? await request.perform(on: data).map(\.document)) ?? []
         let transcript = documents.map { $0.text.transcript }.joined(separator: "\n")
         let tables = documents.flatMap(\.tables)
-        guard !tables.isEmpty else { return transcript }
-        let tableText = tables.map { table in
+        let documentText = tables.isEmpty ? transcript : "표(TSV):\n" + tables.map { table in
             table.rows.map { row in
                 row.map { $0.content.text.transcript.replacingOccurrences(of: "\n", with: " ") }
                     .joined(separator: "\t")
             }.joined(separator: "\n")
-        }.joined(separator: "\n\n")
-        return "표(TSV):\n\(tableText)\n\n문서 전체 텍스트:\n\(transcript)"
+        }.joined(separator: "\n\n") + "\n\n문서 전체 텍스트:\n\(transcript)"
+        return documentText
     }
 
     private func generate(text rawText: String, fromPhoto: Bool = false) async {

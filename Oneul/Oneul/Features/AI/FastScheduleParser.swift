@@ -3,6 +3,243 @@ import Foundation
 import MapKit
 #endif
 
+/// Vision OCR result in normalized image coordinates (origin at bottom-left).
+struct PhotoTextBox {
+    let text: String
+    let x: Double
+    let y: Double
+    let width: Double
+    let height: Double
+}
+
+/// Rebuilds timetable rows from OCR geometry before handing them to `FastScheduleParser`.
+enum PhotoScheduleLayout {
+    private struct Item {
+        let index: Int
+        let box: PhotoTextBox
+        var midX: Double { box.x + box.width / 2 }
+        var midY: Double { box.y + box.height / 2 }
+    }
+
+    private struct Header {
+        let item: Item
+        let weekday: Int
+    }
+
+    private struct Row {
+        let item: Item
+        let start: Int
+        let startMinute: Int
+        let end: Int
+        let endMinute: Int
+    }
+
+    private struct Entry {
+        let weekday: Int
+        let start: Int
+        let startMinute: Int
+        let end: Int
+        let endMinute: Int
+        let title: String
+    }
+
+    /// Returns schedule lines understood by `FastScheduleParser`, or nil when geometry is not a timetable.
+    static func normalizedScheduleText(boxes: [PhotoTextBox], now: Date,
+                                       calendar: Calendar = .current) -> String? {
+        let items = boxes.enumerated().compactMap { index, box -> Item? in
+            let text = clean(box.text)
+            guard !text.isEmpty, box.width > 0, box.height > 0 else { return nil }
+            return Item(index: index, box: PhotoTextBox(text: text, x: box.x, y: box.y,
+                                                        width: box.width, height: box.height))
+        }
+        let headers = items.compactMap { item in weekday(item.box.text).map { Header(item: item, weekday: $0) } }
+            .sorted { $0.item.midX < $1.item.midX }
+        guard headers.count >= 2 else { return nil }
+
+        let panels = splitHeaders(headers)
+        var entries: [Entry] = []
+        var used = Set(headers.map { $0.item.index })
+
+        for panelIndex in panels.indices {
+            let panel = panels[panelIndex]
+            let left = panelIndex == 0 ? -Double.infinity : panels[panelIndex - 1].last!.item.midX
+            let headerY = panel.map { $0.item.midY }.min()!
+            let timeItems = items.filter {
+                $0.midX > left && $0.midX < panel[0].item.midX && $0.midY < headerY && rawTime($0.box.text) != nil
+            }.sorted { $0.midY > $1.midY }
+            let rows = resolveRows(timeItems)
+            guard !rows.isEmpty else { return nil }
+            used.formUnion(rows.map { $0.item.index })
+
+            let centers = panel.map { $0.item.midX }
+            let spacing = centers.count > 1
+                ? zip(centers, centers.dropFirst()).map { $1 - $0 }.sorted()[centers.count / 2 - 1]
+                : max(0.05, panel[0].item.box.width * 1.5)
+            let xMin = centers[0] - spacing / 2
+            let xMax = centers.last! + spacing / 2
+            let rowCenters = rows.map { $0.item.midY }
+            let top = (headerY + rowCenters[0]) / 2
+            let bottomGap = rows.count > 1 ? rowCenters[rows.count - 2] - rowCenters.last! : max(0.05, rows[0].item.box.height * 2)
+            let bottom = rowCenters.last! - bottomGap / 2
+
+            for item in items where !used.contains(item.index) && item.midX >= xMin && item.midX <= xMax
+                && item.midY <= top && item.midY >= bottom {
+                guard let title = subject(item.box.text) else { continue }
+                let column = centers.indices.min(by: { abs(centers[$0] - item.midX) < abs(centers[$1] - item.midX) })!
+                let rowIndex = rowCenters.indices.min(by: { abs(rowCenters[$0] - item.midY) < abs(rowCenters[$1] - item.midY) })!
+                let row = rows[rowIndex]
+                entries.append(Entry(weekday: panel[column].weekday, start: row.start,
+                                     startMinute: row.startMinute, end: row.end, endMinute: row.endMinute,
+                                     title: title))
+            }
+        }
+
+        guard !entries.isEmpty else { return nil }
+        entries.sort {
+            ($0.weekday, $0.start, $0.startMinute, $0.title) < ($1.weekday, $1.start, $1.startMinute, $1.title)
+        }
+        if let range = dateRange(in: items.map { $0.box.text }.joined(separator: " "), now: now, calendar: calendar) {
+            var lines: [String] = []
+            var day = range.start
+            while day <= range.end {
+                let weekday = calendar.component(.weekday, from: day)
+                let prefix = "\(calendar.component(.month, from: day))/\(calendar.component(.day, from: day))"
+                for entry in entries where entry.weekday == weekday {
+                    lines.append("\(prefix) \(clock(entry.start, entry.startMinute))~\(clock(entry.end, entry.endMinute)) \(entry.title)")
+                }
+                guard let next = calendar.date(byAdding: .day, value: 1, to: day) else { break }
+                day = next
+            }
+            return unique(lines).isEmpty ? nil : unique(lines).joined(separator: "\n")
+        }
+
+        let names = ["", "일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"]
+        return unique(entries.map {
+            "매주 \(names[$0.weekday]) \(clock($0.start, $0.startMinute))~\(clock($0.end, $0.endMinute)) \($0.title)"
+        }).joined(separator: "\n")
+    }
+
+    private static func splitHeaders(_ headers: [Header]) -> [[Header]] {
+        guard headers.count > 2 else { return [headers] }
+        let gaps = zip(headers, headers.dropFirst()).map { $1.item.midX - $0.item.midX }
+        let normal = gaps.sorted()[gaps.count / 2]
+        var result: [[Header]] = [[]]
+        for index in headers.indices {
+            if index > 0, gaps[index - 1] > max(0.08, normal * 1.6) { result.append([]) }
+            result[result.count - 1].append(headers[index])
+        }
+        return result
+    }
+
+    private static func resolveRows(_ items: [Item]) -> [Row] {
+        var result: [Row] = []
+        var previousEnd = 0
+        for item in items {
+            guard let raw = rawTime(item.box.text) else { continue }
+            var start = raw.start
+            var end = raw.end
+            if start <= 12 && end <= 12 {
+                while start < max(6, previousEnd) { start += 12 }
+                while end <= start { end += 12 }
+            } else if end <= start {
+                end += 24
+            }
+            guard start < 24, end <= 24, end > start else { continue }
+            result.append(Row(item: item, start: start, startMinute: raw.startMinute,
+                              end: end, endMinute: raw.endMinute))
+            previousEnd = end
+        }
+        return result
+    }
+
+    private static func rawTime(_ text: String) -> (start: Int, startMinute: Int, end: Int, endMinute: Int)? {
+        guard !text.contains("/") else { return nil }
+        let pattern = #"(?<!\d)(\d{1,2})(?::([0-5]\d))?\s*시?\s*[~\-–—]\s*(\d{1,2})(?::([0-5]\d))?\s*시?(?!\d)"#
+        guard let groups = captures(text, pattern), let start = Int(groups[1]), let end = Int(groups[3]),
+              start <= 23, end <= 23 else { return nil }
+        return (start, Int(groups[2]) ?? 0, end, Int(groups[4]) ?? 0)
+    }
+
+    private static func weekday(_ text: String) -> Int? {
+        let tokens = text.lowercased().components(separatedBy: CharacterSet.alphanumerics.union(
+            CharacterSet(charactersIn: "가나다라마바사아자차카타파하")).inverted).filter { !$0.isEmpty }
+        guard (1...2).contains(tokens.count) else { return nil }
+        let values = tokens.compactMap { token -> Int? in
+            switch token {
+            case "sun", "sunday", "일", "일요일": return 1
+            case "mon", "monday", "월", "월요일": return 2
+            case "tue", "tues", "tuesday", "화", "화요일": return 3
+            case "wed", "wednesday", "수", "수요일": return 4
+            case "thu", "thur", "thurs", "thursday", "목", "목요일": return 5
+            case "fri", "friday", "금", "금요일": return 6
+            case "sat", "saturday", "토", "토요일": return 7
+            default: return nil
+            }
+        }
+        guard values.count == tokens.count, let first = values.first,
+              values.allSatisfy({ $0 == first }) else { return nil }
+        return first
+    }
+
+    private static func subject(_ text: String) -> String? {
+        let value = clean(text)
+        let key = value.replacingOccurrences(of: " ", with: "").lowercased()
+        guard !["-", "–", "—", ""].contains(key), rawTime(value) == nil,
+              dateRange(in: value, now: Date(), calendar: .current) == nil else { return nil }
+        let excluded = ["점심", "중식", "lunch", "저녁", "석식", "dinner", "식사", "breakfast",
+                        "시간표", "일정표", "timetable", "schedule", "기간", "date"]
+        guard !excluded.contains(where: key.contains) else { return nil }
+        return value
+    }
+
+    private static func dateRange(in text: String, now: Date,
+                                  calendar: Calendar) -> (start: Date, end: Date)? {
+        let pattern = #"(?<!\d)(\d{1,2})\s*/\s*(\d{1,2})\s*[~\-–—]\s*(\d{1,2})\s*/\s*(\d{1,2})(?!\d)"#
+        guard let groups = captures(text, pattern), let sm = Int(groups[1]), let sd = Int(groups[2]),
+              let em = Int(groups[3]), let ed = Int(groups[4]) else { return nil }
+        func day(_ year: Int, _ month: Int, _ day: Int) -> Date? {
+            guard let date = calendar.date(from: DateComponents(year: year, month: month, day: day)),
+                  calendar.component(.year, from: date) == year,
+                  calendar.component(.month, from: date) == month,
+                  calendar.component(.day, from: date) == day else { return nil }
+            return calendar.startOfDay(for: date)
+        }
+        let today = calendar.startOfDay(for: now)
+        let year = calendar.component(.year, from: today)
+        let ranges = (year - 1...year + 1).compactMap { startYear -> (start: Date, end: Date)? in
+            let endYear = (em, ed) < (sm, sd) ? startYear + 1 : startYear
+            guard let start = day(startYear, sm, sd), let end = day(endYear, em, ed), end >= start else { return nil }
+            return (start, end)
+        }
+        if let current = ranges.first(where: { $0.start <= today && today <= $0.end }) { return current }
+        return ranges.filter { $0.start > today }.min(by: { $0.start < $1.start })
+    }
+
+    private static func captures(_ text: String, _ pattern: String) -> [String]? {
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+        let source = text as NSString
+        guard let match = regex.firstMatch(in: text, range: NSRange(location: 0, length: source.length)) else { return nil }
+        return (0..<match.numberOfRanges).map {
+            let range = match.range(at: $0)
+            return range.location == NSNotFound ? "" : source.substring(with: range)
+        }
+    }
+
+    private static func clean(_ text: String) -> String {
+        text.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func clock(_ hour: Int, _ minute: Int) -> String {
+        String(format: "%02d:%02d", hour, minute)
+    }
+
+    private static func unique(_ lines: [String]) -> [String] {
+        var seen = Set<String>()
+        return lines.filter { seen.insert($0).inserted }
+    }
+}
+
 /// 규칙 기반 '빠른 경로' 파서 — 온디바이스 모델을 부르기 전에 먼저 시도한다.
 ///
 /// 목적: 단순한 "일정 추가" 문장(특히 날짜/시간/내용이 규칙적인 표·여러 줄 입력)은
@@ -735,7 +972,8 @@ enum FastScheduleParser {
             if !days.isEmpty { return (.weekly, days) }
         }
         // '매주' 없이 요일 뭉치만("월수금 수학") — 요일 2개 이상 나열은 매주 반복으로 본다(학원 관행)
-        if let g = match(s, #"(?<![가-힣0-9])([월화수목금토일]{2,7})(?:\s*요일)?(?![가-힣])"#) {
+        if absoluteMonthDay(s) == nil,
+           let g = match(s, #"(?<![가-힣0-9])([월화수목금토일]{2,7})(?:\s*요일)?(?![가-힣])"#) {
             let days = Set(g[1].compactMap { map[$0] })
             if days.count >= 2 { return (.weekly, days) }
         }
@@ -820,7 +1058,9 @@ enum FastScheduleParser {
             "월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일",
         ])
         // 요일 뭉치("월수금 수학")와 한 글자 요일("금 5시 수학") — 홀로 선 토큰만('수학'의 수, '8월'의 월은 보존)
-        s = removeRegex(s, #"(?<![가-힣0-9])[월화수목금토일]{2,7}(?:\s*요일)?(?![가-힣])"#)
+        if absoluteMonthDay(seg) == nil {
+            s = removeRegex(s, #"(?<![가-힣0-9])[월화수목금토일]{2,7}(?:\s*요일)?(?![가-힣])"#)
+        }
         s = removeRegex(s, #"(?<![가-힣0-9])[월화수목금토일](?![가-힣])"#)
 
         // 요청 어미 — "추가해줘/넣어 줘/등록해주세요/잡아줄래" 같은 명령 꼬리는 제목이 아님.
