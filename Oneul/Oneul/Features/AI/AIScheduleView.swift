@@ -22,7 +22,6 @@ struct AIScheduleView: View {
     @AppStorage("neisCode") private var neisCode = ""
     @AppStorage("neisName") private var neisName = ""
     @AppStorage("neisKind") private var neisKind = ""
-    @State private var speech = SpeechRecognizer()
     @FocusState private var editorFocused: Bool
     @AppStorage("aiMeridiemTipShown") private var meridiemTipShown = false   // 첫 진입 팁 1회
     @State private var showMeridiemTip = false
@@ -63,13 +62,11 @@ struct AIScheduleView: View {
             } message: {
                 Text(lang.tr("시간 앞에 '오전/오후'를 함께 적으면 훨씬 정확해요.\n예) 내일 오전 8시 수학 · 금요일 오후 5시 학원"))
             }
-            .onChange(of: speech.transcript) { _, t in if !t.isEmpty { inputText = t } }
             .onChange(of: pickedPhoto) { _, item in
                 guard let item else { return }
                 pickedPhoto = nil
                 Task { await generateFromPhoto(item) }
             }
-            .onDisappear { speech.stop() }
             #if os(iOS)
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
@@ -115,11 +112,11 @@ struct AIScheduleView: View {
             .lineLimit(nil)
             .padding(.horizontal, 14)
             .padding(.vertical, 14)
-            .padding(.trailing, 96)   // 사진·마이크 버튼 자리
+            .padding(.trailing, 58)   // 사진 버튼 자리
             .frame(maxWidth: .infinity, minHeight: 180, alignment: .topLeading)
             .glassCard(cornerRadius: 22)
             .overlay(alignment: .bottomTrailing) {
-                HStack(spacing: 4) { photoButton; micButton }.padding(10)
+                photoButton.padding(10)
             }
     }
 
@@ -130,32 +127,11 @@ struct AIScheduleView: View {
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(.secondary)
                 .frame(width: 46, height: 46)
-                .glassEffect(.regular.interactive(), in: Circle())
-                .contentShape(Circle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.glass)
+        .buttonBorderShape(.circle)
         .disabled(isLoading)
         .accessibilityLabel(lang.tr("사진으로 일정 추가"))
-    }
-
-    /// 탭 = 토글(롱프레스 전용은 고장으로 오인됨) — 재탭으로 즉시 취소. 작동 중엔 아이콘이 빨간색으로만 바뀜.
-    private var micButton: some View {
-        Button {
-            editorFocused = false
-            speech.onDenied = { errorMessage = lang.tr("마이크·음성 인식 권한이 꺼져 있어요. 시스템 설정에서 허용해 주세요.") }
-            speech.toggle()
-            Haptics.impact(.medium)
-        } label: {
-            Image(systemName: "mic.fill")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(speech.isRecording ? .red : .secondary)
-                .frame(width: 46, height: 46)
-                .glassEffect(.regular.interactive(), in: Circle())
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .animation(.easeInOut(duration: 0.18), value: speech.isRecording)
-        .accessibilityLabel(lang.tr(speech.isRecording ? "음성 입력 중지" : "음성 입력"))
     }
 
     private var canGenerate: Bool {
@@ -388,7 +364,7 @@ struct AIScheduleView: View {
     }
 
     /// 사진(시간표·일정표) → OCR 텍스트 → 기존 생성 파이프라인 재사용.
-    /// 일정 단서(숫자·요일)가 전혀 없거나 결과가 비면 "일정 사진이 아님" 안내.
+    /// 결과가 비면 "일정 사진이 아님" 안내.
     private func generateFromPhoto(_ item: PhotosPickerItem) async {
         errorMessage = nil; reply = nil
         isLoading = true
@@ -399,20 +375,34 @@ struct AIScheduleView: View {
         }
         let text = (try? await Self.recognizeText(in: data)) ?? ""
         isLoading = false
-        guard text.rangeOfCharacter(from: .decimalDigits) != nil || text.contains("요일") else {
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             errorMessage = lang.tr("일정 관련 사진이 아닌 것 같아요. 시간표나 일정표가 보이는 사진을 올려 주세요.")
             return
         }
         await generate(text: text, fromPhoto: true)
     }
 
-    /// Vision OCR — 한국어+영어, 줄 단위 텍스트로 합쳐 파서에 넘긴다.
+    /// Vision 문서 인식 — 표는 행/열을 보존하고, 일반 문서는 전체 텍스트로 넘긴다.
     private static func recognizeText(in data: Data) async throws -> String {
-        var request = RecognizeTextRequest()
-        request.recognitionLanguages = [Locale.Language(identifier: "ko-KR"),
-                                        Locale.Language(identifier: "en-US")]
-        let observations = try await request.perform(on: data)
-        return observations.compactMap { $0.topCandidates(1).first?.string }.joined(separator: "\n")
+        var request = RecognizeDocumentsRequest()
+        request.textRecognitionOptions.recognitionLanguages = [
+            Locale.Language(identifier: "ko-KR"),
+            Locale.Language(identifier: "en-US")
+        ]
+        request.textRecognitionOptions.automaticallyDetectLanguage = true
+        request.textRecognitionOptions.useLanguageCorrection = true
+
+        let documents = try await request.perform(on: data).map(\.document)
+        let transcript = documents.map { $0.text.transcript }.joined(separator: "\n")
+        let tables = documents.flatMap(\.tables)
+        guard !tables.isEmpty else { return transcript }
+        let tableText = tables.map { table in
+            table.rows.map { row in
+                row.map { $0.content.text.transcript.replacingOccurrences(of: "\n", with: " ") }
+                    .joined(separator: "\t")
+            }.joined(separator: "\n")
+        }.joined(separator: "\n\n")
+        return "표(TSV):\n\(tableText)\n\n문서 전체 텍스트:\n\(transcript)"
     }
 
     private func generate(text rawText: String, fromPhoto: Bool = false) async {

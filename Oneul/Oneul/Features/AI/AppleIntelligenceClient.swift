@@ -154,6 +154,11 @@ enum AppleAI {
 
     [반복] 매주/매일 등 반복이면 recurrence 설정. "매주 월수금" → recurrence=weekly, recurrenceWeekdays="mon,wed,fri". 반복 아니면 recurrence=none, recurrenceWeekdays="".
 
+    [OCR 표]
+    - 탭 표가 '교시/시간 + 요일 열'이면 각 과목 셀을 그 열 요일의 weekly 일정으로 만든다. 행의 시간 범위를 쓴다.
+    - '날짜/시간/내용/장소' 표면 데이터 행마다 별도 scheduleCreate로 만들고 장소를 보존한다.
+    - 표 TSV와 문서 전체 텍스트가 같은 내용을 반복할 수 있다. 같은 일정을 중복 생성하지 않는다.
+
     [수정/삭제 대상] 프롬프트의 기존 일정 목록에서 [번호]를 targetIndex에 넣는다. "전부/싹다/모두" 삭제면 bulk=true. 새 일정이면 targetIndex=0, bulk=false.
 
     [기타]

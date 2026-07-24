@@ -284,6 +284,8 @@ enum FastScheduleParser {
             ("일곱", "7"), ("여섯", "6"), ("다섯", "5"), ("네", "4"), ("세", "3"), ("두", "2"), ("한", "1"),
         ]
         var out = text
+        out = out.replacingOccurrences(of: #"[–—−]"#, with: "-", options: .regularExpression)
+        out = out.replacingOccurrences(of: #"[〜～]"#, with: "~", options: .regularExpression)
         for (ko, num) in map {
             // 앞이 한글이 아니고(단어 시작), 뒤가 '시'(단 '시간'·'시장' 등 제외)일 때만
             let pattern = "(?<![가-힣])\(ko)\\s*시(?![간장])"
@@ -300,8 +302,94 @@ enum FastScheduleParser {
         return out
     }
 
+    /// Vision 문서 인식이 보존한 TSV 표를 기존 파서가 이해하는 한 줄 일정들로 펼친다.
+    /// nil=지원 표 아님, ""=지원 표지만 행이 깨짐, text=전체 행 정규화 성공.
+    private static func normalizeScheduleTable(_ text: String, now: Date, cal: Calendar) -> String? {
+        let lines = text.components(separatedBy: .newlines)
+        for headerIndex in lines.indices where lines[headerIndex].contains("\t") {
+            let header = tableCells(lines[headerIndex])
+            let keys = header.map(tableKey)
+            let weekdays = keys.enumerated().compactMap { index, key -> (Int, Int)? in
+                AIDateResolver.weekdayIndex(key).map { (index, $0) }
+            }
+
+            if weekdays.count >= 2,
+               let timeIndex = keys.firstIndex(where: { ["시간", "시각", "time"].contains($0) }) {
+                let weekdayNames = ["", "일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"]
+                var schedules: [String] = []
+                for raw in lines.dropFirst(headerIndex + 1) {
+                    if raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !raw.contains("\t") { break }
+                    let row = tableCells(raw)
+                    let subjects = weekdays.compactMap { column, weekday -> (String, Int)? in
+                        guard row.indices.contains(column) else { return nil }
+                        let title = tableValue(row[column])
+                        return title.isEmpty ? nil : (title, weekday)
+                    }
+                    if subjects.isEmpty { continue }
+                    guard row.indices.contains(timeIndex), fastTime(row[timeIndex]) != nil else { return "" }
+                    for (title, weekday) in subjects {
+                        schedules.append("매주 \(weekdayNames[weekday]) \(row[timeIndex]) \(title)")
+                    }
+                }
+                return schedules.joined(separator: "\n")
+            }
+
+            let dateNames = ["날짜", "일자", "date"]
+            let timeNames = ["시간", "시각", "time"]
+            let titleNames = ["내용", "일정", "제목", "행사", "과목", "content", "event", "title", "subject"]
+            guard let dateIndex = keys.firstIndex(where: dateNames.contains),
+                  let timeIndex = keys.firstIndex(where: timeNames.contains),
+                  let titleIndex = keys.firstIndex(where: titleNames.contains) else { continue }
+            let locationIndex = keys.firstIndex(where: { ["장소", "위치", "location", "place"].contains($0) })
+            var schedules: [String] = []
+            for raw in lines.dropFirst(headerIndex + 1) {
+                if raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !raw.contains("\t") { break }
+                let row = tableCells(raw)
+                guard row.indices.contains(dateIndex), row.indices.contains(timeIndex), row.indices.contains(titleIndex) else { return "" }
+                if dateNames.contains(tableKey(row[dateIndex])) && timeNames.contains(tableKey(row[timeIndex])) { continue }
+                let date = normalizedTableDate(row[dateIndex])
+                let time = row[timeIndex]
+                let title = tableValue(row[titleIndex])
+                guard !title.isEmpty,
+                      detectDate(date, now: now, cal: cal, yearShift: 0) != nil,
+                      fastTime(time) != nil else { return "" }
+                let location = locationIndex.flatMap { row.indices.contains($0) ? tableValue(row[$0]) : nil } ?? ""
+                schedules.append("\(date) \(time) \(title)" + (location.isEmpty ? "" : " @{\(location)}"))
+            }
+            return schedules.joined(separator: "\n")
+        }
+        return nil
+    }
+
+    private static func tableCells(_ line: String) -> [String] {
+        line.split(separator: "\t", omittingEmptySubsequences: false).map { tableValue(String($0)) }
+    }
+
+    private static func tableValue(_ value: String) -> String {
+        let clean = value.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return ["-", "–", "—"].contains(clean) ? "" : clean
+    }
+
+    private static func tableKey(_ value: String) -> String {
+        tableValue(value).replacingOccurrences(of: " ", with: "").lowercased()
+    }
+
+    private static func normalizedTableDate(_ value: String) -> String {
+        let withoutYear = value.replacingOccurrences(
+            of: #"(?<!\d)\d{4}\s*(?:년|[-./])\s*(\d{1,2})\s*(?:월|[-./])\s*(\d{1,2})\s*일?\s*[.]?(?!\d)"#,
+            with: "$1/$2", options: .regularExpression)
+        return withoutYear.replacingOccurrences(
+            of: #"(?<!\d)(\d{1,2})\s*[.]\s*(\d{1,2})(?:\s*[.]\s*)?(?!\d)"#,
+            with: "$1/$2", options: .regularExpression)
+    }
+
     static func parseEvents(text: String, now: Date, cal: Calendar = .current,
                             context: AIParseContext = AIParseContext()) -> [ParsedEvent]? {
+        if let tableText = normalizeScheduleTable(text, now: now, cal: cal) {
+            guard !tableText.isEmpty else { return nil }
+            return parseEvents(text: tableText, now: now, cal: cal, context: context)
+        }
         let trimmed = normalizeKoreanTime(text.trimmingCharacters(in: .whitespacesAndNewlines))
         guard !trimmed.isEmpty else { return nil }
 
@@ -679,7 +767,8 @@ enum FastScheduleParser {
     static func extractTitle(_ seg: String) -> String {
         var s = seg
 
-        // @장소(숫자 없어 안전)
+        // 표 정규화의 @{여러 단어 장소} + 일반 @장소
+        s = removeRegex(s, #"@\{[^}\n]+\}"#)
         s = removeRegex(s, #"@\s*[가-힣A-Za-z0-9]+"#)
 
         // 시간대 표시(숫자 인접) + 정오/자정 — 장소구보다 먼저(장소구가 '2시'를 먼저 먹지 않게)
@@ -783,6 +872,9 @@ enum FastScheduleParser {
     // MARK: - 장소
 
     static func extractLocation(_ seg: String) -> String {
+        if let g = match(seg, #"@\{([^}\n]+)\}"#) {
+            return g[1].trimmingCharacters(in: .whitespacesAndNewlines)
+        }
         let deny: Set<String> = ["회의", "수업", "미팅", "모임", "파티", "행사", "발표", "세미나", "시험",
                                  "점심", "저녁", "아침", "오전", "오후"]
         let dateWords: Set<String> = ["오늘", "내일", "모레", "글피", "어제", "그제", "그저께",

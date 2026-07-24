@@ -40,13 +40,13 @@ enum AIDateResolver {
     /// 요일 문자열 → Calendar weekday(1=일…7=토). 매칭 안 되면 nil.
     static func weekdayIndex(_ s: String) -> Int? {
         switch s.trimmingCharacters(in: .whitespaces).lowercased() {
-        case "sun", "일", "일요일": return 1
-        case "mon", "월", "월요일": return 2
-        case "tue", "화", "화요일": return 3
-        case "wed", "수", "수요일": return 4
-        case "thu", "목", "목요일": return 5
-        case "fri", "금", "금요일": return 6
-        case "sat", "토", "토요일": return 7
+        case "sun", "sunday", "일", "일요일": return 1
+        case "mon", "monday", "월", "월요일": return 2
+        case "tue", "tuesday", "화", "화요일": return 3
+        case "wed", "wednesday", "수", "수요일": return 4
+        case "thu", "thursday", "목", "목요일": return 5
+        case "fri", "friday", "금", "금요일": return 6
+        case "sat", "saturday", "토", "토요일": return 7
         default: return nil
         }
     }
