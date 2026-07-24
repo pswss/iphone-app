@@ -28,6 +28,7 @@ enum BackgroundRefresh {
         schedule()   // 다음 회차 예약
         Task { @MainActor in
             let context = ModelContext(container)
+            EventActions.replenishOpenEndedWeeklySeries(in: context)
             let events = (try? context.fetch(FetchDescriptor<ScheduleEvent>())) ?? []
             NotificationManager.shared.reschedule(for: events)   // 앱을 안 열어도 64슬롯 알림 최신화
             let shown = DayPlan.upcoming(events: events)   // 워치용

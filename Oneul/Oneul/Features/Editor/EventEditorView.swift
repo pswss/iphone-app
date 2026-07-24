@@ -34,6 +34,7 @@ struct EventEditorView: View {
 
     private enum Field { case title }
     private var isEditing: Bool { event != nil }
+    private var effectiveEndDate: Date? { hasEndDate ? endDate : nil }
     private var rowAnim: Animation? { reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 1.0) }
 
     private let reminderOptions: [(label: String, value: Int)] = [
@@ -276,11 +277,13 @@ struct EventEditorView: View {
                     }
                     if let last = series.map(\.start).max() {
                         endDate = last
-                        hasEndDate = true
                     }
+                    hasEndDate = !series.contains { $0.recurrenceGeneratedThrough != nil }
+                } else {
+                    hasEndDate = event.recurrenceGeneratedThrough == nil
                 }
                 originalWeekdays = weekdays
-                originalEndDate = endDate
+                originalEndDate = effectiveEndDate
             }
         } else {
             let cal = Calendar.current
@@ -303,7 +306,7 @@ struct EventEditorView: View {
            recurrence.rawValue == event.recurrenceRaw,
            recurrence != .none,
            weekdays == originalWeekdays,
-           endDate == originalEndDate {
+           effectiveEndDate == originalEndDate {
             showScopeOptions = true
             return
         }
@@ -331,7 +334,7 @@ struct EventEditorView: View {
                                               reminderMinutes2: reminderMinutes != -1 ? reminderMinutes2 : -1,
                                               recurrence: recurrence,
                                               weekdays: recurrence == .weekly ? weekdays : [],
-                                              endDate: hasEndDate ? endDate : nil, pinned: pinned, in: context)
+                                              endDate: effectiveEndDate, pinned: pinned, in: context)
             } else {
                 EventActions.claimFromSource(event)   // 시간표 일정이면 원본에 톰스톤 + 사용자 소유로
                 event.title = title; event.location = location
@@ -347,7 +350,7 @@ struct EventEditorView: View {
                                 reminderMinutes2: reminderMinutes != -1 ? reminderMinutes2 : -1,
                                 recurrence: recurrence,
                                 weekdays: recurrence == .weekly ? weekdays : [],
-                                endDate: hasEndDate ? endDate : nil, pinned: pinned, into: context)
+                                endDate: effectiveEndDate, pinned: pinned, into: context)
         }
         Haptics.notify(.success)   // 저장 확인 촉각 피드백
         dismiss()

@@ -19,6 +19,8 @@ final class ScheduleEvent {
     var recurrenceRaw: String = "none"
     /// 반복 시리즈 식별자. 빈 값이면 단일 일정.
     var seriesID: String = ""
+    /// 종료일 없는 반복에서 이미 생성 범위를 확인한 마지막 날짜. nil이면 명시적 종료/기존 시리즈.
+    var recurrenceGeneratedThrough: Date? = nil
     /// 출처 태그. ""=사용자, "timetable"=학교 시간표, "academic"=학사일정. 재가져오기 시 삭제 기준.
     var source: String = ""
     /// 사용자가 '주요 일정'으로 지정 → 상단 스와이프 밴드에 D-day로 표시.
@@ -35,6 +37,7 @@ final class ScheduleEvent {
         reminderMinutes2: Int = -1,
         recurrenceRaw: String = "none",
         seriesID: String = "",
+        recurrenceGeneratedThrough: Date? = nil,
         source: String = "",
         pinned: Bool = false
     ) {
@@ -48,6 +51,7 @@ final class ScheduleEvent {
         self.reminderMinutes2 = reminderMinutes2
         self.recurrenceRaw = recurrenceRaw
         self.seriesID = seriesID
+        self.recurrenceGeneratedThrough = recurrenceGeneratedThrough
         self.source = source
         self.pinned = pinned
     }
@@ -182,9 +186,22 @@ enum SourceTombstones {
 }
 
 enum EventActions {
+    private struct WeeklyTemplate: Hashable {
+        let title: String
+        let location: String
+        let notes: String
+        let reminderMinutes: Int
+        let reminderMinutes2: Int
+        let pinned: Bool
+        let source: String
+        let hour: Int
+        let minute: Int
+        let durationSeconds: Int
+    }
+
     /// 일정 생성.
     /// - 반복이 매주이고 `weekdays`(1=일…7=토)가 있으면 그 요일마다 생성.
-    /// - `endDate`가 있으면 그날까지, 없으면 1년(최대 800개)까지.
+    /// - `endDate`가 있으면 그날까지. 종료일 없는 주간 반복은 우선 1년치를 만들고 자동 보충한다.
     static func create(
         title: String, start: Date, end: Date, location: String, notes: String = "",
         reminderMinutes: Int, reminderMinutes2: Int = -1, recurrence: Recurrence,
@@ -206,24 +223,29 @@ enum EventActions {
         let cal = Calendar.current
         let seriesID = UUID().uuidString
         let horizon = endDate ?? cal.date(byAdding: .year, value: 1, to: start) ?? start
+        let weeklyDays = recurrence == .weekly
+            ? (weekdays.isEmpty ? Set([cal.component(.weekday, from: start)]) : weekdays)
+            : []
+        let generatedThrough = recurrence == .weekly && endDate == nil ? cal.startOfDay(for: horizon) : nil
         let cap = 800
         var count = 0
 
-        if recurrence == .weekly && !weekdays.isEmpty {
+        if recurrence == .weekly && !weeklyDays.isEmpty {
             // 선택한 요일마다 매주, 종료일까지
             let h = cal.component(.hour, from: start)
             let m = cal.component(.minute, from: start)
             var day = cal.startOfDay(for: start)
             let endDay = cal.startOfDay(for: horizon)
             while day <= endDay && count < cap {
-                if weekdays.contains(cal.component(.weekday, from: day)), !excludeDays.contains(day),
+                if weeklyDays.contains(cal.component(.weekday, from: day)), !excludeDays.contains(day),
                    let s = cal.date(bySettingHour: h, minute: m, second: 0, of: day), s >= start,
                    !SourceTombstones.contains(source: source, title: title, start: s) {
                     context.insert(ScheduleEvent(
                         title: title, start: s, end: s.addingTimeInterval(duration),
                         location: location, notes: notes, reminderMinutes: reminderMinutes,
                         reminderMinutes2: reminderMinutes2,
-                        recurrenceRaw: recurrence.rawValue, seriesID: seriesID, source: source, pinned: pinned))
+                        recurrenceRaw: recurrence.rawValue, seriesID: seriesID,
+                        recurrenceGeneratedThrough: generatedThrough, source: source, pinned: pinned))
                     count += 1
                 }
                 guard let next = cal.date(byAdding: .day, value: 1, to: day) else { break }
@@ -247,6 +269,94 @@ enum EventActions {
             }
         }
         try? context.save()
+    }
+
+    /// 종료일 없는 주간 반복의 미래 회차가 6개월 미만 남으면 다시 1년치까지 보충한다.
+    @discardableResult
+    static func replenishOpenEndedWeeklySeries(
+        now: Date = .now, calendar cal: Calendar = .current, in context: ModelContext
+    ) -> Int {
+        guard let all = try? context.fetch(FetchDescriptor<ScheduleEvent>()) else { return 0 }
+        let groups = Dictionary(grouping: all.filter {
+            $0.recurrenceGeneratedThrough != nil && $0.recurrenceRaw == Recurrence.weekly.rawValue && !$0.seriesID.isEmpty
+        }, by: \ScheduleEvent.seriesID)
+        let today = cal.startOfDay(for: now)
+        guard let refillThreshold = cal.date(byAdding: .month, value: 6, to: today),
+              let target = cal.date(byAdding: .year, value: 1, to: today) else { return 0 }
+
+        var insertedCount = 0
+        var changed = false
+        for (seriesID, series) in groups {
+            guard !series.isEmpty else { continue }
+
+            let generatedThrough = max(
+                series.compactMap(\.recurrenceGeneratedThrough).max() ?? .distantPast,
+                cal.startOfDay(for: series.map(\.start).max() ?? .distantPast)
+            )
+            guard generatedThrough < refillThreshold else { continue }
+
+            let weekdays = weeklyWeekdays(from: series, calendar: cal)
+            guard !weekdays.isEmpty, let template = weeklyTemplate(from: series, calendar: cal) else { continue }
+
+            var day = max(
+                cal.date(byAdding: .day, value: 1, to: generatedThrough) ?? target,
+                today
+            )
+            var additions = 0
+            while day <= target && additions < 800 {
+                if weekdays.contains(cal.component(.weekday, from: day)),
+                   let start = cal.date(bySettingHour: template.hour, minute: template.minute, second: 0, of: day) {
+                    context.insert(ScheduleEvent(
+                        title: template.title, start: start,
+                        end: start.addingTimeInterval(TimeInterval(template.durationSeconds)),
+                        location: template.location, notes: template.notes,
+                        reminderMinutes: template.reminderMinutes, reminderMinutes2: template.reminderMinutes2,
+                        recurrenceRaw: Recurrence.weekly.rawValue, seriesID: seriesID,
+                        recurrenceGeneratedThrough: target, source: template.source, pinned: template.pinned))
+                    additions += 1
+                }
+                guard let next = cal.date(byAdding: .day, value: 1, to: day) else { break }
+                day = next
+            }
+            for event in series {
+                event.recurrenceGeneratedThrough = target
+            }
+            insertedCount += additions
+            changed = true
+        }
+        if changed { try? context.save() }
+        return insertedCount
+    }
+
+    /// 1년치 회차에서 반복 요일을 복원. 한두 번 옮긴 단일 회차는 낮은 빈도라 규칙에 섞이지 않는다.
+    private static func weeklyWeekdays(from series: [ScheduleEvent], calendar: Calendar) -> Set<Int> {
+        let counts = Dictionary(grouping: series) { calendar.component(.weekday, from: $0.start) }
+            .mapValues(\.count)
+        guard let highest = counts.values.max() else { return [] }
+        let threshold = max(2, highest / 2)
+        return Set(counts.compactMap { $0.value >= threshold ? $0.key : nil })
+    }
+
+    private static func weeklyTemplate(from series: [ScheduleEvent], calendar: Calendar) -> WeeklyTemplate? {
+        var counts: [WeeklyTemplate: Int] = [:]
+        let ordered = series.sorted { $0.start < $1.start }
+        for event in ordered {
+            counts[weeklyTemplate(event, calendar: calendar), default: 0] += 1
+        }
+        guard let highest = counts.values.max() else { return nil }
+        return ordered.lazy.map { weeklyTemplate($0, calendar: calendar) }
+            .first { counts[$0] == highest }
+    }
+
+    private static func weeklyTemplate(_ event: ScheduleEvent, calendar: Calendar) -> WeeklyTemplate {
+        WeeklyTemplate(
+            title: event.title, location: event.location, notes: event.notes,
+            reminderMinutes: event.reminderMinutes, reminderMinutes2: event.reminderMinutes2,
+            pinned: event.pinned, source: event.source,
+            hour: calendar.component(.hour, from: event.start),
+            minute: calendar.component(.minute, from: event.start),
+            durationSeconds: max(0, Int(event.end.timeIntervalSince(event.start).rounded()))
+        )
     }
 
     /// 시간표/학사일정(source != "") 일정을 사용자가 고치면: 원본 자리 톰스톤 기록 + source 비움.
@@ -313,12 +423,16 @@ enum EventActions {
         guard !sid.isEmpty else { deleteSingle(event, in: context); return }
         let start = event.start
         let descriptor = FetchDescriptor<ScheduleEvent>(
-            predicate: #Predicate<ScheduleEvent> { $0.seriesID == sid && $0.start >= start }
+            predicate: #Predicate<ScheduleEvent> { $0.seriesID == sid }
         )
         if let items = try? context.fetch(descriptor), !items.isEmpty {
             for e in items {
-                SourceTombstones.record(source: e.source, title: e.title, start: e.start)
-                context.delete(e)
+                if e.start >= start {
+                    SourceTombstones.record(source: e.source, title: e.title, start: e.start)
+                    context.delete(e)
+                } else {
+                    e.recurrenceGeneratedThrough = nil   // 남은 과거 회차가 삭제한 미래를 다시 보충하지 않게 시리즈 닫기
+                }
             }
         } else {
             SourceTombstones.record(source: event.source, title: event.title, start: event.start)

@@ -76,11 +76,15 @@ struct RootView: View {
                 #if canImport(WatchConnectivity)
                 WatchSync.shared.activate()                        // 애플워치 연결 활성화
                 #endif
+                EventActions.replenishOpenEndedWeeklySeries(in: context)
                 await SchoolAutoRefresh.runIfDue(context: context)
             }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active {
-                    Task { await SchoolAutoRefresh.runIfDue(context: context) }
+                    Task {
+                        EventActions.replenishOpenEndedWeeklySeries(in: context)
+                        await SchoolAutoRefresh.runIfDue(context: context)
+                    }
                 } else if phase == .background {
                     #if os(iOS)
                     BackgroundRefresh.schedule()           // 백그라운드 갱신 예약
