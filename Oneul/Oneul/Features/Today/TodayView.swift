@@ -449,10 +449,23 @@ struct TodayView: View {
     // 시험 D-Day + 방학·주요 일정을 하나의 밴드로 — 위젯 전폭, 한 장씩 페이지 슬라이드
     private struct BandItem: Identifiable {
         let id: String
-        let badge: String        // "D-58" / "D-DAY" / "진행 중"
+        let badge: String        // "D-58" / "D-DAY" / "남은 3일"
         let urgent: Bool         // 7일 이내 → 빨강
         let title: String
         let trailing: String     // 날짜
+        let multiDayStart: Date?
+        let multiDayEnd: Date?
+
+        func badge(at now: Date, english: Bool) -> String {
+            guard let start = multiDayStart, let end = multiDayEnd else { return badge }
+            if now >= start { return longEventRemainingLabel(until: end, now: now, english: english) }
+            let cal = Calendar.current
+            let days = cal.dateComponents([.day], from: cal.startOfDay(for: now),
+                                          to: cal.startOfDay(for: start)).day ?? 0
+            return days <= 0 ? "D-DAY" : "D-\(days)"
+        }
+
+        func isVisible(at now: Date) -> Bool { multiDayEnd.map { $0 > now } ?? true }
     }
 
     /// 밴드 항목 캐시 — 전체 일정을 순회하므로 데이터 변경(rebuildIndex)·재활성화 때만 재계산.
@@ -466,11 +479,13 @@ struct TodayView: View {
         var seen = Set<String>()
         var out: [(days: Int, item: BandItem)] = []
 
-        func add(days: Int, badge: String, title: String, date: Date) {
+        func add(days: Int, badge: String, title: String, date: Date,
+                 multiDayStart: Date? = nil, multiDayEnd: Date? = nil) {
             guard seen.insert(title).inserted else { return }
             out.append((days, BandItem(id: title, badge: badge, urgent: days >= 0 && days <= 7,
                                        title: title,
-                                       trailing: date.formatted(.dateTime.month().day().locale(lang.locale)))))
+                                       trailing: date.formatted(.dateTime.month().day().locale(lang.locale)),
+                                       multiDayStart: multiDayStart, multiDayEnd: multiDayEnd)))
         }
         for d in dDays {   // 시험 D-Day
             if let date = cal.date(byAdding: .day, value: d.days, to: today) {
@@ -480,40 +495,50 @@ struct TodayView: View {
         let horizon = cal.date(byAdding: .day, value: 365, to: now) ?? now
         for e in events where (e.pinned || e.isMultiDay()) && e.end >= now && e.start <= horizon {
             let days = cal.dateComponents([.day], from: today, to: cal.startOfDay(for: e.start)).day ?? 0
-            let badge = (e.isMultiDay() && e.start <= now) ? lang.tr("진행 중") : (days <= 0 ? "D-DAY" : "D-\(days)")
-            add(days: max(days, 0), badge: badge, title: e.title, date: e.start)
+            let multiDay = e.isMultiDay()
+            let badge = multiDay && e.start <= now
+                ? longEventRemainingLabel(until: e.end, now: now, english: lang.isEnglish)
+                : (days <= 0 ? "D-DAY" : "D-\(days)")
+            add(days: max(days, 0), badge: badge, title: e.title, date: e.start,
+                multiDayStart: multiDay ? e.start : nil, multiDayEnd: multiDay ? e.end : nil)
         }
         return out.sorted { $0.days < $1.days }.map(\.item)
     }
 
     @ViewBuilder
     private var unifiedBand: some View {
-        let items = bandCache
-        if !items.isEmpty {
-            Group {
-                #if os(iOS)
-                TabView {
-                    ForEach(items) { bandCard($0) }
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))   // 한 장씩 스와이프(점 없이 깔끔하게)
-                #else
-                ScrollView(.horizontal, showsIndicators: false) {   // 맥: 칩 나열(평소대로) — 한눈에 전부
-                    HStack(spacing: 8) {
-                        ForEach(items) { macBandChip($0) }
+        let cached = bandCache
+        if !cached.isEmpty {
+            // 전체 일정 캐시는 그대로 두고 표시만 갱신 — 장기 일정 남은 시간이 앱을 켜둔 동안 굳지 않게.
+            TimelineView(.periodic(from: .now, by: 60)) { context in
+                let items = cached.filter { $0.isVisible(at: context.date) }
+                if !items.isEmpty {
+                    Group {
+                        #if os(iOS)
+                        TabView {
+                            ForEach(items) { bandCard($0, at: context.date) }
+                        }
+                        .tabViewStyle(.page(indexDisplayMode: .never))   // 한 장씩 스와이프(점 없이 깔끔하게)
+                        #else
+                        ScrollView(.horizontal, showsIndicators: false) {   // 맥: 칩 나열(평소대로) — 한눈에 전부
+                            HStack(spacing: 8) {
+                                ForEach(items) { macBandChip($0, at: context.date) }
+                            }
+                        }
+                        #endif
                     }
+                    .frame(height: 46)
                 }
-                #endif
             }
-            .frame(height: 46)
         }
     }
 
     #if os(macOS)
     // 맥 칩 — 제목 + D-Day 배지 나란히(예전 D-Day 바 스타일)
-    private func macBandChip(_ it: BandItem) -> some View {
+    private func macBandChip(_ it: BandItem, at now: Date) -> some View {
         HStack(spacing: 7) {
             Text(it.title).font(.subheadline).bold().lineLimit(1)
-            Text(it.badge)
+            Text(it.badge(at: now, english: lang.isEnglish))
                 .font(.caption2).bold().monospacedDigit()
                 .foregroundStyle(Color.appOnAccent)
                 .padding(.horizontal, 8).padding(.vertical, 2)
@@ -524,9 +549,9 @@ struct TodayView: View {
     }
     #endif
 
-    private func bandCard(_ it: BandItem) -> some View {
+    private func bandCard(_ it: BandItem, at now: Date) -> some View {
         HStack(spacing: 8) {
-            Text(it.badge)
+            Text(it.badge(at: now, english: lang.isEnglish))
                 .font(.caption).bold().monospacedDigit()
                 .foregroundStyle(Color.appOnAccent)
                 .padding(.horizontal, 9).padding(.vertical, 3)

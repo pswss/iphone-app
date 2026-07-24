@@ -3,6 +3,20 @@ import Foundation
 import ActivityKit
 #endif
 
+/// 진행 중인 장기 일정의 거친 남은 시간: 24시간 이상은 일, 미만은 시간.
+func longEventRemainingLabel(until end: Date, now: Date = .now, english: Bool) -> String {
+    let seconds = max(0, end.timeIntervalSince(now))
+    let amount: String
+    if seconds >= 86_400 {
+        let days = Int(seconds / 86_400)
+        amount = english ? "\(days) \(days == 1 ? "day" : "days")" : "\(days)일"
+    } else {
+        let hours = seconds > 0 ? max(1, Int(seconds / 3_600)) : 0
+        amount = english ? "\(hours) \(hours == 1 ? "hour" : "hours")" : "\(hours)시간"
+    }
+    return english ? "\(amount) left" : "남은 \(amount)"
+}
+
 /// Live Activity 한 칸(일정)의 스냅샷.
 /// SwiftData 모델(`ScheduleEvent`)과 별개로, 위젯에 넘기기 위한 가벼운 값 타입입니다.
 struct EventSnapshot: Codable, Hashable, Identifiable {
