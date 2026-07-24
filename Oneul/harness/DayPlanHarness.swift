@@ -9,8 +9,7 @@ final class AppLanguage {
 }
 
 enum EventPalette {
-    static func stableIndex(for title: String) -> Int { 0 }
-    static func color(_ index: Int) -> Color { .red }
+    static func color(_ index: Int) -> Color { fatalError("고정색 경로 사용") }
     static func color(_ index: Int, of total: Int) -> Color { .red }
 }
 
@@ -71,12 +70,15 @@ struct DayPlanHarness {
         let marker = event("기념일", date(24, 0), date(24, 23))
         let current = event("당일 현재", date(24, 10), date(24, 11))
         let next = event("당일 다음", date(24, 12), date(24, 13))
+        current.source = "timetable"
+        next.source = "timetable"
         let plan = DayPlan(events: [long, marker, current, next], day: now, calendar: calendar)
 
         assert(plan.current(at: now)?.id == current.id)
         assert(plan.next(at: now)?.id == next.id)
         assert(plan.colorIndex(of: current) == 0)
         assert(plan.colorIndex(of: next) == 1)
+        _ = plan.color(of: current)
         assert(plan.watchPayload(dayLabel: "").events.first { $0.id == current.id }?.colorIndex == 0)
         assert(plan.homeSnapshot(dayLabel: "").segments.first { $0.id == current.id }?.colorIndex == 0)
 

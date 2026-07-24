@@ -80,18 +80,14 @@ struct DayPlan {
             ?? events.firstIndex(where: { $0.id == event.id }) ?? 0
     }
 
-    /// 일정 색 — 시간표 과목은 제목 해시 고정색(요일마다 동일), 그 외는 그날 시간순 무지개.
+    /// 일정 색 — 출처와 관계없이 그날 시간제 일정의 시간순 무지개.
     func color(of event: ScheduleEvent) -> Color {
-        event.source == "timetable"
-            ? EventPalette.color(EventPalette.stableIndex(for: event.title))
-            : EventPalette.color(colorIndex(of: event), of: singleDayEvents.count)
+        EventPalette.color(colorIndex(of: event), of: singleDayEvents.count)
     }
 
-    /// 스냅샷(위젯·워치·LA)용 색 인덱스 — 시간표는 고정색 인덱스.
-    /// ponytail: 스냅샷 렌더가 color(_:of:)를 쓰는 8개+ 일정 날엔 고정 인덱스도 보간 스케일을 타서
-    /// 약간 밀릴 수 있음 — 문제 되면 스냅샷에 fixed 플래그 추가.
+    /// 스냅샷(위젯·워치·LA)용 색 인덱스도 앱과 같은 시간순을 쓴다.
     private func snapshotColorIndex(_ e: ScheduleEvent) -> Int {
-        e.source == "timetable" ? EventPalette.stableIndex(for: e.title) : colorIndex(of: e)
+        colorIndex(of: e)
     }
 
     #if os(iOS)

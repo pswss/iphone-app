@@ -224,7 +224,7 @@ struct DayGridView: View {
         let top = yOffset(for: clamp(e.start)) + (resizingTop ? resizeTopDY : 0)         // 위 끝 잡으면 시작이 따라옴
         let h = max(26, yOffset(for: clamp(e.end)) - top + (resizingBottom ? resizeDY : 0))
         let colW = (gridW - CGFloat(item.cols - 1) * colGap) / CGFloat(item.cols)
-        let color = plan.color(of: e)   // 시간표는 과목 해시 고정색
+        let color = plan.color(of: e)
         let dragging = dragID == e.id
         let selected = selectedID == e.id
         let lifted = dragging || resizing            // 잡고 옮기는/늘리는 중
