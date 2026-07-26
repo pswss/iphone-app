@@ -314,6 +314,17 @@ final class AppLanguage {
         "메모": "Notes",
         "새 메모": "New Note",
         "메모가 없어요": "No notes",
+        "펼쳐짐": "Expanded",
+        "접힘": "Collapsed",
+        "완료됨": "Completed",
+        "미완료": "Incomplete",
+        "할 일 완료 상태 변경": "Toggle to-do completion",
+        "체크 항목 삭제": "Delete checklist item",
+        "첨부 파일 열기": "Open attachment",
+        "체크 항목 추가": "Add checklist item",
+        "첨부 추가": "Add attachment",
+        "텍스트 서식": "Text formatting",
+        "내보내기": "Export",
         "텍스트(.txt)로 내보내기": "Export as text (.txt)",
         "마크다운(.md)으로 내보내기": "Export as Markdown (.md)",
         "단락 스타일": "Paragraph Style",
@@ -324,7 +335,8 @@ final class AppLanguage {
         "기울임": "Italic",
         "사진": "Photo",
         "파일": "File",
-        "일정 복사됨 · 빈 곳을 눌러 붙여넣기": "Event copied · tap empty space to paste",
+        "일정 복사됨 · 빈 곳을 길게 눌러 붙여넣기": "Event copied · long-press empty space to paste",
+        "일정 복사됨 · 빈 곳을 두 번 클릭해 붙여넣기": "Event copied · double-click empty space to paste",
         "반복 일정 수정": "Edit Repeating Event",
         "이 일정만 수정": "Edit This Event Only",
         "이후 일정 모두 수정": "Edit All Future Events",
@@ -338,6 +350,10 @@ final class AppLanguage {
         "검색 결과가 없어요": "No results",
         "시간표를 불러오지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.":
             "Couldn't load the timetable. Check your connection and try again.",
+        "학교를 검색하지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.":
+            "Couldn't search for schools. Check your connection and try again.",
+        "시간표를 만들지 못했어요. 잠시 후 다시 시도해 주세요.":
+            "Couldn't create the timetable. Please try again.",
         "다시 시도": "Try Again",
         "현재 위치": "Current location",
         "현재 위치 사용": "Use current location",
@@ -433,6 +449,23 @@ final class AppLanguage {
         "메뉴 막대": "Menu Bar",
         "저장하지 못했어요": "Couldn't save",
         "변경사항을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.":
-            "Couldn't save your changes. Please try again."
+            "Couldn't save your changes. Please try again.",
+        "요청을 처리하지 못했어요. 잠시 후 다시 시도해 주세요.":
+            "Couldn't process your request. Please try again.",
+        "일정을 불러오는 중…": "Loading events…",
+        "일정을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.":
+            "Couldn't load events. Please try again.",
+        "신정": "New Year's Day",
+        "삼일절": "Independence Movement Day",
+        "어린이날": "Children's Day",
+        "현충일": "Memorial Day",
+        "광복절": "Liberation Day",
+        "개천절": "National Foundation Day",
+        "한글날": "Hangeul Day",
+        "크리스마스": "Christmas Day",
+        "설날": "Lunar New Year",
+        "추석": "Chuseok",
+        "부처님오신날": "Buddha's Birthday",
+        "대체공휴일(%@)": "Substitute holiday for %@"
     ]
 }

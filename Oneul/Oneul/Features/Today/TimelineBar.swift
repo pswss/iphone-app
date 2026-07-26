@@ -4,6 +4,7 @@ import SwiftUI
 /// 단일일 일정은 빈틈없이 붙인 무지개 칸으로 표시(멀티데이·주요 일정은 상단 FeaturedBand가 담당).
 /// `live`가 true(오늘)일 때만 매 프레임 애니메이션 — 다른 날은 정적으로 그려 스와이프 부드럽게.
 struct TimelineBar: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let plan: DayPlan
     var height: CGFloat = 16
     var live: Bool = true
@@ -62,7 +63,7 @@ struct TimelineBar: View {
             }
         }
         .frame(height: height + 14)
-        .animation(.smooth(duration: 0.35), value: current?.id)
+        .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: current?.id)
     }
 
     /// 일정 유리판 하나 — Double/CGFloat 혼합 산술을 명시적 타입 let으로 분리.

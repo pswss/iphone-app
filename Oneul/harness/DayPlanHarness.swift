@@ -5,7 +5,8 @@ import SwiftUI
 
 final class AppLanguage {
     static let shared = AppLanguage()
-    let isEnglish = false
+    var isEnglish = false
+    func tr(_ text: String) -> String { text == "신정" ? "New Year's Day" : text }
 }
 
 enum EventPalette {
@@ -91,6 +92,11 @@ struct DayPlanHarness {
         let fallback = DayPlan(events: [long, futureLong], day: now, calendar: calendar)
         assert(fallback.current(at: now)?.id == long.id)
         assert(fallback.next(at: now)?.id == futureLong.id)
+
+        let newYear = calendar.date(from: DateComponents(year: 2026, month: 1, day: 1))!
+        assert(Holidays.displayName(for: newYear) == "신정")
+        AppLanguage.shared.isEnglish = true
+        assert(Holidays.displayName(for: newYear) == "New Year's Day")
 
         print("DayPlanHarness PASS")
     }

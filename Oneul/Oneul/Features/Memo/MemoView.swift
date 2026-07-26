@@ -126,6 +126,7 @@ struct TextFileDocument: FileDocument {
 /// 메모 목록 + 편집. 사이드바(맥)/탭(아이폰) 한 섹션.
 struct MemoView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(sort: \Memo.updatedAt, order: .reverse) private var memos: [Memo]
     private let lang = AppLanguage.shared
     @State private var path: [Memo] = []       // 작성 버튼 → 새 메모로 즉시 이동
@@ -196,7 +197,7 @@ struct MemoView: View {
             .navigationTitle(lang.tr("메모"))
             .navBarInline()
             .overlay(alignment: .bottom) { undoSnackbar }
-            .animation(.snappy(duration: 0.25), value: deletedBackup.isEmpty)
+            .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: deletedBackup.isEmpty)
             .onChange(of: deletedBackup.isEmpty) { _, empty in
                 if !empty { undoFocused = true }
             }
@@ -205,7 +206,10 @@ struct MemoView: View {
             #if os(iOS)
             .toolbar {                                   // 아이폰: 탭 자체 툴바의 작성 버튼
                 ToolbarItem(placement: .primaryAction) {
-                    Button { addMemo() } label: { Image(systemName: "square.and.pencil") }
+                    Button { addMemo() } label: {
+                        Image(systemName: "square.and.pencil").frame(minWidth: 44, minHeight: 44)
+                    }
+                    .accessibilityLabel(lang.tr("새 메모"))
                 }
             }
             #endif
@@ -330,6 +334,7 @@ struct MemoBackup {
 struct MemoEditor: View {
     @Bindable var memo: Memo
     @Environment(\.modelContext) private var context
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private let lang = AppLanguage.shared
     @State private var exportTXT = false
     @State private var exportMD = false
@@ -416,13 +421,17 @@ struct MemoEditor: View {
         }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button { addCheckItem() } label: { Image(systemName: "checklist") }   // 체크리스트 항목 추가
+                Button { addCheckItem() } label: {
+                    Image(systemName: "checklist").frame(minWidth: 44, minHeight: 44)
+                }
+                .accessibilityLabel(lang.tr("체크 항목 추가"))
             }
             ToolbarItem(placement: .primaryAction) {
                 Menu {
                     Button { showPhotos = true }  label: { Label(lang.tr("사진"), systemImage: "photo") }
                     Button { importFiles = true } label: { Label(lang.tr("파일"), systemImage: "doc") }
-                } label: { Image(systemName: "paperclip") }
+                } label: { Image(systemName: "paperclip").frame(minWidth: 44, minHeight: 44) }
+                    .accessibilityLabel(lang.tr("첨부 추가"))
             }
             ToolbarItem(placement: .primaryAction) {
                 Menu {
@@ -437,13 +446,15 @@ struct MemoEditor: View {
                         .disabled(!hasRangeSelection)
                     Button { applyItalic() } label: { Label(lang.tr("기울임"), systemImage: "italic") }
                         .disabled(!hasRangeSelection)
-                } label: { Image(systemName: "textformat") }
+                } label: { Image(systemName: "textformat").frame(minWidth: 44, minHeight: 44) }
+                    .accessibilityLabel(lang.tr("텍스트 서식"))
             }
             ToolbarItem(placement: .primaryAction) {
                 Menu {
                     Button(lang.tr("텍스트(.txt)로 내보내기")) { exportTXT = true }
                     Button(lang.tr("마크다운(.md)으로 내보내기")) { exportMD = true }
-                } label: { Image(systemName: "square.and.arrow.up") }
+                } label: { Image(systemName: "square.and.arrow.up").frame(minWidth: 44, minHeight: 44) }
+                    .accessibilityLabel(lang.tr("내보내기"))
             }
         }
         .fileExporter(isPresented: $exportTXT,
@@ -475,14 +486,19 @@ struct MemoEditor: View {
     private func checkRow(_ item: MemoCheckItem) -> some View {
         HStack(spacing: 10) {
             Button {
-                withAnimation(.snappy(duration: 0.2)) { item.done.toggle() }   // 체크·취소선 부드럽게
+                withAnimation(reduceMotion ? nil : .snappy(duration: 0.2)) { item.done.toggle() }   // 체크·취소선 부드럽게
                 touch(); Haptics.impact(.light)
             } label: {
                 Image(systemName: item.done ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
                     .foregroundStyle(item.done ? Color.appAccentText : .secondary)
+                    .frame(width: 44, height: 44)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(item.text.isEmpty ? lang.tr("할 일") : item.text)
+            .accessibilityValue(lang.tr(item.done ? "완료됨" : "미완료"))
+            .accessibilityHint(lang.tr("할 일 완료 상태 변경"))
+            .accessibilityAddTraits(item.done ? .isSelected : [])
             TextField(lang.tr("할 일"), text: Binding(get: { item.text },
                                                      set: { item.text = $0; touch() }))
                 .textFieldStyle(.plain)
@@ -492,9 +508,13 @@ struct MemoEditor: View {
             Button {
                 deleteCheckItem(item)
             } label: {
-                Image(systemName: "xmark").font(.caption2).foregroundStyle(.tertiary)
+                Image(systemName: "xmark")
+                    .font(.caption2).foregroundStyle(.tertiary)
+                    .frame(width: 44, height: 44)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(lang.tr("체크 항목 삭제"))
+            .accessibilityValue(item.text)
         }
     }
 
@@ -526,8 +546,12 @@ struct MemoEditor: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
                     ForEach(atts) { att in
-                        attachmentThumb(att)
-                            .onTapGesture { previewURL = att.writeTempFile() }   // 탭 → QuickLook
+                        Button { previewURL = att.writeTempFile() } label: {
+                            attachmentThumb(att)
+                        }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(lang.tr("첨부 파일 열기"))
+                            .accessibilityValue(att.filename)
                             .contextMenu {
                                 Button(role: .destructive) { delete(att) } label: {
                                     Label(lang.tr("삭제"), systemImage: "trash")
@@ -537,7 +561,7 @@ struct MemoEditor: View {
                 }
                 .padding(.horizontal, 14).padding(.vertical, 10)
             }
-            .frame(height: 96)
+            .frame(minHeight: 96)
         }
     }
 

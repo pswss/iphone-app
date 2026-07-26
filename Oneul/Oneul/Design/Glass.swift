@@ -8,12 +8,24 @@ import SwiftUI
 /// content.glassEffect(.regular, in: .rect(cornerRadius: cornerRadius))
 /// ```
 struct GlassCard: ViewModifier {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
     var cornerRadius: CGFloat = 22
 
+    @ViewBuilder
     func body(content: Content) -> some View {
-        content
-            .glassEffect(.clear, in: shape)     // 투명 글래스 — 배경 그라데이션이 비쳐 흰 판(누끼) 느낌 제거
-            .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)   // 유리가 깊이를 주므로 그림자는 아주 은은하게
+        if reduceTransparency || contrast == .increased {
+            content
+                .background(Color.appSystemBackground, in: shape)
+                .overlay {
+                    shape.strokeBorder(.primary.opacity(contrast == .increased ? 0.7 : 0.28),
+                                       lineWidth: contrast == .increased ? 2 : 1)
+                }
+        } else {
+            content
+                .glassEffect(.clear, in: shape)     // 투명 글래스 — 배경 그라데이션이 비쳐 흰 판(누끼) 느낌 제거
+                .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)   // 유리가 깊이를 주므로 그림자는 아주 은은하게
+        }
     }
 
     private var shape: RoundedRectangle {
@@ -29,6 +41,9 @@ extension View {
 
 /// 강조 색 채움 버튼(추가/저장 등) — 포인트 컬러(화이트/남색) 사용.
 struct AccentButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorSchemeContrast) private var contrast
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.headline)
@@ -36,10 +51,12 @@ struct AccentButtonStyle: ButtonStyle {
             .padding(.vertical, 13)
             .frame(maxWidth: .infinity)
             .background(Color.appAccent, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(.white.opacity(0.22), lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(contrast == .increased ? Color.primary : .white.opacity(0.22),
+                              lineWidth: contrast == .increased ? 2 : 1))
             .opacity(configuration.isPressed ? 0.7 : 1)
             .scaleEffect(configuration.isPressed ? 0.97 : 1)   // 누름 즉시 살짝 눌리는 피드백
-            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
             .shadow(color: .black.opacity(0.18), radius: 8, y: 4)
     }
 }

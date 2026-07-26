@@ -24,6 +24,7 @@ struct DayGridView: View {
 
     @Environment(\.modelContext) private var context
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private let lang = AppLanguage.shared
     // 라이트모드: 흰 글자는 대비 붕괴, 순검정은 과함 → 이벤트 색을 어둡게 섞은 딥톤(애플 캘린더식)
     private func blockText(_ c: Color) -> Color { scheme == .dark ? .white : c.mix(with: .black, by: 0.55) }
@@ -260,7 +261,10 @@ struct DayGridView: View {
                     y: glowing ? 0 : (lifted ? 6 : 2))
             .overlay(alignment: .topTrailing) { bubble(e, dy: dy, show: dragging) }
             .overlay { if selected { cornerHighlight(shape).allowsHitTesting(false) } }  // 왼쪽 아래 코너 곡선만 흰색
-            .overlay { gestureLayer(e, selected: selected, h: h, dayW: leftInset + gridW + 8) }   // 본문=탭/이동, 위·아래 손잡이=리사이즈
+            .overlay {
+                gestureLayer(e, selected: selected, h: h, dayW: leftInset + gridW + 8)
+                    .frame(minWidth: 44, minHeight: 44)
+            }   // 외형은 실제 시간 높이 유지, 조작 영역만 최소 44pt
             .overlay(alignment: .top) {   // 꾹 눌렀다 떼면 컨텍스트 메뉴 — 화면 밖으로 안 나가게 가로 클램프
                 if deleteBubbleID == e.id {
                     let blockCenter = leftInset + CGFloat(item.col) * (colW + colGap) + colW / 2
@@ -283,9 +287,9 @@ struct DayGridView: View {
             #endif
             .offset(x: leftInset + CGFloat(item.col) * (colW + colGap) + (dragging ? dragDX : 0), y: top + dy)
             .zIndex(dragging || resizing || deleteBubbleID == e.id ? 100000 : (selected ? 10000 : Double(item.order)))
-            .animation(.snappy(duration: 0.2), value: deleteBubbleID)
-            .animation(.snappy(duration: 0.16), value: dragID)
-            .animation(.snappy(duration: 0.16), value: selectedID)
+            .animation(reduceMotion ? nil : .snappy(duration: 0.2), value: deleteBubbleID)
+            .animation(reduceMotion ? nil : .snappy(duration: 0.16), value: dragID)
+            .animation(reduceMotion ? nil : .snappy(duration: 0.16), value: selectedID)
             // VoiceOver: 블록 전체를 하나의 요소로, 제목·시간 낭독 + 수정/삭제 액션
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("\(e.title.isEmpty ? lang.tr("제목 없음") : e.title), \(timeText(e.start)) – \(timeText(e.end))")
@@ -503,23 +507,23 @@ struct DayGridView: View {
         if !autoScrolling { autoScrolling = true; autoScrollTick(e) }
     }
 
-    /// 일정 위 컨텍스트 메뉴(애플 캘린더식). 라벨은 기기(시스템) 언어. shift만큼 가로로 밀어 화면 안에 두고, 꼬리는 일정 위에 유지.
+    /// 일정 위 컨텍스트 메뉴(애플 캘린더식). 라벨은 앱 언어. shift만큼 가로로 밀어 화면 안에 두고, 꼬리는 일정 위에 유지.
     private func eventMenu(_ e: ScheduleEvent, shift: CGFloat) -> some View {
         VStack(spacing: 0) {
             HStack(spacing: 0) {
-                menuItem(deviceTerm("잘라내기", "Cut", "カット", "剪切", "剪下", "Cortar", "Couper", "Ausschneiden")) {
+                menuItem(lang.tr("잘라내기")) {
                     cut(e) { dismissMenu() } }
                 menuSep
-                menuItem(deviceTerm("복사", "Copy", "コピー", "拷贝", "拷貝", "Copiar", "Copier", "Kopieren")) {
+                menuItem(lang.tr("복사")) {
                     EventClipboard.shared.copy(e); dismissMenu() }
                 menuSep
-                menuItem(deviceTerm("복제", "Duplicate", "複製", "复制", "複製", "Duplicar", "Dupliquer", "Duplizieren")) {
+                menuItem(lang.tr("복제")) {
                     duplicate(e) { dismissMenu() } }
                 menuSep
-                menuItem(deviceTerm("삭제", "Delete", "削除", "删除", "刪除", "Eliminar", "Supprimer", "Löschen"), tint: .red) {
+                menuItem(lang.tr("삭제"), tint: .red) {
                     deleteEvent(e) { Haptics.notify(.warning); dismissMenu() } }
             }
-            .frame(height: 42)
+            .frame(height: 44)
             .fixedSize()
             .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 13, style: .continuous))   // 커스텀 메뉴를 진짜 유리로(시스템 메뉴와 통일)
             .background(GeometryReader { g in Color.clear.onAppear { menuW = g.size.width } })   // 실측 폭 → 클램프
@@ -531,25 +535,11 @@ struct DayGridView: View {
         .transition(.scale(scale: 0.7, anchor: .bottom).combined(with: .opacity))
     }
 
-    /// 기기(시스템) 언어 기준 표준 편집 용어(앱 언어 토글과 무관). 미지원 언어는 영어로.
-    private func deviceTerm(_ ko: String, _ en: String, _ ja: String, _ zhHans: String, _ zhHant: String,
-                            _ es: String, _ fr: String, _ de: String) -> String {
-        switch Locale.current.language.languageCode?.identifier {
-        case "ko": return ko
-        case "ja": return ja
-        case "zh": return Locale.current.language.script?.identifier == "Hant" ? zhHant : zhHans
-        case "es": return es
-        case "fr": return fr
-        case "de": return de
-        default: return en
-        }
-    }
-
     private func menuItem(_ title: String, tint: Color = .primary, _ action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title).font(.subheadline).foregroundStyle(tint)
                 .padding(.horizontal, 15).frame(maxHeight: .infinity)
-                .contentShape(Rectangle())
+                .contentShape(Rectangle().inset(by: -1))
         }
         .buttonStyle(.plain)
     }
@@ -589,9 +579,14 @@ struct DayGridView: View {
         let target = (scrollHour ?? scrollAnchorHour) + autoScrollDir
         guard target >= firstHour, target <= lastHour - 1 else { autoScrolling = false; return }   // 끝이면 멈춤
         let dur = autoScrollInterval
-        withAnimation(.linear(duration: dur)) {
+        if reduceMotion {
             proxy.scrollTo(target, anchor: .top)
             autoScrollDY += CGFloat(autoScrollDir) * hourHeight
+        } else {
+            withAnimation(.linear(duration: dur)) {
+                proxy.scrollTo(target, anchor: .top)
+                autoScrollDY += CGFloat(autoScrollDir) * hourHeight
+            }
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + dur) { autoScrollTick(e) }
     }

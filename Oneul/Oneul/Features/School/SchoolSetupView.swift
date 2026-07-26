@@ -3,6 +3,7 @@ import SwiftData
 
 struct SchoolSetupView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @AppStorage("neisOffice") private var office = ""
     @AppStorage("neisCode") private var code = ""
@@ -52,10 +53,10 @@ struct SchoolSetupView: View {
                 .frame(maxWidth: 640)
                 .frame(maxWidth: .infinity)
                 // 카드 등장/퇴장·크기 변화가 툭 끊기지 않게 — 검색·선택·반 로드 전 구간 스프링
-                .animation(.spring(response: 0.35, dampingFraction: 0.86), value: results)
-                .animation(.spring(response: 0.35, dampingFraction: 0.86), value: code)
-                .animation(.spring(response: 0.35, dampingFraction: 0.86), value: message)
-                .animation(.spring(response: 0.35, dampingFraction: 0.86), value: availableClasses)
+                .animation(reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.86), value: results)
+                .animation(reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.86), value: code)
+                .animation(reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.86), value: message)
+                .animation(reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.86), value: availableClasses)
             }
             .scrollDismissesKeyboard(.interactively)
         }
@@ -109,7 +110,8 @@ struct SchoolSetupView: View {
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 4)
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }
@@ -127,6 +129,7 @@ struct SchoolSetupView: View {
                 Spacer()
                 Button(lang.tr("변경")) { code = ""; office = ""; schoolName = ""; kind = "" }
                     .font(.caption).tint(Color.appAccentText)
+                    .frame(minWidth: 44, minHeight: 44)
             }
             Divider()
             HStack {
@@ -147,13 +150,15 @@ struct SchoolSetupView: View {
             }
             .task(id: "\(code)-\(grade)") { await loadClasses() }
 
-            Button { withAnimation(.snappy(duration: 0.2)) { showPeriods.toggle() } } label: {
+            Button { withAnimation(reduceMotion ? nil : .snappy(duration: 0.2)) { showPeriods.toggle() } } label: {
                 HStack {
                     Text(lang.tr("교시 시간 조정")).foregroundStyle(.secondary)
                     Spacer()
                     Image(systemName: showPeriods ? "chevron.up" : "chevron.down")
                         .font(.caption).foregroundStyle(.secondary)
                 }
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             if showPeriods {
@@ -217,7 +222,7 @@ struct SchoolSetupView: View {
             results = try await NEISClient.shared.searchSchools(query.trimmingCharacters(in: .whitespaces))
             if results.isEmpty { message = lang.tr("검색 결과가 없어요") }
         } catch {
-            message = error.localizedDescription
+            message = lang.tr("학교를 검색하지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.")
         }
     }
 
@@ -247,7 +252,7 @@ struct SchoolSetupView: View {
                 ? String(format: lang.tr("수업 %d개 · 학사일정 %d개를 추가했어요."), r.timetable, r.academic)
                 : lang.tr("시간표/학사일정을 찾지 못했어요.")
         } catch {
-            message = error.localizedDescription
+            message = lang.tr("시간표를 만들지 못했어요. 잠시 후 다시 시도해 주세요.")
         }
     }
 }

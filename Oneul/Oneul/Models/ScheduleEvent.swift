@@ -63,12 +63,18 @@ enum ExamKind {
     case school  // 내신 지필 + 모의고사 + 학력평가 — 시계·필기구만
     case csat    // 수능 — 수험표·신분증까지
 
-    /// 준비물 체크리스트.
-    var checklist: [String] {
+    /// 기존 한국어 caller용 준비물 체크리스트.
+    var checklist: [String] { checklist(english: false) }
+
+    /// 표시 언어에 맞춘 준비물 체크리스트.
+    func checklist(english: Bool) -> [String] {
         switch self {
         case .none: return []
-        case .school: return ["시계", "필기구"]
-        case .csat: return ["시계", "필기구", "수험표", "신분증"]
+        case .school: return english ? ["watch", "writing tools"] : ["시계", "필기구"]
+        case .csat:
+            return english
+                ? ["watch", "writing tools", "admission ticket", "photo ID"]
+                : ["시계", "필기구", "수험표", "신분증"]
         }
     }
     var isExam: Bool { self != .none }
@@ -110,13 +116,25 @@ extension ScheduleEvent {
     /// 제목 키워드로 시험 유형 판별. (수능만 csat, 나머지 시험·모의·평가는 school)
     var examKind: ExamKind {
         let t = title
+        let lower = t.lowercased()
+        let words = Set(lower.components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty })
+        let hasEnglishExam = ["exam", "test", "midterm", "midterms", "finals", "assessment", "csat"]
+            .contains { words.contains($0) }
+            || (words.contains("final") && (words.count == 1 || words.contains("exam") || words.contains("test")))
         // '시험공부'·'시험 준비'처럼 시험을 준비하는 일정은 시험 자체가 아님 → 전날 준비물 알림 오탐 방지
         let studyWords = ["공부", "준비", "대비", "복습", "특강", "학습"]
-        if studyWords.contains(where: t.contains) { return .none }
+        let englishStudyWords = ["prep", "preparation", "study", "review"]
+        if studyWords.contains(where: t.contains)
+            || (hasEnglishExam && englishStudyWords.contains { words.contains($0) }) {
+            return .none
+        }
         let isMock = t.contains("모의") || t.contains("학력평가") || t.contains("연합")
-        if !isMock && (t.contains("수학능력시험") || t.contains("수능")) { return .csat }
+        if !isMock && (t.contains("수학능력시험") || t.contains("수능")
+                       || words.contains("csat")
+                       || lower.contains("college scholastic ability test")) { return .csat }
         let school = ["모의", "학력평가", "연합", "지필", "중간고사", "기말고사", "고사", "시험", "평가"]
-        if school.contains(where: t.contains) { return .school }
+        if school.contains(where: t.contains) || hasEnglishExam { return .school }
         return .none
     }
 }
@@ -186,6 +204,42 @@ enum SourceTombstones {
 }
 
 enum EventActions {
+    private struct EditableSnapshot {
+        let title: String
+        let location: String
+        let start: Date
+        let end: Date
+        let reminderMinutes: Int
+        let reminderMinutes2: Int
+        let pinned: Bool
+        let notes: String
+        let source: String
+
+        init(_ event: ScheduleEvent) {
+            title = event.title
+            location = event.location
+            start = event.start
+            end = event.end
+            reminderMinutes = event.reminderMinutes
+            reminderMinutes2 = event.reminderMinutes2
+            pinned = event.pinned
+            notes = event.notes
+            source = event.source
+        }
+
+        func restore(_ event: ScheduleEvent) {
+            event.title = title
+            event.location = location
+            event.start = start
+            event.end = end
+            event.reminderMinutes = reminderMinutes
+            event.reminderMinutes2 = reminderMinutes2
+            event.pinned = pinned
+            event.notes = notes
+            event.source = source
+        }
+    }
+
     private struct WeeklyTemplate: Hashable {
         let title: String
         let location: String
@@ -387,12 +441,32 @@ enum EventActions {
         )
     }
 
-    /// 시간표/학사일정(source != "") 일정을 사용자가 고치면: 원본 자리 톰스톤 기록 + source 비움.
-    /// → 일일 자동 재가져오기가 이 일정을 지우지도, 원래 내용으로 되살리지도 않는다.
-    static func claimFromSource(_ event: ScheduleEvent) {
-        guard !event.source.isEmpty else { return }
-        SourceTombstones.record(source: event.source, title: event.title, start: event.start)
+    /// 단일 회차 편집을 독립적으로 저장한다. source 톰스톤은 저장 성공 후에만 기록한다.
+    @discardableResult
+    static func update(
+        _ event: ScheduleEvent,
+        title: String, start: Date, end: Date, location: String, notes: String,
+        reminderMinutes: Int, reminderMinutes2: Int, pinned: Bool,
+        in context: ModelContext
+    ) -> Bool {
+        let original = EditableSnapshot(event)
+        event.title = title
+        event.location = location
+        event.start = start
+        event.end = end
+        event.reminderMinutes = reminderMinutes
+        event.reminderMinutes2 = reminderMinutes2
+        event.pinned = pinned
+        event.notes = notes
         event.source = ""
+        do {
+            try context.save()
+            SourceTombstones.record(source: original.source, title: original.title, start: original.start)
+            return true
+        } catch {
+            original.restore(event)
+            return false
+        }
     }
 
     @discardableResult

@@ -26,12 +26,12 @@ struct WatchTodayView: View {
         }
     }
 
-    /// 다음 일정(없으면 진행 중) 강조 카드.
+    /// 진행 중 일정 우선, 없으면 다음 일정 강조 카드.
     @ViewBuilder private var highlight: some View {
-        if let title = p.nextTitle, let start = p.nextStart {
-            card(tag: en ? "Next" : "다음", title: title, time: start, accent: .orange)
-        } else if let title = p.currentTitle, let end = p.currentEnd {
+        if let title = p.currentTitle, let end = p.currentEnd {
             card(tag: en ? "Ongoing" : "진행 중", title: title, time: end, accent: .green, isEnd: true)
+        } else if let title = p.nextTitle, let start = p.nextStart {
+            card(tag: en ? "Next" : "다음", title: title, time: start, accent: .orange)
         }
     }
 

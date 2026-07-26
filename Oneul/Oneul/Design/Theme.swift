@@ -46,23 +46,29 @@ extension Color {
 /// 글래스 뒤로 비치는 컬러 배경(리퀴드 글래스 느낌을 살리려면 배경이 화려해야 함).
 struct AppBackground: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
 
     // blur(90) 4개 대신 iOS 18+ MeshGradient(GPU 네이티브) — 색 배치 동일, 화면 진입 렉 제거.
     var body: some View {
-        #if os(macOS)
-        Rectangle().fill(.background).ignoresSafeArea()   // 앱 외형(시스템/라이트/다크)을 따르는 배경 — 시스템 전환 시 혼합 방지
-        #else
-        MeshGradient(
-            width: 3, height: 3,
-            points: [
-                [0, 0], [0.5, 0], [1, 0],
-                [0, 0.5], [0.5, 0.5], [1, 0.5],
-                [0, 1], [0.5, 1], [1, 1]
-            ],
-            colors: meshColors
-        )
-        .ignoresSafeArea()
-        #endif
+        if reduceTransparency || contrast == .increased {
+            Rectangle().fill(Color.appSystemBackground).ignoresSafeArea()
+        } else {
+            #if os(macOS)
+            Rectangle().fill(.background).ignoresSafeArea()   // 앱 외형(시스템/라이트/다크)을 따르는 배경 — 시스템 전환 시 혼합 방지
+            #else
+            MeshGradient(
+                width: 3, height: 3,
+                points: [
+                    [0, 0], [0.5, 0], [1, 0],
+                    [0, 0.5], [0.5, 0.5], [1, 0.5],
+                    [0, 1], [0.5, 1], [1, 1]
+                ],
+                colors: meshColors
+            )
+            .ignoresSafeArea()
+            #endif
+        }
     }
 
     // 모서리=기존 blob 색(TL·TR·BL·BR), 가운데·변=베이스. 기존 배치 그대로.

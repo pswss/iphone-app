@@ -36,6 +36,7 @@ struct RootView: View {
     @AppStorage("ttSetup") private var timetableSetup = false
     @Environment(\.modelContext) private var context
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var onboardingStudentSetup = false
     #if os(iOS)
     @State private var fadeSnapshot: UIImage?          // 외형 전환 시 이전 화면을 덮어 서서히 사라지게
@@ -118,10 +119,11 @@ struct RootView: View {
                 }
             }
         }
+        .accessibilityHidden(searchActive)
         .onChange(of: iosTab) { old, new in
             if new == .search {
                 iosTab = old == .search ? .today : old          // 현재 탭 유지
-                withAnimation(.spring(response: 0.32, dampingFraction: 0.85)) { searchActive = true }
+                setSearchActive(true)
             }
         }
         .overlay {
@@ -131,14 +133,19 @@ struct RootView: View {
                         .ignoresSafeArea()
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            withAnimation(.spring(response: 0.32, dampingFraction: 0.85)) { searchActive = false }
+                            setSearchActive(false)
                         }
+                        .accessibilityHidden(true)
                     FloatingSearchOverlay(
                         onPick: { day in
                             iosTab = .today
                             NotificationCenter.default.post(name: .oneulShowDay, object: day)
                         },
-                        onDismiss: { searchActive = false })
+                        onDismiss: { setSearchActive(false) })
+                        .accessibilityElement(children: .contain)
+                        .accessibilityLabel(lang.tr("일정 검색"))
+                        .accessibilityAction(.escape) { setSearchActive(false) }
+                        .accessibilityAction(named: Text(lang.tr("닫기"))) { setSearchActive(false) }
                 }
                 .transition(.opacity)
             }
@@ -153,6 +160,7 @@ struct RootView: View {
             }
         }
         .onChange(of: appearanceRaw) { _, _ in
+            guard !reduceMotion else { fadeSnapshot = nil; return }
             guard let img = Self.captureWindow() else { return }
             fadeSnapshot = img                                  // 새 외형 위로 즉시 덮기(이전 모습)
             DispatchQueue.main.async {
@@ -299,6 +307,12 @@ struct RootView: View {
     #endif
 
     #if os(iOS)
+    private func setSearchActive(_ active: Bool) {
+        withAnimation(reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.85)) {
+            searchActive = active
+        }
+    }
+
     /// 현재 화면(전환 직전 외형)을 이미지로 캡처. afterScreenUpdates:false라 아직 바뀌지 않은 모습을 담는다.
     private static func captureWindow() -> UIImage? {
         guard let window = UIApplication.shared.connectedScenes

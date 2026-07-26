@@ -8,12 +8,16 @@ struct FloatingSearchOverlay: View {
     var onPick: (Date) -> Void
     var onDismiss: () -> Void
     @Environment(\.modelContext) private var context
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var query = ""
+    @State private var loading = true
+    @State private var loadFailed = false
     @FocusState private var focused: Bool
+    @AccessibilityFocusState private var accessibilityFocused: Bool
     private let lang = AppLanguage.shared
 
     /// 검색용 경량 사본 — 전체 SwiftData 오브젝트를 메인에서 동기 로드하던 첫 오픈 렉 제거.
-    private struct Lite: Identifiable { let id: UUID; let title: String; let location: String; let start: Date }
+    private struct Lite: Identifiable, Sendable { let id: UUID; let title: String; let location: String; let start: Date }
     @State private var items: [Lite] = []
 
     private var results: [Lite] {
@@ -26,12 +30,25 @@ struct FloatingSearchOverlay: View {
     }
 
     private func loadItems() {
+        loading = true
+        loadFailed = false
         let container = context.container
         Task.detached(priority: .userInitiated) {
             let ctx = ModelContext(container)
-            let all = (try? ctx.fetch(FetchDescriptor<ScheduleEvent>())) ?? []
-            let lite = all.map { Lite(id: $0.id, title: $0.title, location: $0.location, start: $0.start) }
-            await MainActor.run { items = lite }
+            do {
+                let all = try ctx.fetch(FetchDescriptor<ScheduleEvent>())
+                let lite = all.map { Lite(id: $0.id, title: $0.title, location: $0.location, start: $0.start) }
+                await MainActor.run {
+                    items = lite
+                    loading = false
+                }
+            } catch {
+                await MainActor.run {
+                    items = []
+                    loadFailed = true
+                    loading = false
+                }
+            }
         }
     }
 
@@ -42,6 +59,7 @@ struct FloatingSearchOverlay: View {
                 TextField(lang.tr("제목이나 장소"), text: $query)
                     .textFieldStyle(.plain)
                     .focused($focused)
+                    .accessibilityFocused($accessibilityFocused)
                     .submitLabel(.search)
                     .onSubmit { if let f = results.first { pick(f) } }
                 Button {
@@ -50,11 +68,31 @@ struct FloatingSearchOverlay: View {
                     Image(systemName: "xmark.circle.fill").font(.body).foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
+                .frame(width: 44, height: 44)
+                .accessibilityLabel(lang.tr("닫기"))
             }
-            .padding(.horizontal, 14).padding(.vertical, 11)
+            .padding(.leading, 14).padding(.trailing, 4)
             .glassEffect(.regular, in: Capsule())
 
-            if !results.isEmpty {
+            if loading {
+                ProgressView()
+                    .accessibilityLabel(lang.tr("일정을 불러오는 중…"))
+                    .padding(.vertical, 10)
+            } else if loadFailed {
+                VStack(spacing: 8) {
+                    Text(lang.tr("일정을 불러오지 못했어요. 잠시 후 다시 시도해 주세요."))
+                        .font(.caption).foregroundStyle(.secondary)
+                    Button(lang.tr("다시 시도"), action: loadItems)
+                        .font(.caption.bold())
+                        .frame(minWidth: 44, minHeight: 44)
+                }
+                .padding(12)
+                .glassCard(cornerRadius: 18)
+            } else if !query.trimmingCharacters(in: .whitespaces).isEmpty && results.isEmpty {
+                Text(lang.tr("검색 결과가 없어요"))
+                    .font(.caption).foregroundStyle(.secondary)
+                    .padding(.vertical, 10)
+            } else if !results.isEmpty {
                 VStack(spacing: 0) {
                     ForEach(Array(results.enumerated()), id: \.element.id) { i, e in
                         Button { pick(e) } label: {
@@ -66,6 +104,7 @@ struct FloatingSearchOverlay: View {
                                     .font(.caption2).foregroundStyle(.secondary)
                             }
                             .padding(.horizontal, 14).padding(.vertical, 10)
+                            .frame(minHeight: 44)
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
@@ -77,9 +116,10 @@ struct FloatingSearchOverlay: View {
         }
         .padding(.horizontal, 16)
         .padding(.top, 8)
-        .transition(.move(edge: .top).combined(with: .opacity))
+        .transition(reduceMotion ? .identity : .move(edge: .top).combined(with: .opacity))
         .onAppear {
             focused = true
+            DispatchQueue.main.async { accessibilityFocused = true }
             loadItems()
         }
     }
@@ -90,7 +130,9 @@ struct FloatingSearchOverlay: View {
     }
     private func dismiss() {
         focused = false
-        withAnimation(.spring(response: 0.32, dampingFraction: 0.85)) { onDismiss() }
+        accessibilityFocused = false
+        if reduceMotion { onDismiss() }
+        else { withAnimation(.spring(response: 0.32, dampingFraction: 0.85)) { onDismiss() } }
     }
 }
 #endif

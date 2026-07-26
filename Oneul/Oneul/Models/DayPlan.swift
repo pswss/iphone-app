@@ -171,6 +171,17 @@ enum Holidays {
         return substituteName(for: day, cal: cal)
     }
 
+    /// 내부 판정은 한국어 canonical 이름을 유지하고, 화면에 표시할 때만 앱 언어로 바꾼다.
+    static func displayName(for day: Date, language: AppLanguage = .shared) -> String? {
+        guard let canonical = name(for: day) else { return nil }
+        guard language.isEnglish else { return canonical }
+        if canonical.hasPrefix("대체공휴일("), canonical.hasSuffix(")") {
+            let base = String(canonical.dropFirst("대체공휴일(".count).dropLast())
+            return String(format: language.tr("대체공휴일(%@)"), language.tr(base))
+        }
+        return language.tr(canonical)
+    }
+
     /// 대체공휴일 — 「관공서의 공휴일에 관한 규정」 2023 개정 기준:
     /// · 삼일절·어린이날·광복절·개천절·한글날·부처님오신날·기독탄신일(크리스마스):
     ///   토요일·일요일과 겹치면 그다음 첫 평일(월요일)이 대체공휴일.

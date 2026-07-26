@@ -192,6 +192,42 @@ struct SeriesEditHarness {
                   "T8 delete-future closes surviving history (got \(after.count))")
         }
 
+        // T9 — source 일정 단일 편집: 저장된 편집본은 사용자 소유, 원본 자리는 톰스톤으로 보호.
+        do {
+            let ctx = try freshContext()
+            let (_, first) = try seedTimetable(ctx)
+            let original = (source: first.source, title: first.title, start: first.start)
+            let movedStart = first.start.addingTimeInterval(1800)
+            let saved = EventActions.update(
+                first, title: "수학 심화", start: movedStart,
+                end: movedStart.addingTimeInterval(5400), location: "2학년 1반", notes: "오답 노트",
+                reminderMinutes: 30, reminderMinutes2: 10, pinned: true, in: ctx)
+            let edited = try fetchAll(ctx).first { $0.id == first.id }
+            check(saved && edited?.title == "수학 심화" && edited?.location == "2학년 1반"
+                  && edited?.start == movedStart && edited?.end == movedStart.addingTimeInterval(5400)
+                  && edited?.reminderMinutes == 30 && edited?.reminderMinutes2 == 10
+                  && edited?.pinned == true && edited?.notes == "오답 노트" && edited?.source == "",
+                  "T9a atomic single update persists every editable field and claims source")
+            check(SourceTombstones.contains(source: original.source, title: original.title, start: original.start),
+                  "T9b successful source update records original-slot tombstone")
+        }
+
+        // T10 — 한·영 시험 의미: 시험 자체만 알림, 공부/준비 일정은 제외.
+        let schoolExams = ["중간고사", "Math exam", "English test", "Midterm", "Final", "Mock exam", "Reading assessment"]
+        check(schoolExams.allSatisfy { ScheduleEvent(title: $0).examKind == .school },
+              "T10a Korean and English school-exam terms classify as school")
+        let csatExams = ["수능", "CSAT", "College Scholastic Ability Test"]
+        check(csatExams.allSatisfy { ScheduleEvent(title: $0).examKind == .csat },
+              "T10b Korean and English CSAT terms classify as csat")
+        let preparation = ["시험공부", "Exam prep", "Test preparation", "Study for final", "CSAT review"]
+        check(preparation.allSatisfy { ScheduleEvent(title: $0).examKind == .none },
+              "T10c exam prep, study, and review stay non-exams")
+        check(ScheduleEvent(title: "Final project presentation").examKind == .none,
+              "T10d non-exam use of final stays non-exam")
+        check(ExamKind.school.checklist(english: true) == ["watch", "writing tools"]
+              && ExamKind.csat.checklist(english: true) == ["watch", "writing tools", "admission ticket", "photo ID"],
+              "T10e English school/CSAT checklists are localized")
+
         print(failures == 0 ? "ALL PASS" : "\(failures) FAILURE(S)")
         exit(failures == 0 ? 0 : 1)
     }

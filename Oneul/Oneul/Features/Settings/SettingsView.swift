@@ -17,6 +17,7 @@ private struct ConditionalGlass: ViewModifier {
 
 struct SettingsView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("appearance") private var appearanceRaw = Appearance.system.rawValue
     @AppStorage("userType") private var userType = "general"
     @Bindable private var lang = AppLanguage.shared
@@ -377,7 +378,7 @@ struct SettingsView: View {
                     HStack(spacing: 8) {
                         Button(role: .destructive) {
                             if resetAllData() {
-                                withAnimation(.snappy(duration: 0.2)) { showResetConfirm = false }
+                                withAnimation(reduceMotion ? nil : .snappy(duration: 0.2)) { showResetConfirm = false }
                             }
                         } label: {
                             Text(lang.tr("초기화")).font(.subheadline.bold())
@@ -385,7 +386,7 @@ struct SettingsView: View {
                         }
                         .buttonStyle(.borderedProminent).tint(.red)
                         Button {
-                            withAnimation(.snappy(duration: 0.2)) { showResetConfirm = false }
+                            withAnimation(reduceMotion ? nil : .snappy(duration: 0.2)) { showResetConfirm = false }
                         } label: {
                             Text(lang.tr("취소")).font(.subheadline)
                                 .frame(maxWidth: .infinity).padding(.vertical, 8)
@@ -398,7 +399,7 @@ struct SettingsView: View {
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
             Button(role: .destructive) {
-                withAnimation(.snappy(duration: 0.22)) { showResetConfirm.toggle() }   // 1차: 확인 펼침
+                withAnimation(reduceMotion ? nil : .snappy(duration: 0.22)) { showResetConfirm.toggle() }   // 1차: 확인 펼침
             } label: {
                 HStack {
                     Label(lang.tr("모든 데이터 초기화"), systemImage: "trash").font(.subheadline)

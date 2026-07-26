@@ -112,14 +112,16 @@ enum MenuBarPopStyle { case slideDown, sparklePop }
 
 private struct MenuBarPopIn: ViewModifier {
     let style: MenuBarPopStyle
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var shown = false
 
     func body(content: Content) -> some View {
         content
-            .opacity(shown ? 1 : 0)
-            .scaleEffect(style == .sparklePop ? (shown ? 1 : 0.88) : 1, anchor: .top)
-            .offset(y: style == .slideDown ? (shown ? 0 : -14) : 0)
+            .opacity(reduceMotion || shown ? 1 : 0)
+            .scaleEffect(reduceMotion ? 1 : (style == .sparklePop ? (shown ? 1 : 0.88) : 1), anchor: .top)
+            .offset(y: reduceMotion ? 0 : (style == .slideDown ? (shown ? 0 : -14) : 0))
             .onAppear {
+                guard !reduceMotion else { shown = true; return }
                 shown = false
                 withAnimation(style == .sparklePop
                               ? .spring(response: 0.32, dampingFraction: 0.62)   // ✨ 통통 튀는 팝

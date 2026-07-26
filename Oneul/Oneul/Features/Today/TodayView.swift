@@ -7,6 +7,7 @@ import WidgetKit
 
 struct TodayView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(sort: \ScheduleEvent.start) private var events: [ScheduleEvent]
 
     @State private var selectedDay: Date = .now
@@ -76,7 +77,7 @@ struct TodayView: View {
             #endif
         }
         .overlay(alignment: .top) { clipboardChip }          // 복사/잘라내기 활성 표시 + 취소(빈 곳 추가 하이재킹 방지)
-        .animation(.snappy(duration: 0.25), value: EventClipboard.shared.item == nil)
+        .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: EventClipboard.shared.item == nil)
         #if os(iOS)
         .overlay(alignment: .bottomTrailing) { addButton }   // 맥은 툴바 '+ 새 일정' 사용
         #endif
@@ -171,19 +172,29 @@ struct TodayView: View {
         if EventClipboard.shared.item != nil {
             HStack(spacing: 8) {
                 Image(systemName: "doc.on.clipboard").font(.caption)
-                Text(lang.tr("일정 복사됨 · 빈 곳을 눌러 붙여넣기")).font(.caption).bold()
+                Text(clipboardInstruction).font(.caption).bold()
                 Button {
                     EventClipboard.shared.clear(); Haptics.impact(.light)
                 } label: {
                     Image(systemName: "xmark.circle.fill").font(.callout).foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
+                .contentShape(Rectangle().inset(by: -14))
+                .accessibilityLabel(lang.tr("취소"))
             }
             .padding(.horizontal, 14).padding(.vertical, 8)
             .glassEffect(.regular, in: Capsule())
             .padding(.top, 8)
             .transition(.move(edge: .top).combined(with: .opacity))
         }
+    }
+
+    private var clipboardInstruction: String {
+        #if os(iOS)
+        lang.tr("일정 복사됨 · 빈 곳을 길게 눌러 붙여넣기")
+        #else
+        lang.tr("일정 복사됨 · 빈 곳을 두 번 클릭해 붙여넣기")
+        #endif
     }
 
     // 우하단 리퀴드 글래스 + 버튼 (새 일정)
@@ -241,6 +252,7 @@ struct TodayView: View {
     // (데이터 변경마다 뷰 아이덴티티가 바뀌면 드래그/리사이즈 커밋 때 스크롤 점프·선택 풀림)
     private var weekGrid: some View {
         MacWeekGrid(weekStart: weekStart(of: selectedDay),
+                    selectedDay: selectedDay,
                     dayPlan: { dayPlan(for: $0) },
                     onEdit: { editing = $0 },
                     onAdd: { addStart = $0; showingAdd = true },
@@ -313,7 +325,7 @@ struct TodayView: View {
     // 위젯 한 줄 — 자연 높이를 재서(RowHeightKey) 로컬 진행률(lp)만큼 접고 위로 살짝 미끄러뜨림.
     // 펼친 상태(lp 0)에선 클립 안 함 → 카드 그림자 안 잘림.
     private func chromeRow<V: View>(index: Int, order: Int, @ViewBuilder _ content: () -> V) -> some View {
-        let lp = rowProgress(order: order)
+        let lp = reduceMotion ? 0 : rowProgress(order: order)
         let h = rowH[index] ?? 0
         return content()
             .fixedSize(horizontal: false, vertical: true)
@@ -341,6 +353,7 @@ struct TodayView: View {
         return grid(p, d,
                     scrollHour: active ? $sharedScrollHour : .constant(sharedScrollHour),   // 보이는 페이지만 공유값에 쓰기(옆 페이지가 자정으로 덮는 것 방지)
                     onScrollDelta: active ? { y in
+                        guard !reduceMotion else { return }
                         // y = 그리드 절대 스크롤량(최상단=0). 데드존 22 지나야 접히기 시작, 253pt에 걸쳐 완전히 접힘.
                         // 1/120 단위로 양자화 + 같은 값이면 안 씀 — 접힘 구간 밖(0/1 포화)에선 스크롤이
                         // 뷰 갱신을 전혀 유발하지 않게(120Hz 아이패드 스크롤 끊김 방지).
@@ -368,7 +381,7 @@ struct TodayView: View {
                     .glassEffect(.regular.interactive(), in: Capsule())
                 #endif
             }
-            if let holiday = Holidays.name(for: selectedDay) {
+            if let holiday = Holidays.displayName(for: selectedDay, language: lang) {
                 Text(holiday)
                     .font(.caption).bold()
                     .foregroundStyle(.red)
@@ -400,11 +413,20 @@ struct TodayView: View {
                     .font(.caption).bold()
                 Spacer(minLength: 4)
                 Button {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 1.0)) {
+                    if reduceMotion {
                         promoSnoozeYear = currentSchoolYear   // 이번 학년도 동안 숨김
+                    } else {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 1.0)) {
+                            promoSnoozeYear = currentSchoolYear
+                        }
                     }
-                } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary) }
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                        .frame(width: 44, height: 44)
+                }
                 .buttonStyle(.plain)
+                .accessibilityLabel(lang.tr("닫기"))
             }
             .padding(.horizontal, 12).padding(.vertical, 8)
             .background(Color.appAccent.opacity(0.18), in: RoundedRectangle(cornerRadius: 12))
@@ -423,6 +445,7 @@ struct TodayView: View {
                 .font(.body.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .frame(width: 40, height: 34)
+                .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -707,6 +730,13 @@ struct DayPager<Content: View>: UIViewControllerRepresentable {
         }
         guard !coord.isAnimating else { return }   // 슬라이드 중 재진입 차단(엉뚱한 날 착지 방지)
 
+        if UIAccessibility.isReduceMotionEnabled {
+            pvc.setViewControllers([coord.host(selectedDay)],
+                                   direction: selectedDay > cur.day ? .forward : .reverse, animated: false)
+            coord.isAnimating = false
+            return
+        }
+
         // 다른 날 — 스냅샷 기반 수동 슬라이드: 목표로 즉시 전환(확실히 착지)한 뒤 옛 화면 스냅샷을
         // 진행 방향으로 밀어내 슬라이드처럼 보이게 한다. UIPageViewController .scroll의 멀티데이 애니메이션
         // 불발/콜백 누락 문제를 회피 — 클릭으로 며칠을 건너뛰어도 항상 슬라이드되고 정확히 착지.
@@ -758,7 +788,11 @@ struct DayPager<Content: View>: UIViewControllerRepresentable {
                                 previousViewControllers: [UIViewController], transitionCompleted completed: Bool) {
             guard completed, let h = p.viewControllers?.first as? Host,
                   !Calendar.current.isDate(parent.selectedDay, inSameDayAs: h.day) else { return }
-            withAnimation(.snappy(duration: 0.3)) { parent.selectedDay = h.day }   // 탭 이동과 동일한 자연 전환
+            if UIAccessibility.isReduceMotionEnabled {
+                parent.selectedDay = h.day
+            } else {
+                withAnimation(.snappy(duration: 0.3)) { parent.selectedDay = h.day }   // 탭 이동과 동일한 자연 전환
+            }
         }
     }
 
@@ -791,6 +825,7 @@ private extension View {
 /// 주간 그리드(맥·아이패드 regular) — 한 주(월~일) 7일을 가로로 나란히. 첫 열만 시각축, 세로 스크롤 공유.
 struct MacWeekGrid: View {
     let weekStart: Date
+    let selectedDay: Date
     let dayPlan: (Date) -> DayPlan
     var onEdit: (ScheduleEvent) -> Void
     var onAdd: (Date) -> Void
@@ -878,6 +913,7 @@ struct MacWeekGrid: View {
 
     private func dayHeader(_ d: Date) -> some View {
         let today = cal.isDateInToday(d)
+        let selected = cal.isDate(d, inSameDayAs: selectedDay)
         let special = isSpecial(d) || Holidays.name(for: d) != nil   // 생일·기념일·공휴일 빨강(오늘 강조 우선)
         return VStack(spacing: 1) {
             Text(d, format: .dateTime.weekday(.short).locale(lang.locale))
@@ -886,6 +922,15 @@ struct MacWeekGrid: View {
                 .font(.callout).bold()
                 .foregroundStyle(today ? Color.appAccentText : (special ? .red : .primary))
         }
+        .padding(.vertical, 2)
+        .frame(maxWidth: .infinity)
+        .background {
+            if selected && !today {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color.appAccent.opacity(0.16))
+            }
+        }
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     // MARK: 종일 밴드(연속 스팬 바)

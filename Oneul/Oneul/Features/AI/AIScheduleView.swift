@@ -5,6 +5,7 @@ import Vision
 
 struct AIScheduleView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var inputText = ""
     @State private var pickedPhoto: PhotosPickerItem?   // 사진(시간표·일정표) → OCR → 일정 생성
@@ -52,7 +53,7 @@ struct AIScheduleView: View {
                 contentStack.padding(16).frame(maxWidth: .infinity)   // 맥: 스크롤/GeometryReader 없이 콘텐츠에 딱 맞게(팝오버가 내용 높이대로)
                 #endif
             }
-            .animation(.easeInOut(duration: 0.45), value: isLoading)   // 글로우 페이드 인/아웃
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.45), value: isLoading)   // 글로우 페이드 인/아웃
             .navigationTitle(lang.tr("AI 일정"))
             .navBarInline()
             .task {
@@ -178,7 +179,7 @@ struct AIScheduleView: View {
         }
         .buttonStyle(.plain)
         .disabled(!canGenerate)
-        .animation(.easeInOut(duration: 0.2), value: canGenerate)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: canGenerate)
         .accessibilityLabel(lang.tr(isLoading ? "생성 중..." : "일정 생성"))
     }
 
@@ -511,7 +512,7 @@ struct AIScheduleView: View {
             // 자극적/민감 표현으로 모델이 막은 경우 — 빨간 에러 대신 순화 안내 답변
             reply = lang.tr("그 표현은 도와드리기 어려워요. 일정 내용을 부드럽게 바꿔서 다시 말해 주세요.")
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = lang.tr("요청을 처리하지 못했어요. 잠시 후 다시 시도해 주세요.")
         }
     }
 
@@ -618,8 +619,8 @@ struct AIScheduleView: View {
         errorMessage = nil
         var applied = 0
         var failed = false
+        var targetMissing = false
         var succeeded = Set<UUID>()
-        var pendingUpdates = Set<UUID>()
         for e in results {
             switch e.action {
             case .create:
@@ -633,11 +634,17 @@ struct AIScheduleView: View {
                 }
             case .update:
                 if let t = find(e.targetID) {
-                    EventActions.claimFromSource(t)   // 시간표 일정이면 톰스톤 + 사용자 소유로(자동 갱신 원복 방지)
-                    t.title = e.title; t.start = e.start; t.end = e.end; t.location = e.location
-                    applied += 1
-                    pendingUpdates.insert(e.id)
-                }
+                    if EventActions.update(
+                        t, title: e.title, start: e.start, end: e.end, location: e.location, notes: t.notes,
+                        reminderMinutes: t.reminderMinutes, reminderMinutes2: t.reminderMinutes2,
+                        pinned: t.pinned, in: context
+                    ) {
+                        applied += 1
+                        succeeded.insert(e.id)
+                    } else {
+                        failed = true
+                    }
+                } else { targetMissing = true }
             case .delete:
                 if let id = e.targetID {
                     if let t = find(id) {
@@ -650,7 +657,7 @@ struct AIScheduleView: View {
                         } else {
                             failed = true
                         }
-                    }
+                    } else { targetMissing = true }
                 } else {
                     // bulk: 정확히 같은 제목 우선, 없을 때만 부분 일치("수학"이 "수학여행"을 지우는 오폭 방지)
                     let targets = bulkDeleteTargets(e.title)
@@ -663,20 +670,15 @@ struct AIScheduleView: View {
                             failed = true
                         }
                     }
+                    if targets.isEmpty { targetMissing = true }
                     if allSaved { succeeded.insert(e.id) }
                 }
             }
         }
-        do {
-            try context.save()
-            succeeded.formUnion(pendingUpdates)
-        } catch {
-            failed = true
-            errorMessage = "저장 오류: \(error.localizedDescription)"
-        }
-        if failed {
+        if failed || targetMissing {
             results.removeAll { succeeded.contains($0.id) }
-            if errorMessage == nil { reportPersistenceFailure() }
+            if failed { reportPersistenceFailure() }
+            else { errorMessage = lang.tr("적용할 대상을 찾지 못했어요.") }
         } else if applied == 0 {
             errorMessage = lang.tr("적용할 대상을 찾지 못했어요.")
         } else {

@@ -54,8 +54,8 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
                   let fire = cal.date(bySettingHour: examEveMinutes / 60, minute: examEveMinutes % 60,
                                       second: 0, of: prevDay),
                   fire > now else { continue }
-            let items = e.examKind.checklist.joined(separator: ", ")
             let en = AppLanguage.shared.isEnglish
+            let items = e.examKind.checklist(english: en).joined(separator: ", ")
             candidates.append(Candidate(
                 id: "\(e.id.uuidString)-exam", title: en ? "Tomorrow: \(e.title)" : "내일 \(e.title)",
                 body: en ? "Bring: \(items)" : "준비물: \(items)\n\(Self.cheer(for: e.start))",

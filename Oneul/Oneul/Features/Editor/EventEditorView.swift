@@ -194,7 +194,7 @@ struct EventEditorView: View {
                     }
                 }
                 Button(role: .destructive) {
-                    withAnimation(.snappy(duration: 0.22)) { showDeleteOptions.toggle() }
+                    withAnimation(rowAnim) { showDeleteOptions.toggle() }
                 } label: {
                     Label(lang.tr("일정 삭제"), systemImage: "trash")
                         .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 13)
@@ -236,23 +236,26 @@ struct EventEditorView: View {
     }
 
     private var weekdaySelector: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 3) {
             ForEach(1...7, id: \.self) { wd in
                 let on = weekdays.contains(wd)
                 Button {
-                    withAnimation(.snappy(duration: 0.2)) {
+                    withAnimation(rowAnim) {
                         if on { weekdays.remove(wd) } else { weekdays.insert(wd) }
                     }
                 } label: {
                     Text(weekdaySymbol(wd))
                         .font(.subheadline).bold()
-                        .frame(maxWidth: .infinity, minHeight: 36)
+                        .frame(width: 44, height: 44)
                         .background(on ? Color.appAccent : Color.clear, in: Circle())
                         .foregroundStyle(on ? Color.appOnAccent : .primary)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityAddTraits(on ? .isSelected : [])
             }
         }
+        .frame(maxWidth: .infinity)
         .padding(8)
         .glassCard(cornerRadius: 22)
     }
@@ -327,13 +330,12 @@ struct EventEditorView: View {
         if let event {
             if singleOnly {
                 // 이 회차만: 필드만 갱신, 시리즈(다른 회차)는 그대로
-                EventActions.claimFromSource(event)   // 시간표 일정이면 원본에 톰스톤 + 사용자 소유로(자동 갱신 원복 방지)
-                event.title = title; event.location = location
-                event.start = start; event.end = end
-                event.reminderMinutes = reminderMinutes
-                event.reminderMinutes2 = reminderMinutes != -1 ? reminderMinutes2 : -1
-                event.pinned = pinned; event.notes = notes
-                guard saveContext() else { return }   // 실패 시 시트 유지 + 알림(조용한 유실 방지)
+                guard EventActions.update(
+                    event, title: title, start: start, end: end, location: location, notes: notes,
+                    reminderMinutes: reminderMinutes,
+                    reminderMinutes2: reminderMinutes != -1 ? reminderMinutes2 : -1,
+                    pinned: pinned, in: context
+                ) else { reportSaveFailure(); return }
             } else if recurrence != .none || event.isRecurring {
                 // 반복 설정/변경/해제 → 이 일정(+이후 시리즈)을 지우고 새 규칙으로 재생성
                 // (weekdays·endDate는 load()에서 시리즈 전체 기준으로 복원돼 있어 유실 없음)
@@ -347,13 +349,12 @@ struct EventEditorView: View {
                     endDate: effectiveEndDate, pinned: pinned, in: context
                 ) else { reportSaveFailure(); return }
             } else {
-                EventActions.claimFromSource(event)   // 시간표 일정이면 원본에 톰스톤 + 사용자 소유로
-                event.title = title; event.location = location
-                event.start = start; event.end = end
-                event.reminderMinutes = reminderMinutes
-                event.reminderMinutes2 = reminderMinutes != -1 ? reminderMinutes2 : -1
-                event.pinned = pinned; event.notes = notes
-                guard saveContext() else { return }
+                guard EventActions.update(
+                    event, title: title, start: start, end: end, location: location, notes: notes,
+                    reminderMinutes: reminderMinutes,
+                    reminderMinutes2: reminderMinutes != -1 ? reminderMinutes2 : -1,
+                    pinned: pinned, in: context
+                ) else { reportSaveFailure(); return }
             }
         } else {
             guard EventActions.create(
@@ -366,12 +367,6 @@ struct EventEditorView: View {
         }
         Haptics.notify(.success)   // 저장 확인 촉각 피드백
         dismiss()
-    }
-
-    /// 편집기 저장 — 실패하면 saveError에 담아 알림 표시. try? 삼킴으로 인한 조용한 유실 방지.
-    private func saveContext() -> Bool {
-        do { try context.save(); return true }
-        catch { saveError = error.localizedDescription; return false }
     }
 
     private func reportSaveFailure() {

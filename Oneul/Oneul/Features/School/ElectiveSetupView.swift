@@ -11,6 +11,7 @@ struct ElectiveSetupView: View {
 
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private let lang = AppLanguage.shared
 
     @State private var loading = true
@@ -21,6 +22,7 @@ struct ElectiveSetupView: View {
     @State private var picks: [String: String] = [:]   // "wd-p" → 선택 교시 배정 과목
     @State private var importing = false
     @State private var message = ""
+    @AccessibilityFocusState private var messageFocused: Bool
 
     private let noneTag = "(없음)"
 
@@ -28,7 +30,13 @@ struct ElectiveSetupView: View {
         ZStack {
             AppBackground()
             if loading {
-                Color.clear   // 로딩 모션 없음 — 준비되면 콘텐츠가 부드럽게 페이드 인
+                VStack(spacing: 12) {
+                    ProgressView()
+                    Text(lang.tr("학년 전체 시간표 불러오는 중…"))
+                        .font(.subheadline).foregroundStyle(.secondary)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(lang.tr("학년 전체 시간표 불러오는 중…"))
             } else if g.classTT.isEmpty {
                 VStack(spacing: 12) {
                     Image(systemName: g.failed ? "wifi.exclamationmark" : "calendar.badge.exclamationmark")
@@ -52,6 +60,7 @@ struct ElectiveSetupView: View {
                         if reviewing { reviewPhase } else { checkPhase }
                         if !message.isEmpty {
                             Text(message).font(.footnote).foregroundStyle(.secondary).padding(.horizontal, 4)
+                                .accessibilityFocused($messageFocused)
                         }
                     }
                     .padding(16)
@@ -60,8 +69,8 @@ struct ElectiveSetupView: View {
                 .transition(.opacity)
             }
         }
-        .animation(.spring(response: 0.4, dampingFraction: 0.88), value: loading)
-        .animation(.spring(response: 0.35, dampingFraction: 0.88), value: reviewing)
+        .animation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.88), value: loading)
+        .animation(reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.88), value: reviewing)
         .navigationTitle(lang.tr("시간표 가져오기"))
         .navBarInline()
         #if os(macOS)
@@ -75,6 +84,9 @@ struct ElectiveSetupView: View {
         }
         #endif
         .task { await load() }
+        .onChange(of: message) { _, value in
+            if !value.isEmpty { messageFocused = true }
+        }
     }
 
     // MARK: 1단계 — 체크리스트
@@ -246,7 +258,7 @@ struct ElectiveSetupView: View {
             try? await Task.sleep(nanoseconds: 800_000_000)
             dismiss()
         } catch {
-            message = error.localizedDescription
+            message = lang.tr("시간표를 만들지 못했어요. 잠시 후 다시 시도해 주세요.")
         }
     }
 }

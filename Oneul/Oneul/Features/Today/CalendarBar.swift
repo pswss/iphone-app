@@ -11,6 +11,11 @@ struct CalendarBar: View {
     @State private var expanded = false
     @State private var weekIndex = 0
     @State private var monthIndex = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ScaledMetric(relativeTo: .body) private var weekPagerHeight: CGFloat = 58
+    @ScaledMetric(relativeTo: .body) private var monthRowHeight: CGFloat = 44
+    @ScaledMetric(relativeTo: .subheadline) private var weekDayDiameter: CGFloat = 32
+    @ScaledMetric(relativeTo: .subheadline) private var monthDayDiameter: CGFloat = 34
 
     private let cal = Calendar.current
     private let weekRange = -260...260
@@ -30,7 +35,8 @@ struct CalendarBar: View {
                 weekPager
             }
         }
-        .padding(10)
+        .padding(.vertical, 10)
+        .padding(.horizontal, 4)
         .glassCard(cornerRadius: 22)
         .onAppear(perform: syncIndices)
         .onChange(of: selectedDay) { _, _ in syncIndices() }
@@ -52,6 +58,10 @@ struct CalendarBar: View {
         }
         .buttonStyle(.plain)
         .padding(.horizontal, 4)
+        .frame(minHeight: 44)
+        .contentShape(Rectangle())
+        .accessibilityLabel(visibleMonth.formatted(.dateTime.year().month(.wide).locale(lang.locale)))
+        .accessibilityValue(lang.tr(expanded ? "펼쳐짐" : "접힘"))
     }
 
     // MARK: 주 페이저
@@ -62,29 +72,32 @@ struct CalendarBar: View {
                 HStack(spacing: 4) {
                     ForEach(days(week: idx), id: \.self) { weekCell($0) }
                 }
-                .padding(.horizontal, 2)
                 .tag(idx)
             }
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
-        .frame(height: 58)
+        .frame(height: weekPagerHeight)
     }
     #else
     // macOS: PageTabViewStyle 미지원 → ‹ › 버튼으로 주 이동(마우스 클릭).
     private var weekPager: some View {
         HStack(spacing: 4) {
-            Button { weekIndex -= 1 } label: { Image(systemName: "chevron.left") }
+                Button { weekIndex -= 1 } label: {
+                    Image(systemName: "chevron.left").frame(width: 44, height: 44)
+                }
                 .buttonStyle(.borderless)
                 .accessibilityLabel(lang.tr("이전 주"))
             HStack(spacing: 4) {
                 ForEach(days(week: weekIndex), id: \.self) { weekCell($0) }
             }
-            Button { weekIndex += 1 } label: { Image(systemName: "chevron.right") }
+            Button { weekIndex += 1 } label: {
+                Image(systemName: "chevron.right").frame(width: 44, height: 44)
+            }
                 .buttonStyle(.borderless)
                 .accessibilityLabel(lang.tr("다음 주"))
         }
         .padding(.horizontal, 2)
-        .frame(height: 58)
+        .frame(height: weekPagerHeight)
     }
     #endif
 
@@ -107,35 +120,38 @@ struct CalendarBar: View {
             }
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
-        .frame(height: 264)
+        .frame(height: monthRowHeight * 6)
     }
     #else
     // macOS: ‹ › 버튼으로 달 이동(마우스 클릭).
     private var monthPager: some View {
         VStack(spacing: 4) {
             HStack {
-                Button { monthIndex -= 1 } label: { Image(systemName: "chevron.left") }
+                Button { monthIndex -= 1 } label: {
+                    Image(systemName: "chevron.left").frame(width: 44, height: 44)
+                }
                     .buttonStyle(.borderless)
                     .accessibilityLabel(lang.tr("이전 달"))
                 Spacer()
-                Button { monthIndex += 1 } label: { Image(systemName: "chevron.right") }
+                Button { monthIndex += 1 } label: {
+                    Image(systemName: "chevron.right").frame(width: 44, height: 44)
+                }
                     .buttonStyle(.borderless)
                     .accessibilityLabel(lang.tr("다음 달"))
             }
             .padding(.horizontal, 4)
             monthGrid(monthStart(monthIndex))
         }
-        .frame(height: 264)
+        .frame(height: monthRowHeight * 6 + 48)
     }
     #endif
 
     private func monthGrid(_ monthStart: Date) -> some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 7), spacing: 0) {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 44), spacing: 4), count: 7), spacing: 0) {
             ForEach(Array(monthDays(monthStart).enumerated()), id: \.offset) { _, day in
-                if let day { monthCell(day) } else { Color.clear.frame(height: 44) }
+                if let day { monthCell(day) } else { Color.clear.frame(height: monthRowHeight) }
             }
         }
-        .padding(.horizontal, 2)
     }
 
     // MARK: 셀
@@ -148,13 +164,14 @@ struct CalendarBar: View {
                     .font(.caption2).foregroundStyle(.secondary)
                 Text(verbatim: "\(cal.component(.day, from: date))")
                     .font(.subheadline).bold()
-                    .frame(width: 32, height: 32)
+                    .frame(width: weekDayDiameter, height: weekDayDiameter)
                     .background { highlight(selected: selected, today: today) }
                     .foregroundStyle(dateColor(date, selected: selected))
             }
-            .frame(maxWidth: .infinity)
+            .frame(minWidth: 44, maxWidth: .infinity)
         }
         .buttonStyle(.plain)
+        .contentShape(Rectangle())
         .accessibilityLabel(dateAccessibilityLabel(date))
         .accessibilityValue(dateAccessibilityValue(date, today: today))
         .accessibilityAddTraits(selected ? .isSelected : [])
@@ -178,11 +195,11 @@ struct CalendarBar: View {
         return Button { select(date) } label: {
             Text(verbatim: "\(cal.component(.day, from: date))")
                 .font(.subheadline)
-                .frame(width: 34, height: 34)
+                .frame(width: monthDayDiameter, height: monthDayDiameter)
                 .background { highlight(selected: selected, today: today) }
                 .foregroundStyle(dateColor(date, selected: selected))
                 .overlay(alignment: .bottom) { eventDots(date, selected: selected) }
-                .frame(maxWidth: .infinity, minHeight: 44)
+                .frame(maxWidth: .infinity, minHeight: monthRowHeight)
         }
         .buttonStyle(.plain)
         .contentShape(Rectangle())
@@ -229,7 +246,7 @@ struct CalendarBar: View {
 
     // MARK: 동작
     private func toggleExpanded() {
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) {
+        withAnimation(reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.86)) {
             if expanded {
                 weekIndex = weekIdx(for: selectedDay)
             } else {
@@ -241,9 +258,9 @@ struct CalendarBar: View {
 
     private func select(_ date: Date) {
         Haptics.impact(.light)   // 날짜 선택 촉각 피드백
-        withAnimation(.snappy(duration: 0.3)) { selectedDay = date }   // 메인 페이저도 슬라이드되도록
+        withAnimation(reduceMotion ? nil : .snappy(duration: 0.3)) { selectedDay = date }   // 메인 페이저도 슬라이드되도록
         if expanded {
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) { expanded = false }
+            withAnimation(reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.86)) { expanded = false }
         }
     }
 
