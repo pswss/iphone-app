@@ -70,25 +70,25 @@ struct EventEditorView: View {
                             }
                         }
                         field(lang.tr("시작")) {
-                            DatePicker("", selection: $start).labelsHidden()
+                            DatePicker(lang.tr("시작"), selection: $start).labelsHidden()
                                 .onChange(of: start) { old, new in
                                     guard loadedOnce else { return }
                                     end = end.addingTimeInterval(new.timeIntervalSince(old))   // 길이 유지(애플 캘린더식)
                                 }
                         }
                         field(lang.tr("종료")) {
-                            DatePicker("", selection: $end, in: start...).labelsHidden()
+                            DatePicker(lang.tr("종료"), selection: $end, in: start...).labelsHidden()
                         }
                         field(lang.tr("알림")) {
-                            reminderPicker($reminderMinutes)
+                            reminderPicker(lang.tr("알림"), $reminderMinutes)
                         }
                         if reminderMinutes != -1 {
                             field(lang.tr("2차 알림")) {
-                                reminderPicker($reminderMinutes2)
+                                reminderPicker(lang.tr("2차 알림"), $reminderMinutes2)
                             }
                         }
                         field(lang.tr("반복")) {
-                            Picker("", selection: $recurrence) {
+                            Picker(lang.tr("반복"), selection: $recurrence) {
                                 ForEach(Recurrence.allCases) { Text(lang.tr($0.label)).tag($0) }
                             }
                             .labelsHidden().tint(Color.appAccentText)
@@ -96,18 +96,18 @@ struct EventEditorView: View {
                         if recurrence == .weekly { weekdaySelector }
                         if recurrence != .none {
                             field(lang.tr("반복 종료일")) {
-                                Toggle("", isOn: $hasEndDate).labelsHidden().tint(Color.appAccent)
+                                Toggle(lang.tr("반복 종료일"), isOn: $hasEndDate).labelsHidden().tint(Color.appAccent)
                             }
                             if hasEndDate {
                                 field(lang.tr("종료일")) {
-                                    DatePicker("", selection: $endDate, in: start...,
+                                    DatePicker(lang.tr("종료일"), selection: $endDate, in: start...,
                                                displayedComponents: .date).labelsHidden()
                                 }
                             }
                         }
 
                         field(lang.tr("주요 일정")) {
-                            Toggle("", isOn: $pinned).labelsHidden().tint(Color.appAccent)
+                            Toggle(lang.tr("주요 일정"), isOn: $pinned).labelsHidden().tint(Color.appAccent)
                         }
 
                         // 메모 — 모델에 있었지만 UI가 없던 필드
@@ -163,8 +163,8 @@ struct EventEditorView: View {
         }
     }
 
-    private func reminderPicker(_ binding: Binding<Int>) -> some View {
-        Picker("", selection: binding) {
+    private func reminderPicker(_ label: String, _ binding: Binding<Int>) -> some View {
+        Picker(label, selection: binding) {
             ForEach(reminderOptions, id: \.value) { Text(lang.tr($0.label)).tag($0.value) }
         }
         .labelsHidden().tint(Color.appAccentText)
@@ -209,11 +209,20 @@ struct EventEditorView: View {
         guard let event else { return [] }
         if event.isRecurring {
             return [
-                (lang.tr("이 일정만 삭제"), { EventActions.deleteSingle(event, in: context); Haptics.notify(.warning); dismiss() }),
-                (lang.tr("이후 일정 모두 삭제"), { EventActions.deleteFutureSeries(from: event, in: context); Haptics.notify(.warning); dismiss() })
+                (lang.tr("이 일정만 삭제"), { delete(event) }),
+                (lang.tr("이후 일정 모두 삭제"), { delete(event, includingFuture: true) })
             ]
         }
-        return [(lang.tr("삭제"), { EventActions.deleteSingle(event, in: context); Haptics.notify(.warning); dismiss() })]
+        return [(lang.tr("삭제"), { delete(event) })]
+    }
+
+    private func delete(_ event: ScheduleEvent, includingFuture: Bool = false) {
+        let saved = includingFuture
+            ? EventActions.deleteFutureSeries(from: event, in: context)
+            : EventActions.deleteSingle(event, in: context)
+        guard saved else { reportSaveFailure(); return }
+        Haptics.notify(.warning)
+        dismiss()
     }
 
     private func field<Content: View>(_ label: String, @ViewBuilder _ content: () -> Content) -> some View {
@@ -330,12 +339,13 @@ struct EventEditorView: View {
                 // (weekdays·endDate는 load()에서 시리즈 전체 기준으로 복원돼 있어 유실 없음)
                 // 재생성분은 editFutureSeries가 사용자 소유(source "")로 claim — 톰스톤 자기충돌로
                 // 시리즈가 증발하거나 NEIS 자동 갱신이 원복하는 버그 방지
-                EventActions.editFutureSeries(from: event, title: title, start: start, end: end,
-                                              location: location, notes: notes, reminderMinutes: reminderMinutes,
-                                              reminderMinutes2: reminderMinutes != -1 ? reminderMinutes2 : -1,
-                                              recurrence: recurrence,
-                                              weekdays: recurrence == .weekly ? weekdays : [],
-                                              endDate: effectiveEndDate, pinned: pinned, in: context)
+                guard EventActions.editFutureSeries(
+                    from: event, title: title, start: start, end: end,
+                    location: location, notes: notes, reminderMinutes: reminderMinutes,
+                    reminderMinutes2: reminderMinutes != -1 ? reminderMinutes2 : -1,
+                    recurrence: recurrence, weekdays: recurrence == .weekly ? weekdays : [],
+                    endDate: effectiveEndDate, pinned: pinned, in: context
+                ) else { reportSaveFailure(); return }
             } else {
                 EventActions.claimFromSource(event)   // 시간표 일정이면 원본에 톰스톤 + 사용자 소유로
                 event.title = title; event.location = location
@@ -346,12 +356,13 @@ struct EventEditorView: View {
                 guard saveContext() else { return }
             }
         } else {
-            EventActions.create(title: title, start: start, end: end, location: location, notes: notes,
-                                reminderMinutes: reminderMinutes,
-                                reminderMinutes2: reminderMinutes != -1 ? reminderMinutes2 : -1,
-                                recurrence: recurrence,
-                                weekdays: recurrence == .weekly ? weekdays : [],
-                                endDate: effectiveEndDate, pinned: pinned, into: context)
+            guard EventActions.create(
+                title: title, start: start, end: end, location: location, notes: notes,
+                reminderMinutes: reminderMinutes,
+                reminderMinutes2: reminderMinutes != -1 ? reminderMinutes2 : -1,
+                recurrence: recurrence, weekdays: recurrence == .weekly ? weekdays : [],
+                endDate: effectiveEndDate, pinned: pinned, into: context
+            ) else { reportSaveFailure(); return }
         }
         Haptics.notify(.success)   // 저장 확인 촉각 피드백
         dismiss()
@@ -361,5 +372,10 @@ struct EventEditorView: View {
     private func saveContext() -> Bool {
         do { try context.save(); return true }
         catch { saveError = error.localizedDescription; return false }
+    }
+
+    private func reportSaveFailure() {
+        saveError = lang.tr("변경사항을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.")
+        Haptics.notify(.error)
     }
 }

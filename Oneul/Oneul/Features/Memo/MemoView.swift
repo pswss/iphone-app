@@ -132,6 +132,8 @@ struct MemoView: View {
     @State private var search = ""
     @State private var deletedBackup: [MemoBackup] = []   // 실행 취소용 스냅샷
     @State private var undoDismissTask: Task<Void, Never>?
+    @State private var persistenceError: String?
+    @AccessibilityFocusState private var undoFocused: Bool
 
     private var filtered: [Memo] {
         let q = search.trimmingCharacters(in: .whitespaces)
@@ -171,13 +173,19 @@ struct MemoView: View {
                             }
                             .onDelete { idx in
                                 let victims = idx.map { filtered[$0] }
-                                deletedBackup = victims.map { MemoBackup($0) }   // 복원용 스냅샷
+                                let backups = victims.map { MemoBackup($0) }
                                 victims.forEach(context.delete)
-                                try? context.save()
-                                undoDismissTask?.cancel()
-                                undoDismissTask = Task {                          // 6초 뒤 스낵바 자동 닫힘
-                                    try? await Task.sleep(nanoseconds: 6_000_000_000)
-                                    if !Task.isCancelled { deletedBackup = [] }
+                                do {
+                                    try context.save()
+                                    deletedBackup = backups
+                                    undoDismissTask?.cancel()
+                                    undoDismissTask = Task {                      // 6초 뒤 스낵바 자동 닫힘
+                                        try? await Task.sleep(nanoseconds: 6_000_000_000)
+                                        if !Task.isCancelled { deletedBackup = [] }
+                                    }
+                                } catch {
+                                    context.rollback()
+                                    showPersistenceError()
                                 }
                             }
                         }
@@ -189,6 +197,9 @@ struct MemoView: View {
             .navBarInline()
             .overlay(alignment: .bottom) { undoSnackbar }
             .animation(.snappy(duration: 0.25), value: deletedBackup.isEmpty)
+            .onChange(of: deletedBackup.isEmpty) { _, empty in
+                if !empty { undoFocused = true }
+            }
             .navigationDestination(for: Memo.self) { MemoEditor(memo: $0) }
             .searchable(text: $search, prompt: lang.tr("메모 검색"))
             #if os(iOS)
@@ -200,6 +211,14 @@ struct MemoView: View {
             #endif
             .onReceive(NotificationCenter.default.publisher(for: .oneulNewMemo)) { _ in addMemo() }   // 맥: 창 툴바 '+'
             .onAppear { purgeEmptyMemos() }   // 편집기 onDisappear를 놓친 빈 메모 청소(탭 전환·강제 종료 등)
+            .alert(lang.tr("저장하지 못했어요"), isPresented: Binding(
+                get: { persistenceError != nil },
+                set: { if !$0 { persistenceError = nil } }
+            )) {
+                Button(lang.tr("확인"), role: .cancel) {}
+            } message: {
+                Text(persistenceError ?? "")
+            }
         }
     }
 
@@ -210,9 +229,14 @@ struct MemoView: View {
                 Text(String(format: lang.tr("메모 %d개 삭제됨"), deletedBackup.count)).font(.subheadline)
                 Button(lang.tr("실행 취소")) {
                     for b in deletedBackup { b.restore(into: context) }
-                    try? context.save()
-                    deletedBackup = []
-                    undoDismissTask?.cancel()
+                    do {
+                        try context.save()
+                        deletedBackup = []
+                        undoDismissTask?.cancel()
+                    } catch {
+                        context.rollback()
+                        showPersistenceError()
+                    }
                 }
                 .font(.subheadline.bold())
             }
@@ -220,6 +244,8 @@ struct MemoView: View {
             .glassEffect(.regular, in: Capsule())
             .padding(.bottom, 12)
             .transition(.move(edge: .bottom).combined(with: .opacity))
+            .accessibilityElement(children: .contain)
+            .accessibilityFocused($undoFocused)
         }
     }
 
@@ -232,12 +258,29 @@ struct MemoView: View {
             && (m.checkItems ?? []).filter({ !$0.text.isEmpty }).isEmpty {
             context.delete(m); changed = true
         }
-        if changed { try? context.save() }
+        guard changed else { return }
+        do { try context.save() }
+        catch {
+            context.rollback()
+            showPersistenceError()
+        }
     }
 
     private func addMemo() {
-        let m = Memo(); context.insert(m); try? context.save()
-        path.append(m)                          // 애플 메모처럼 바로 편집기 진입
+        let m = Memo()
+        context.insert(m)
+        do {
+            try context.save()
+            path.append(m)                      // 애플 메모처럼 바로 편집기 진입
+        } catch {
+            context.rollback()
+            showPersistenceError()
+        }
+    }
+
+    private func showPersistenceError() {
+        persistenceError = lang.tr("변경사항을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.")
+        Haptics.notify(.error)
     }
 
     private func firstLine(_ s: String) -> String {
@@ -298,6 +341,7 @@ struct MemoEditor: View {
     @State private var photoItems: [PhotosPickerItem] = []
     @State private var importFiles = false
     @State private var previewURL: URL?
+    @State private var persistenceError: String?
 
     // 애플 메모식 단락 스타일 프리셋 — 텍스트 스타일 기반(Dynamic Type 확대 반영).
     private static let titleFont   = Font.title.bold()
@@ -325,7 +369,8 @@ struct MemoEditor: View {
                         saveTask = Task {                            // 0.6초 디바운스 — 키 입력마다 전체 재인코딩 방지
                             try? await Task.sleep(nanoseconds: 600_000_000)
                             guard !Task.isCancelled else { return }
-                            memo.saveRich(new); try? context.save()
+                            memo.saveRich(new)
+                            saveChanges()
                         }
                     }
                 attachmentStrip
@@ -339,12 +384,15 @@ struct MemoEditor: View {
         }
         .onDisappear {
             saveTask?.cancel()
-            if !memo.isDeleted { memo.saveRich(rich); try? context.save() }   // 디바운스 잔여분 최종 저장
+            guard !memo.isDeleted else { return }
+            memo.saveRich(rich)
+            guard saveChanges() else { return }   // 실패한 빈 상태를 이어서 삭제하지 않음
             // 애플 메모처럼 빈 메모는 나가는 순간 자동 삭제
-            if !memo.isDeleted, memo.title.isEmpty, memo.text.isEmpty,
+            if memo.title.isEmpty, memo.text.isEmpty,
                (memo.attachments ?? []).isEmpty,
                (memo.checkItems ?? []).filter({ !$0.text.isEmpty }).isEmpty {
-                context.delete(memo); try? context.save()
+                context.delete(memo)
+                saveChanges()
             }
         }
         .photosPicker(isPresented: $showPhotos, selection: $photoItems, matching: .images)
@@ -357,6 +405,14 @@ struct MemoEditor: View {
         .quickLookPreview($previewURL)
         .onChange(of: previewURL) { old, new in
             if new == nil, let old { try? FileManager.default.removeItem(at: old) }   // 미리보기 임시 사본 정리
+        }
+        .alert(lang.tr("저장하지 못했어요"), isPresented: Binding(
+            get: { persistenceError != nil },
+            set: { if !$0 { persistenceError = nil } }
+        )) {
+            Button(lang.tr("확인"), role: .cancel) {}
+        } message: {
+            Text(persistenceError ?? "")
         }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -598,7 +654,18 @@ struct MemoEditor: View {
         rich.transformAttributes(in: &selection) { $0.font = ($0.font ?? Self.bodyFont).italic() }
         persist()
     }
-    private func persist() { memo.saveRich(rich); try? context.save() }
+    private func persist() { memo.saveRich(rich); saveChanges() }
 
-    private func touch() { memo.updatedAt = .now; try? context.save() }
+    private func touch() { memo.updatedAt = .now; saveChanges() }
+
+    @discardableResult
+    private func saveChanges() -> Bool {
+        do { try context.save(); return true }
+        catch {
+            // 편집 초안은 메모리에 남겨 재시도 가능하게 한다. 공유 컨텍스트 전체 rollback은 다른 초안까지 지운다.
+            persistenceError = lang.tr("변경사항을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.")
+            Haptics.notify(.error)
+            return false
+        }
+    }
 }

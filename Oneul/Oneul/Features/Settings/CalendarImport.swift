@@ -4,18 +4,22 @@ import SwiftData
 
 /// 애플 캘린더(EventKit) → Oneul 일회성 가져오기. 오늘부터 90일, (제목·시작) 중복은 건너뜀.
 enum CalendarImport {
-    enum ImportError: Error { case denied }
+    enum ImportError: Error { case denied, persistence }
 
     static func run(context: ModelContext) async throws -> Int {
         let store = EKEventStore()
         guard try await store.requestFullAccessToEvents() else { throw ImportError.denied }
+        let importContext = ModelContext(context.container)
+        importContext.autosaveEnabled = false
 
         let cal = Calendar.current
         let start = cal.startOfDay(for: .now)
         let end = cal.date(byAdding: .day, value: 90, to: start) ?? start
         let ekEvents = store.events(matching: store.predicateForEvents(withStart: start, end: end, calendars: nil))
 
-        let existing = (try? context.fetch(FetchDescriptor<ScheduleEvent>())) ?? []
+        guard let existing = try? importContext.fetch(FetchDescriptor<ScheduleEvent>()) else {
+            throw ImportError.persistence
+        }
         var seen = Set(existing.map { "\($0.title)|\(Int($0.start.timeIntervalSince1970))" })
         var added = 0
         for ek in ekEvents {
@@ -23,16 +27,17 @@ enum CalendarImport {
             let title = ek.title ?? ""
             let key = "\(title)|\(Int(s.timeIntervalSince1970))"
             guard seen.insert(key).inserted else { continue }
-            context.insert(ScheduleEvent(title: title, start: s, end: e,
-                                         location: ek.location ?? "", reminderMinutes: -1))
+            importContext.insert(ScheduleEvent(title: title, start: s, end: e,
+                                               location: ek.location ?? "", reminderMinutes: -1))
             added += 1
         }
-        try? context.save()
+        do { try importContext.save() }
+        catch { throw ImportError.persistence }
         return added
     }
 
     // MARK: 구글 캘린더 — 비밀 iCal 주소(.ics) 방식(OAuth 불필요)
-    enum GoogleError: Error { case badURL, fetch, empty }
+    enum GoogleError: Error { case badURL, fetch, empty, persistence }
 
     static func runGoogleICS(urlString: String, context: ModelContext) async throws -> (added: Int, skippedRecurring: Int) {
         guard var comps = URLComponents(string: urlString.trimmingCharacters(in: .whitespacesAndNewlines)),
@@ -48,18 +53,23 @@ enum CalendarImport {
 
         let parsed = ICS.parse(text)
         guard !parsed.events.isEmpty else { throw GoogleError.empty }
+        let importContext = ModelContext(context.container)
+        importContext.autosaveEnabled = false
 
-        let existing = (try? context.fetch(FetchDescriptor<ScheduleEvent>())) ?? []
+        guard let existing = try? importContext.fetch(FetchDescriptor<ScheduleEvent>()) else {
+            throw GoogleError.persistence
+        }
         var seen = Set(existing.map { "\($0.title)|\(Int($0.start.timeIntervalSince1970))" })
         var added = 0
         for e in parsed.events where e.start >= start && e.start <= end {
             let key = "\(e.title)|\(Int(e.start.timeIntervalSince1970))"
             guard seen.insert(key).inserted else { continue }
-            context.insert(ScheduleEvent(title: e.title, start: e.start, end: e.end,
-                                         location: e.location, reminderMinutes: -1))
+            importContext.insert(ScheduleEvent(title: e.title, start: e.start, end: e.end,
+                                               location: e.location, reminderMinutes: -1))
             added += 1
         }
-        try? context.save()
+        do { try importContext.save() }
+        catch { throw GoogleError.persistence }
         return (added, parsed.skippedRecurring)
     }
 }

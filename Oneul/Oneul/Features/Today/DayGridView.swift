@@ -51,6 +51,7 @@ struct DayGridView: View {
     @State private var scrollProxy: ScrollViewProxy?
     @State private var deleteBubbleID: UUID?              // 꾹 누르고 안 움직이고 떼면 뜨는 삭제 말풍선
     @State private var menuW: CGFloat = 280               // 컨텍스트 메뉴 실측 폭(화면 밖으로 안 나가게 클램프용)
+    @State private var saveError: String?
 
     private let firstHour = 0
     private let lastHour = 24
@@ -75,6 +76,9 @@ struct DayGridView: View {
                         ScrollViewReader { proxy in
                             ScrollView(showsIndicators: false) {
                                 gridContent(width: geo.size.width, gridW: gridW)
+                                #if os(iOS)
+                                .padding(.bottom, 92)   // 우하단 추가 버튼이 늦은 시간 일정을 가리지 않게 스크롤 여유 확보
+                                #endif
                             }
                             .scrollPosition(id: $scrollHour, anchor: .top)            // 모든 날이 공유하는 위치 — 레이아웃 타이밍 무관 동기 복원
                             .scrollBounceBehavior(.always)                            // 내용이 짧아도 위/아래 오버스크롤 바운스
@@ -110,6 +114,14 @@ struct DayGridView: View {
             }
         }
         .frame(maxHeight: scrollsInternally ? .infinity : nil)   // 통합 스크롤 열은 고정 높이라 확장 금지
+        .alert(lang.tr("저장하지 못했어요"), isPresented: Binding(
+            get: { saveError != nil },
+            set: { if !$0 { saveError = nil } }
+        )) {
+            Button(lang.tr("확인"), role: .cancel) {}
+        } message: {
+            Text(saveError ?? "")
+        }
     }
 
     /// 시간 격자 본체(시각 행 + 구분선 + 빈 곳 제스처 + 현재선 + 일정 블록). 스크롤 유무와 무관하게 재사용.
@@ -141,8 +153,7 @@ struct DayGridView: View {
         #if os(macOS)
         .onDeleteCommand {   // 선택된 일정 Delete 키로 삭제(맥 표준 편집 모델)
             guard let id = selectedID, let e = plan.events.first(where: { $0.id == id }) else { return }
-            EventActions.deleteSingle(e, in: context)
-            selectedID = nil
+            deleteEvent(e) { selectedID = nil }
         }
         #endif
     }
@@ -177,7 +188,7 @@ struct DayGridView: View {
                 Text(lang.hourLabel(h))
                     .font(.caption2).foregroundStyle(.secondary)
                     .frame(width: leftInset - 8, alignment: .leading)
-                    .offset(y: -7)
+                    .offset(y: h == firstHour ? 0 : -7)   // 첫 라벨만 상단 안쪽에 두어 잘림 방지
             }
         }
         .frame(width: width, height: hourHeight, alignment: .topLeading)
@@ -263,11 +274,11 @@ struct DayGridView: View {
             #if os(macOS)
             // 맥 표준: 우클릭 컨텍스트 메뉴(기존 '가로 드래그 후 릴리즈' 커스텀 메뉴는 발견 불가)
             .contextMenu {
-                Button(lang.tr("잘라내기")) { EventClipboard.shared.copy(e); EventActions.deleteSingle(e, in: context) }
+                Button(lang.tr("잘라내기")) { cut(e) }
                 Button(lang.tr("복사")) { EventClipboard.shared.copy(e) }
                 Button(lang.tr("복제")) { duplicate(e) }
                 Divider()
-                Button(lang.tr("삭제"), role: .destructive) { EventActions.deleteSingle(e, in: context) }
+                Button(lang.tr("삭제"), role: .destructive) { deleteEvent(e) }
             }
             #endif
             .offset(x: leftInset + CGFloat(item.col) * (colW + colGap) + (dragging ? dragDX : 0), y: top + dy)
@@ -280,7 +291,7 @@ struct DayGridView: View {
             .accessibilityLabel("\(e.title.isEmpty ? lang.tr("제목 없음") : e.title), \(timeText(e.start)) – \(timeText(e.end))")
             .accessibilityAddTraits(.isButton)
             .accessibilityAction { onEdit(e) }
-            .accessibilityAction(named: lang.tr("삭제")) { EventActions.deleteSingle(e, in: context) }
+            .accessibilityAction(named: lang.tr("삭제")) { deleteEvent(e) }
     }
 
     /// 선택 시 좌하단 코너에만 보이는 순수 흰색 곡선.
@@ -396,15 +407,18 @@ struct DayGridView: View {
                 }
             }
             .onEnded { _ in
-                if resizeID == e.id { commitResize(e); Haptics.impact(.soft) }
+                if resizeID == e.id, commitResize(e) { Haptics.impact(.soft) }
                 resizeID = nil; resizeDY = 0; lastStep = 0
                 onInteractingChange?(false)
             }
     }
 
-    private func commitResize(_ e: ScheduleEvent) {
+    private func commitResize(_ e: ScheduleEvent) -> Bool {
         let newEnd = e.end.addingTimeInterval(dragMinutes(resizeDY) * 60)
-        if newEnd >= e.start.addingTimeInterval(300) { e.end = newEnd; try? context.save() }  // 최소 5분
+        guard newEnd >= e.start.addingTimeInterval(300) else { return false }
+        let oldEnd = e.end
+        e.end = newEnd
+        return persistInteraction { e.end = oldEnd }  // 최소 5분
     }
 
     // MARK: 리사이즈(위 끝 잡고 늘리기) — 세로 드래그로 시작 시간만 변경(종료 고정)
@@ -424,15 +438,18 @@ struct DayGridView: View {
                 }
             }
             .onEnded { _ in
-                if resizeTopID == e.id { commitResizeTop(e); Haptics.impact(.soft) }
+                if resizeTopID == e.id, commitResizeTop(e) { Haptics.impact(.soft) }
                 resizeTopID = nil; resizeTopDY = 0; lastStep = 0
                 onInteractingChange?(false)
             }
     }
 
-    private func commitResizeTop(_ e: ScheduleEvent) {
+    private func commitResizeTop(_ e: ScheduleEvent) -> Bool {
         let newStart = e.start.addingTimeInterval(dragMinutes(resizeTopDY) * 60)
-        if newStart <= e.end.addingTimeInterval(-300) { e.start = newStart; try? context.save() }  // 최소 5분
+        guard newStart <= e.end.addingTimeInterval(-300) else { return false }
+        let oldStart = e.start
+        e.start = newStart
+        return persistInteraction { e.start = oldStart }  // 최소 5분
     }
 
     // 일정 꾹 눌러 이동 — UIKit long-press(스크롤과 동시 인식). 이동이 시작되면 scrollDisabled로 그동안만 스크롤을 잠근다.
@@ -470,7 +487,7 @@ struct DayGridView: View {
         let eff = dy + autoScrollDY
         let dayShift = dayW > 0 ? Int((dx / dayW).rounded()) : 0         // 맥 주 그리드: 열 폭 단위 반올림 → ±N일
         if dragMinutes(eff) != 0 || dayShift != 0 {
-            commitDrag(e, dy: eff, dayShift: dayShift); Haptics.impact(.soft)
+            if commitDrag(e, dy: eff, dayShift: dayShift) { Haptics.impact(.soft) }
         } else {
             #if os(iOS)
             deleteBubbleID = e.id; Haptics.impact(.medium)               // 안 움직이고 떼면 → 컨텍스트 메뉴(iOS)
@@ -491,16 +508,16 @@ struct DayGridView: View {
         VStack(spacing: 0) {
             HStack(spacing: 0) {
                 menuItem(deviceTerm("잘라내기", "Cut", "カット", "剪切", "剪下", "Cortar", "Couper", "Ausschneiden")) {
-                    EventClipboard.shared.copy(e); EventActions.deleteSingle(e, in: context); dismissMenu() }
+                    cut(e) { dismissMenu() } }
                 menuSep
                 menuItem(deviceTerm("복사", "Copy", "コピー", "拷贝", "拷貝", "Copiar", "Copier", "Kopieren")) {
                     EventClipboard.shared.copy(e); dismissMenu() }
                 menuSep
                 menuItem(deviceTerm("복제", "Duplicate", "複製", "复制", "複製", "Duplicar", "Dupliquer", "Duplizieren")) {
-                    duplicate(e); dismissMenu() }
+                    duplicate(e) { dismissMenu() } }
                 menuSep
                 menuItem(deviceTerm("삭제", "Delete", "削除", "删除", "刪除", "Eliminar", "Supprimer", "Löschen"), tint: .red) {
-                    EventActions.deleteSingle(e, in: context); Haptics.notify(.warning); dismissMenu() }
+                    deleteEvent(e) { Haptics.notify(.warning); dismissMenu() } }
             }
             .frame(height: 42)
             .fixedSize()
@@ -540,11 +557,30 @@ struct DayGridView: View {
         Rectangle().fill(.primary.opacity(0.15)).frame(width: 0.5).padding(.vertical, 9)
     }
     private func dismissMenu() { deleteBubbleID = nil; selectedID = nil }
-    private func duplicate(_ e: ScheduleEvent) {
-        EventActions.create(title: e.title, start: e.start, end: e.end, location: e.location,
-                            notes: e.notes, reminderMinutes: e.reminderMinutes, reminderMinutes2: e.reminderMinutes2,
-                            recurrence: .none, pinned: e.pinned, into: context)
-        Haptics.impact(.soft)
+    private func deleteEvent(_ e: ScheduleEvent, onSuccess: () -> Void = {}) {
+        if EventActions.deleteSingle(e, in: context) {
+            onSuccess()
+        } else {
+            reportPersistenceFailure()
+        }
+    }
+    private func cut(_ e: ScheduleEvent, onSuccess: () -> Void = {}) {
+        let copied = EventClipboard.shared.snapshot(e)
+        deleteEvent(e) {
+            EventClipboard.shared.item = copied
+            onSuccess()
+        }
+    }
+    private func duplicate(_ e: ScheduleEvent, onSuccess: () -> Void = {}) {
+        if EventActions.create(title: e.title, start: e.start, end: e.end, location: e.location,
+                               notes: e.notes, reminderMinutes: e.reminderMinutes,
+                               reminderMinutes2: e.reminderMinutes2, recurrence: .none,
+                               pinned: e.pinned, into: context) {
+            Haptics.impact(.soft)
+            onSuccess()
+        } else {
+            reportPersistenceFailure()
+        }
     }
 
     /// 드래그 중 가장자리에 대고 있을 때 그리드를 그 방향으로 스크롤(일정도 같은 양만큼 따라옴). 속도는 autoScrollInterval.
@@ -572,23 +608,44 @@ struct DayGridView: View {
         let snapped = (mins / 30).rounded(.down) * 30
         let date = gridTop.addingTimeInterval(snapped * 60)
         if let c = EventClipboard.shared.item {                   // 복사/잘라낸 일정이 있으면 그 자리에 붙여넣기(상단 칩으로 모드 표시·취소 가능)
-            EventActions.create(title: c.title, start: date, end: date.addingTimeInterval(c.duration),
-                                location: c.location, notes: c.notes, reminderMinutes: c.reminderMinutes,
-                                reminderMinutes2: c.reminderMinutes2, recurrence: .none,
-                                pinned: c.pinned, into: context)
-            Haptics.impact(.soft)
+            if EventActions.create(title: c.title, start: date, end: date.addingTimeInterval(c.duration),
+                                   location: c.location, notes: c.notes, reminderMinutes: c.reminderMinutes,
+                                   reminderMinutes2: c.reminderMinutes2, recurrence: .none,
+                                   pinned: c.pinned, into: context) {
+                Haptics.impact(.soft)
+            } else {
+                reportPersistenceFailure()
+            }
         } else {
             onAdd(date)
         }
     }
-    private func commitDrag(_ e: ScheduleEvent, dy: CGFloat, dayShift: Int = 0) {
+    private func commitDrag(_ e: ScheduleEvent, dy: CGFloat, dayShift: Int = 0) -> Bool {
         let mins = dragMinutes(dy)
         let dur = e.end.timeIntervalSince(e.start)
+        let oldStart = e.start
+        let oldEnd = e.end
         var ns = e.start.addingTimeInterval(mins * 60)
         if dayShift != 0, let d = cal.date(byAdding: .day, value: dayShift, to: ns) { ns = d }   // 맥: 옆 요일 열로 이동
         e.start = ns
         e.end = ns.addingTimeInterval(dur)
-        try? context.save()
+        return persistInteraction {
+            e.start = oldStart
+            e.end = oldEnd
+        }
+    }
+
+    private func persistInteraction(restore: () -> Void) -> Bool {
+        do { try context.save(); return true }
+        catch {
+            restore()
+            reportPersistenceFailure()
+            return false
+        }
+    }
+    private func reportPersistenceFailure() {
+        saveError = lang.tr("변경사항을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.")
+        Haptics.notify(.error)
     }
     private func dragMinutes(_ dy: CGFloat) -> Double { (Double(dy) / Double(hourHeight) * 60 / 5).rounded() * 5 }
 
@@ -653,10 +710,13 @@ struct CopiedEvent {
     static let shared = EventClipboard()
     private init() {}
     var item: CopiedEvent?
+    func snapshot(_ e: ScheduleEvent) -> CopiedEvent {
+        CopiedEvent(title: e.title, duration: max(300, e.end.timeIntervalSince(e.start)),
+                    location: e.location, notes: e.notes, reminderMinutes: e.reminderMinutes,
+                    reminderMinutes2: e.reminderMinutes2, pinned: e.pinned)
+    }
     func copy(_ e: ScheduleEvent) {
-        item = CopiedEvent(title: e.title, duration: max(300, e.end.timeIntervalSince(e.start)),
-                           location: e.location, notes: e.notes, reminderMinutes: e.reminderMinutes,
-                           reminderMinutes2: e.reminderMinutes2, pinned: e.pinned)
+        item = snapshot(e)
     }
     func clear() { item = nil }
 }

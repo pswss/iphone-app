@@ -51,7 +51,6 @@ struct CalendarBar: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .focusEffectDisabled()   // 맥 파란 포커스 링 제거
         .padding(.horizontal, 4)
     }
 
@@ -76,11 +75,13 @@ struct CalendarBar: View {
         HStack(spacing: 4) {
             Button { weekIndex -= 1 } label: { Image(systemName: "chevron.left") }
                 .buttonStyle(.borderless)
+                .accessibilityLabel(lang.tr("이전 주"))
             HStack(spacing: 4) {
                 ForEach(days(week: weekIndex), id: \.self) { weekCell($0) }
             }
             Button { weekIndex += 1 } label: { Image(systemName: "chevron.right") }
                 .buttonStyle(.borderless)
+                .accessibilityLabel(lang.tr("다음 주"))
         }
         .padding(.horizontal, 2)
         .frame(height: 58)
@@ -106,7 +107,7 @@ struct CalendarBar: View {
             }
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
-        .frame(height: 250)
+        .frame(height: 264)
     }
     #else
     // macOS: ‹ › 버튼으로 달 이동(마우스 클릭).
@@ -115,21 +116,23 @@ struct CalendarBar: View {
             HStack {
                 Button { monthIndex -= 1 } label: { Image(systemName: "chevron.left") }
                     .buttonStyle(.borderless)
+                    .accessibilityLabel(lang.tr("이전 달"))
                 Spacer()
                 Button { monthIndex += 1 } label: { Image(systemName: "chevron.right") }
                     .buttonStyle(.borderless)
+                    .accessibilityLabel(lang.tr("다음 달"))
             }
             .padding(.horizontal, 4)
             monthGrid(monthStart(monthIndex))
         }
-        .frame(height: 250)
+        .frame(height: 264)
     }
     #endif
 
     private func monthGrid(_ monthStart: Date) -> some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 7), spacing: 8) {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 7), spacing: 0) {
             ForEach(Array(monthDays(monthStart).enumerated()), id: \.offset) { _, day in
-                if let day { monthCell(day) } else { Color.clear.frame(height: 34) }
+                if let day { monthCell(day) } else { Color.clear.frame(height: 44) }
             }
         }
         .padding(.horizontal, 2)
@@ -152,6 +155,9 @@ struct CalendarBar: View {
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(dateAccessibilityLabel(date))
+        .accessibilityValue(dateAccessibilityValue(date, today: today))
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     /// 날짜 숫자 색: 선택=대비색, 휴일·일요일=빨강, 토요일=파랑, 그 외=기본.
@@ -176,9 +182,28 @@ struct CalendarBar: View {
                 .background { highlight(selected: selected, today: today) }
                 .foregroundStyle(dateColor(date, selected: selected))
                 .overlay(alignment: .bottom) { eventDots(date, selected: selected) }
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity, minHeight: 44)
         }
         .buttonStyle(.plain)
+        .contentShape(Rectangle())
+        .accessibilityLabel(dateAccessibilityLabel(date))
+        .accessibilityValue(dateAccessibilityValue(date, today: today))
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    private func dateAccessibilityLabel(_ date: Date) -> String {
+        date.formatted(.dateTime.year().month(.wide).day().weekday(.wide).locale(lang.locale))
+    }
+
+    private func dateAccessibilityValue(_ date: Date, today: Bool) -> String {
+        let count = max(0, eventCount(date))
+        let events: String
+        if lang.isEnglish {
+            events = count == 1 ? "1 event" : "\(count) events"
+        } else {
+            events = "일정 \(count)개"
+        }
+        return today ? "\(lang.tr("오늘")), \(events)" : events
     }
 
     /// 날짜 아래 일정 존재 점 — 애플 캘린더식, 최대 3개.

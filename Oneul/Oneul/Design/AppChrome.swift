@@ -239,6 +239,8 @@ final class AppLanguage {
         "정말 모든 데이터를 지울까요?": "Erase all data?",
         "이 기기의 모든 일정·학교 설정이 삭제됩니다. 되돌릴 수 없어요.": "All events and school settings on this device will be deleted. This can't be undone.",
         "초기화": "Reset",
+        "데이터를 초기화하지 못했어요. 잠시 후 다시 시도해 주세요.":
+            "Couldn't reset your data. Please try again.",
         "AI API 키": "AI API Keys",
         "연결 확인": "Test",
         "연결됨": "Connected",
@@ -271,11 +273,15 @@ final class AppLanguage {
         "본인이 듣는 선택과목을 모두 체크하세요. 공통 과목은 자동으로 들어가요.":
             "Check every elective you take. Common subjects are added automatically.",
         "다음": "Next",
+        "나중에": "Later",
         "뒤로": "Back",
         "배치된 선택과목이에요. 일정이 안 맞는 과목은 고쳐주세요.":
             "Here's the placement. Fix any period that looks wrong.",
         "시간표를 추가했어요 (수업 %d개). 새 학사일정·다음 학기는 자동으로 갱신돼요.":
             "Timetable added (%d classes). New school events and next semester update automatically.",
+        "수업 %d개 · 학사일정 %d개를 추가했어요.": "Added %d classes · %d school events.",
+        "시간표/학사일정을 찾지 못했어요.": "Couldn't find a timetable or school events.",
+        "(없음)": "(None)",
         // 그리드/급식
         "종일": "All day",
         "놓으면 삭제": "Release to delete",
@@ -371,6 +377,14 @@ final class AppLanguage {
             "Adds the next 90 days of events. Duplicates (same title & time) are skipped.",
         "가져오지 못했어요 — 주소를 확인해 주세요 (iCal 비공개 주소여야 해요).":
             "Import failed — check the address (must be the secret iCal URL).",
+        "가져온 일정을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.":
+            "Couldn't save the imported events. Please try again.",
+        "Apple 캘린더를 가져오지 못했어요. 잠시 후 다시 시도해 주세요.":
+            "Couldn't import the Apple Calendar. Please try again.",
+        "가져올 일정을 찾지 못했어요. iCal 비공개 주소인지 확인해 주세요.":
+            "No events found. Check that this is the secret iCal URL.",
+        "캘린더를 불러오지 못했어요. 인터넷 연결과 주소를 확인해 주세요.":
+            "Couldn't load the calendar. Check your connection and the address.",
         "일정 %d개를 가져왔어요 (오늘부터 90일)": "Imported %d events (next 90 days)",
         "캘린더 접근이 거부됐어요. 시스템 설정에서 허용해 주세요.":
             "Calendar access denied. Allow it in System Settings.",
@@ -413,8 +427,12 @@ final class AppLanguage {
         "오늘로": "Go to Today",
         "이전 주": "Previous Week",
         "다음 주": "Next Week",
+        "이전 달": "Previous Month",
+        "다음 달": "Next Month",
         "Oneul 타임라인": "Oneul Timeline",
         "메뉴 막대": "Menu Bar",
-        "저장하지 못했어요": "Couldn't save"
+        "저장하지 못했어요": "Couldn't save",
+        "변경사항을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.":
+            "Couldn't save your changes. Please try again."
     ]
 }

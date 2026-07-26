@@ -21,6 +21,7 @@ struct SettingsView: View {
     @AppStorage("userType") private var userType = "general"
     @Bindable private var lang = AppLanguage.shared
     @State private var showResetConfirm = false
+    @State private var resetError: String?
 
     var body: some View {
         NavigationStack {
@@ -80,12 +81,12 @@ struct SettingsView: View {
             HStack {
                 Label(lang.tr("타임라인"), systemImage: "calendar.day.timeline.left")
                 Spacer()
-                Toggle("", isOn: $menuBarTimeline).labelsHidden().tint(Color.appAccent)
+                Toggle(lang.tr("타임라인"), isOn: $menuBarTimeline).labelsHidden().tint(Color.appAccent)
             }
             HStack {
                 Label("AI", systemImage: "sparkles")
                 Spacer()
-                Toggle("", isOn: $menuBarAI).labelsHidden().tint(Color.appAccent)
+                Toggle("AI", isOn: $menuBarAI).labelsHidden().tint(Color.appAccent)
             }
         }
         .padding(14)
@@ -134,13 +135,13 @@ struct SettingsView: View {
             HStack {
                 Text(lang.tr("시험 전날 알림"))
                 Spacer()
-                Toggle("", isOn: $examEveEnabled).labelsHidden().tint(Color.appAccent)
+                Toggle(lang.tr("시험 전날 알림"), isOn: $examEveEnabled).labelsHidden().tint(Color.appAccent)
             }
             if examEveEnabled {
                 HStack {
                     Text(lang.tr("알림 시각")).foregroundStyle(.secondary)
                     Spacer()
-                    DatePicker("", selection: examEveTime, displayedComponents: .hourAndMinute)
+                    DatePicker(lang.tr("알림 시각"), selection: examEveTime, displayedComponents: .hourAndMinute)
                         .labelsHidden()
                 }
             }
@@ -313,9 +314,15 @@ struct SettingsView: View {
                 let n = try await CalendarImport.run(context: context)
                 showImportSheet = false
                 importMsg = String(format: lang.tr("일정 %d개를 가져왔어요 (오늘부터 90일)"), n)
-            } catch {
+            } catch CalendarImport.ImportError.persistence {
+                showImportSheet = false
+                importMsg = lang.tr("가져온 일정을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.")
+            } catch CalendarImport.ImportError.denied {
                 showImportSheet = false
                 importMsg = lang.tr("캘린더 접근이 거부됐어요. 시스템 설정에서 허용해 주세요.")
+            } catch {
+                showImportSheet = false
+                importMsg = lang.tr("Apple 캘린더를 가져오지 못했어요. 잠시 후 다시 시도해 주세요.")
             }
         }
     }
@@ -330,8 +337,16 @@ struct SettingsView: View {
                 importMsg = r.skippedRecurring > 0
                     ? String(format: lang.tr("일정 %d개를 가져왔어요 · 반복 일정 %d개는 아직 지원하지 않아요"), r.added, r.skippedRecurring)
                     : String(format: lang.tr("일정 %d개를 가져왔어요 (오늘부터 90일)"), r.added)
-            } catch {
+            } catch CalendarImport.GoogleError.persistence {
+                importMsg = lang.tr("가져온 일정을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.")
+            } catch CalendarImport.GoogleError.badURL {
                 importMsg = lang.tr("가져오지 못했어요 — 주소를 확인해 주세요 (iCal 비공개 주소여야 해요).")
+            } catch CalendarImport.GoogleError.empty {
+                importMsg = lang.tr("가져올 일정을 찾지 못했어요. iCal 비공개 주소인지 확인해 주세요.")
+            } catch CalendarImport.GoogleError.fetch {
+                importMsg = lang.tr("캘린더를 불러오지 못했어요. 인터넷 연결과 주소를 확인해 주세요.")
+            } catch {
+                importMsg = lang.tr("캘린더를 불러오지 못했어요. 인터넷 연결과 주소를 확인해 주세요.")
             }
         }
     }
@@ -361,8 +376,9 @@ struct SettingsView: View {
                         .font(.caption).foregroundStyle(.secondary)
                     HStack(spacing: 8) {
                         Button(role: .destructive) {
-                            resetAllData()
-                            withAnimation(.snappy(duration: 0.2)) { showResetConfirm = false }
+                            if resetAllData() {
+                                withAnimation(.snappy(duration: 0.2)) { showResetConfirm = false }
+                            }
                         } label: {
                             Text(lang.tr("초기화")).font(.subheadline.bold())
                                 .frame(maxWidth: .infinity).padding(.vertical, 8)
@@ -393,16 +409,27 @@ struct SettingsView: View {
         }
         .padding(14)
         .glassCard(cornerRadius: 22)
+        .alert(resetError ?? "", isPresented: Binding(get: { resetError != nil },
+                                                       set: { if !$0 { resetError = nil } })) {
+            Button(lang.tr("확인"), role: .cancel) {}
+        }
     }
 
     /// 기기 내 모든 데이터 삭제 — 일정·메모(SwiftData) + 학교·시간표·교시 설정(UserDefaults) + Live Activity.
     /// 언어·외형 같은 표시 설정은 남긴다.
-    private func resetAllData() {
-        try? context.delete(model: ScheduleEvent.self)
-        try? context.delete(model: Memo.self)
-        try? context.delete(model: MemoAttachment.self)   // 일괄 삭제는 cascade를 안 타므로 명시 삭제
-        try? context.delete(model: MemoCheckItem.self)
-        try? context.save()
+    private func resetAllData() -> Bool {
+        let resetContext = ModelContext(context.container)
+        resetContext.autosaveEnabled = false
+        do {
+            try resetContext.delete(model: ScheduleEvent.self)
+            try resetContext.delete(model: Memo.self)
+            try resetContext.delete(model: MemoAttachment.self)   // 일괄 삭제는 cascade를 안 타므로 명시 삭제
+            try resetContext.delete(model: MemoCheckItem.self)
+            try resetContext.save()
+        } catch {
+            resetError = lang.tr("데이터를 초기화하지 못했어요. 잠시 후 다시 시도해 주세요.")
+            return false
+        }
         let d = UserDefaults.standard
         ["userType", "neisOffice", "neisName", "neisCode", "neisKind", "neisGrade", "neisClass",
          "ttSetup", "ttGrade", "ttClass", "ttElectives", "ttCommonOverride", "lastSchoolRefresh", "neisApiKey",
@@ -417,6 +444,7 @@ struct SettingsView: View {
         Task { await LiveActivityController.shared.end() }
         #endif
         Haptics.notify(.success)
+        return true
     }
 
     private func sectionTitle(_ t: String) -> some View {
@@ -430,11 +458,11 @@ struct SettingsView: View {
             FullWidthSegments(selection: $userType,
                               options: [(lang.tr("일반"), "general"), (lang.tr("학생"), "student")])
             #else
-            Picker("", selection: $userType) {
+            Picker(lang.tr("사용자 유형"), selection: $userType) {
                 Text(lang.tr("일반")).tag("general")
                 Text(lang.tr("학생")).tag("student")
             }
-            .pickerStyle(.segmented)
+            .labelsHidden().pickerStyle(.segmented)
             #endif
             if userType == "student" {
                 NavigationLink {
@@ -513,7 +541,6 @@ struct FullWidthSegments: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .focusEffectDisabled()   // 맥 포커스 링 없음(기존 탭 제스처와 동일한 룩)
                 .accessibilityAddTraits(selection == opt.value ? .isSelected : [])
             }
         }

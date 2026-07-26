@@ -202,22 +202,46 @@ enum EventActions {
     /// 일정 생성.
     /// - 반복이 매주이고 `weekdays`(1=일…7=토)가 있으면 그 요일마다 생성.
     /// - `endDate`가 있으면 그날까지. 종료일 없는 주간 반복은 우선 1년치를 만들고 자동 보충한다.
+    @discardableResult
     static func create(
         title: String, start: Date, end: Date, location: String, notes: String = "",
         reminderMinutes: Int, reminderMinutes2: Int = -1, recurrence: Recurrence,
         weekdays: Set<Int> = [], endDate: Date? = nil, source: String = "",
         excludeDays: Set<Date> = [], pinned: Bool = false, into context: ModelContext
-    ) {
+    ) -> Bool {
+        let inserted = stageCreate(
+            title: title, start: start, end: end, location: location, notes: notes,
+            reminderMinutes: reminderMinutes, reminderMinutes2: reminderMinutes2,
+            recurrence: recurrence, weekdays: weekdays, endDate: endDate, source: source,
+            excludeDays: excludeDays, pinned: pinned, into: context)
+        guard !inserted.isEmpty else { return false }
+        do {
+            try context.save()
+            return true
+        } catch {
+            for event in inserted { context.delete(event) }
+            return false
+        }
+    }
+
+    private static func stageCreate(
+        title: String, start: Date, end: Date, location: String, notes: String = "",
+        reminderMinutes: Int, reminderMinutes2: Int = -1, recurrence: Recurrence,
+        weekdays: Set<Int> = [], endDate: Date? = nil, source: String = "",
+        excludeDays: Set<Date> = [], pinned: Bool = false, into context: ModelContext
+    ) -> [ScheduleEvent] {
         let duration = max(0, end.timeIntervalSince(start))
+        var inserted: [ScheduleEvent] = []
 
         guard recurrence != .none else {
             if !SourceTombstones.contains(source: source, title: title, start: start) {
-                context.insert(ScheduleEvent(title: title, start: start, end: end,
-                                             location: location, notes: notes, reminderMinutes: reminderMinutes,
-                                             reminderMinutes2: reminderMinutes2, source: source, pinned: pinned))
-                try? context.save()
+                let event = ScheduleEvent(title: title, start: start, end: end,
+                                          location: location, notes: notes, reminderMinutes: reminderMinutes,
+                                          reminderMinutes2: reminderMinutes2, source: source, pinned: pinned)
+                context.insert(event)
+                inserted.append(event)
             }
-            return
+            return inserted
         }
 
         let cal = Calendar.current
@@ -240,12 +264,14 @@ enum EventActions {
                 if weeklyDays.contains(cal.component(.weekday, from: day)), !excludeDays.contains(day),
                    let s = cal.date(bySettingHour: h, minute: m, second: 0, of: day), s >= start,
                    !SourceTombstones.contains(source: source, title: title, start: s) {
-                    context.insert(ScheduleEvent(
+                    let event = ScheduleEvent(
                         title: title, start: s, end: s.addingTimeInterval(duration),
                         location: location, notes: notes, reminderMinutes: reminderMinutes,
                         reminderMinutes2: reminderMinutes2,
                         recurrenceRaw: recurrence.rawValue, seriesID: seriesID,
-                        recurrenceGeneratedThrough: generatedThrough, source: source, pinned: pinned))
+                        recurrenceGeneratedThrough: generatedThrough, source: source, pinned: pinned)
+                    context.insert(event)
+                    inserted.append(event)
                     count += 1
                 }
                 guard let next = cal.date(byAdding: .day, value: 1, to: day) else { break }
@@ -258,17 +284,19 @@ enum EventActions {
                     guard let next = cal.date(byAdding: step.component, value: step.value, to: date) else { break }
                     date = next; continue
                 }
-                context.insert(ScheduleEvent(
+                let event = ScheduleEvent(
                     title: title, start: date, end: date.addingTimeInterval(duration),
                     location: location, notes: notes, reminderMinutes: reminderMinutes,
                     reminderMinutes2: reminderMinutes2,
-                    recurrenceRaw: recurrence.rawValue, seriesID: seriesID, source: source, pinned: pinned))
+                    recurrenceRaw: recurrence.rawValue, seriesID: seriesID, source: source, pinned: pinned)
+                context.insert(event)
+                inserted.append(event)
                 count += 1
                 guard let next = cal.date(byAdding: step.component, value: step.value, to: date) else { break }
                 date = next
             }
         }
-        try? context.save()
+        return inserted
     }
 
     /// 종료일 없는 주간 반복의 미래 회차가 6개월 미만 남으면 다시 1년치까지 보충한다.
@@ -367,10 +395,18 @@ enum EventActions {
         event.source = ""
     }
 
-    static func deleteSingle(_ event: ScheduleEvent, in context: ModelContext) {
-        SourceTombstones.record(source: event.source, title: event.title, start: event.start)   // 자동 갱신이 되살리지 않게
+    @discardableResult
+    static func deleteSingle(_ event: ScheduleEvent, in context: ModelContext) -> Bool {
+        let tombstone = (event.source, event.title, event.start)
         context.delete(event)
-        try? context.save()
+        do {
+            try context.save()
+            SourceTombstones.record(source: tombstone.0, title: tombstone.1, start: tombstone.2)
+            return true
+        } catch {
+            context.insert(event)
+            return false
+        }
     }
 
     /// 앱이 만든 특정 출처(timetable/academic)의 내용 중복 제거.
@@ -403,41 +439,101 @@ enum EventActions {
     /// ① 방금 기록한 톰스톤이 재생성을 막아 시리즈가 통째로 증발하고(제목·시각 동일 시),
     /// ② 살아남아도 다음 NEIS 자동 갱신(deleteBySource)이 편집 내용을 지워 원복한다.
     /// 원본 자리 톰스톤은 남겨 자동 갱신이 원래 수업을 되살리지 않게 한다(진짜 삭제와 동일 의미).
+    @discardableResult
     static func editFutureSeries(
         from event: ScheduleEvent,
         title: String, start: Date, end: Date, location: String, notes: String = "",
         reminderMinutes: Int, reminderMinutes2: Int = -1, recurrence: Recurrence,
         weekdays: Set<Int> = [], endDate: Date? = nil, pinned: Bool = false,
         in context: ModelContext
-    ) {
-        deleteFutureSeries(from: event, in: context)
-        create(title: title, start: start, end: end, location: location, notes: notes,
-               reminderMinutes: reminderMinutes, reminderMinutes2: reminderMinutes2,
-               recurrence: recurrence, weekdays: weekdays, endDate: endDate,
-               source: "", pinned: pinned, into: context)
+    ) -> Bool {
+        guard let deletion = stageDeleteFutureSeries(from: event, in: context) else { return false }
+        let inserted = stageCreate(
+            title: title, start: start, end: end, location: location, notes: notes,
+            reminderMinutes: reminderMinutes, reminderMinutes2: reminderMinutes2,
+            recurrence: recurrence, weekdays: weekdays, endDate: endDate,
+            source: "", pinned: pinned, into: context)
+        do {
+            try context.save()
+            recordTombstones(deletion.tombstones)
+            return true
+        } catch {
+            for event in inserted { context.delete(event) }
+            restore(deletion, in: context)
+            return false
+        }
     }
 
     /// 이 일정 + 같은 시리즈의 이후(시작 ≥) 일정 모두 삭제.
-    static func deleteFutureSeries(from event: ScheduleEvent, in context: ModelContext) {
+    @discardableResult
+    static func deleteFutureSeries(from event: ScheduleEvent, in context: ModelContext) -> Bool {
+        guard let deletion = stageDeleteFutureSeries(from: event, in: context) else { return false }
+        do {
+            try context.save()
+            recordTombstones(deletion.tombstones)
+            return true
+        } catch {
+            restore(deletion, in: context)
+            return false
+        }
+    }
+
+    private typealias Tombstone = (source: String, title: String, start: Date)
+    private struct StagedDeletion {
+        var deleted: [ScheduleEvent] = []
+        var closed: [(event: ScheduleEvent, generatedThrough: Date?)] = []
+        var tombstones: [Tombstone] = []
+    }
+
+    private static func stageDeleteFutureSeries(
+        from event: ScheduleEvent, in context: ModelContext
+    ) -> StagedDeletion? {
         let sid = event.seriesID
-        guard !sid.isEmpty else { deleteSingle(event, in: context); return }
+        guard !sid.isEmpty else {
+            let tombstone = (event.source, event.title, event.start)
+            context.delete(event)
+            return StagedDeletion(
+                deleted: [event],
+                tombstones: [tombstone])
+        }
         let start = event.start
         let descriptor = FetchDescriptor<ScheduleEvent>(
             predicate: #Predicate<ScheduleEvent> { $0.seriesID == sid }
         )
-        if let items = try? context.fetch(descriptor), !items.isEmpty {
+        let items: [ScheduleEvent]
+        do { items = try context.fetch(descriptor) }
+        catch { return nil }
+
+        var deletion = StagedDeletion()
+        if !items.isEmpty {
             for e in items {
                 if e.start >= start {
-                    SourceTombstones.record(source: e.source, title: e.title, start: e.start)
+                    deletion.deleted.append(e)
+                    deletion.tombstones.append((e.source, e.title, e.start))
                     context.delete(e)
                 } else {
+                    deletion.closed.append((e, e.recurrenceGeneratedThrough))
                     e.recurrenceGeneratedThrough = nil   // 남은 과거 회차가 삭제한 미래를 다시 보충하지 않게 시리즈 닫기
                 }
             }
         } else {
-            SourceTombstones.record(source: event.source, title: event.title, start: event.start)
+            deletion.deleted.append(event)
+            deletion.tombstones.append((event.source, event.title, event.start))
             context.delete(event)
         }
-        try? context.save()
+        return deletion
+    }
+
+    private static func restore(_ deletion: StagedDeletion, in context: ModelContext) {
+        for item in deletion.closed {
+            item.event.recurrenceGeneratedThrough = item.generatedThrough
+        }
+        for event in deletion.deleted { context.insert(event) }
+    }
+
+    private static func recordTombstones(_ tombstones: [Tombstone]) {
+        for tombstone in tombstones {
+            SourceTombstones.record(source: tombstone.source, title: tombstone.title, start: tombstone.start)
+        }
     }
 }

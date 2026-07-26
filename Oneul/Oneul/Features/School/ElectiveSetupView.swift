@@ -139,9 +139,10 @@ struct ElectiveSetupView: View {
                     Text(lang.isEnglish ? "P\(slot.period)" : "\(slot.period)교시")
                         .font(.caption).foregroundStyle(.secondary).frame(width: 46, alignment: .leading)
                     Spacer()
-                    Picker("", selection: pickBinding(key)) {
+                    Picker(weekdayName(wd) + " " + (lang.isEnglish ? "Period \(slot.period)" : "\(slot.period)교시"),
+                           selection: pickBinding(key)) {
                         ForEach((g.offered[key] ?? []).sorted(), id: \.self) { Text($0).tag($0) }
-                        Text(noneTag).tag(noneTag)
+                        Text(lang.tr(noneTag)).tag(noneTag)
                     }
                     .labelsHidden().pickerStyle(.menu).tint(Color.appAccentText)
                 }

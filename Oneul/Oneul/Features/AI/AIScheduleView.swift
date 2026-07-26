@@ -23,9 +23,11 @@ struct AIScheduleView: View {
     @AppStorage("neisName") private var neisName = ""
     @AppStorage("neisKind") private var neisKind = ""
     @FocusState private var editorFocused: Bool
+    @AccessibilityFocusState private var responseFocus: ResponseFocus?
     @AppStorage("aiMeridiemTipShown") private var meridiemTipShown = false   // 첫 진입 팁 1회
     @State private var showMeridiemTip = false
     private let lang = AppLanguage.shared
+    private enum ResponseFocus: Hashable { case error, reply, results }
 
     var body: some View {
         NavigationStack {
@@ -67,6 +69,15 @@ struct AIScheduleView: View {
                 pickedPhoto = nil
                 Task { await generateFromPhoto(item) }
             }
+            .onChange(of: errorMessage) { _, value in
+                if value != nil { responseFocus = .error }
+            }
+            .onChange(of: reply) { _, value in
+                if value != nil { responseFocus = .reply }
+            }
+            .onChange(of: results.count) { _, count in
+                if count > 0 { responseFocus = .results }
+            }
             #if os(iOS)
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
@@ -94,8 +105,12 @@ struct AIScheduleView: View {
             generateButton
             if let errorMessage {
                 Text(errorMessage).font(.footnote).foregroundStyle(.red).padding(.horizontal, 4)
+                    .accessibilityFocused($responseFocus, equals: .error)
             }
-            if let reply { AIReplyCard(text: reply) }
+            if let reply {
+                AIReplyCard(text: reply)
+                    .accessibilityFocused($responseFocus, equals: .reply)
+            }
             if let clarifyPrompt { clarifySection(clarifyPrompt) }
             if !amPmPending.isEmpty { amPmSection }
             if !seriesPending.isEmpty { seriesSection }
@@ -164,11 +179,14 @@ struct AIScheduleView: View {
         .buttonStyle(.plain)
         .disabled(!canGenerate)
         .animation(.easeInOut(duration: 0.2), value: canGenerate)
+        .accessibilityLabel(lang.tr(isLoading ? "생성 중..." : "일정 생성"))
     }
 
     private var resultsSection: some View {
         VStack(alignment: .leading, spacing: 9) {
-            Text(lang.isEnglish ? "\(results.count) items" : "AI 결과 · \(results.count)개")
+            Text(lang.isEnglish
+                 ? "\(results.count) \(results.count == 1 ? "item" : "items")"
+                 : "AI 결과 · \(results.count)개")
                 .font(.caption).bold().foregroundStyle(.secondary).padding(.leading, 4)
 
             ForEach(Array(results.enumerated()), id: \.element.id) { idx, e in
@@ -227,6 +245,7 @@ struct AIScheduleView: View {
                 .buttonStyle(AccentButtonStyle())
                 .padding(.top, 4)
         }
+        .accessibilityFocused($responseFocus, equals: .results)
     }
 
     private func timeText(_ date: Date) -> String {
@@ -296,17 +315,19 @@ struct AIScheduleView: View {
     }
 
     private func deleteCandidate(_ c: DeleteCandidate) {
-        AIDeleteContext.lastChosen = c.id   // "아니 그거 말고" 후속용
-        if let e = find(c.id) {
-            if e.isRecurring {
-                // 반복 일정 — 바로 지우지 않고 이번 것만/전체 확인
-                seriesPending.append(ParsedEvent(title: e.title, start: e.start, end: e.end,
-                                                 location: e.location, action: .delete, targetID: e.id))
-            } else {
-                EventActions.deleteSingle(e, in: context)   // 톰스톤 경유 — 자동 갱신이 되살리지 않게
-                reply = lang.tr("삭제했어요") + ": \(c.title)"
+        guard let e = find(c.id) else { return }
+        if e.isRecurring {
+            // 반복 일정 — 바로 지우지 않고 이번 것만/전체 확인
+            seriesPending.append(ParsedEvent(title: e.title, start: e.start, end: e.end,
+                                             location: e.location, action: .delete, targetID: e.id))
+        } else {
+            guard EventActions.deleteSingle(e, in: context) else {
+                reportPersistenceFailure()
+                return
             }
+            reply = lang.tr("삭제했어요") + ": \(c.title)"
         }
+        AIDeleteContext.lastChosen = c.id   // "아니 그거 말고" 후속용
         clarifyCandidates = []
         clarifyPrompt = nil
     }
@@ -346,10 +367,12 @@ struct AIScheduleView: View {
     }
 
     private func applySeriesChoice(_ e: ParsedEvent, wholeSeries: Bool) {
-        seriesPending.removeAll { $0.id == e.id }
         guard let t = find(e.targetID) else { return }
-        if wholeSeries { EventActions.deleteFutureSeries(from: t, in: context) }
-        else { EventActions.deleteSingle(t, in: context) }
+        let saved = wholeSeries
+            ? EventActions.deleteFutureSeries(from: t, in: context)
+            : EventActions.deleteSingle(t, in: context)
+        guard saved else { reportPersistenceFailure(); return }
+        seriesPending.removeAll { $0.id == e.id }
         reply = lang.tr("삭제했어요") + ": \(e.title)"
         Haptics.notify(.warning)
     }
@@ -592,40 +615,78 @@ struct AIScheduleView: View {
     }
 
     private func addAll() {
+        errorMessage = nil
         var applied = 0
+        var failed = false
+        var succeeded = Set<UUID>()
+        var pendingUpdates = Set<UUID>()
         for e in results {
             switch e.action {
             case .create:
-                EventActions.create(title: e.title, start: e.start, end: e.end, location: e.location,
-                                    reminderMinutes: 10, recurrence: e.recurrence,
-                                    weekdays: e.weekdays, into: context)
-                applied += 1
+                if EventActions.create(title: e.title, start: e.start, end: e.end, location: e.location,
+                                       reminderMinutes: 10, recurrence: e.recurrence,
+                                       weekdays: e.weekdays, into: context) {
+                    applied += 1
+                    succeeded.insert(e.id)
+                } else {
+                    failed = true
+                }
             case .update:
                 if let t = find(e.targetID) {
                     EventActions.claimFromSource(t)   // 시간표 일정이면 톰스톤 + 사용자 소유로(자동 갱신 원복 방지)
                     t.title = e.title; t.start = e.start; t.end = e.end; t.location = e.location
                     applied += 1
+                    pendingUpdates.insert(e.id)
                 }
             case .delete:
                 if let id = e.targetID {
                     if let t = find(id) {
-                        if e.deleteSeries { EventActions.deleteFutureSeries(from: t, in: context) }
-                        else { EventActions.deleteSingle(t, in: context) }   // 톰스톤 경유
-                        applied += 1
+                        let saved = e.deleteSeries
+                            ? EventActions.deleteFutureSeries(from: t, in: context)
+                            : EventActions.deleteSingle(t, in: context)   // 톰스톤 경유
+                        if saved {
+                            applied += 1
+                            succeeded.insert(e.id)
+                        } else {
+                            failed = true
+                        }
                     }
                 } else {
                     // bulk: 정확히 같은 제목 우선, 없을 때만 부분 일치("수학"이 "수학여행"을 지우는 오폭 방지)
-                    for t in bulkDeleteTargets(e.title) { EventActions.deleteSingle(t, in: context); applied += 1 }
+                    let targets = bulkDeleteTargets(e.title)
+                    var allSaved = !targets.isEmpty
+                    for t in targets {
+                        if EventActions.deleteSingle(t, in: context) {
+                            applied += 1
+                        } else {
+                            allSaved = false
+                            failed = true
+                        }
+                    }
+                    if allSaved { succeeded.insert(e.id) }
                 }
             }
         }
         do {
             try context.save()
-            if applied == 0 { errorMessage = lang.tr("적용할 대상을 찾지 못했어요.") }
-            else { results = []; amPmPending = []; inputText = ""; errorMessage = nil }
+            succeeded.formUnion(pendingUpdates)
         } catch {
+            failed = true
             errorMessage = "저장 오류: \(error.localizedDescription)"
         }
+        if failed {
+            results.removeAll { succeeded.contains($0.id) }
+            if errorMessage == nil { reportPersistenceFailure() }
+        } else if applied == 0 {
+            errorMessage = lang.tr("적용할 대상을 찾지 못했어요.")
+        } else {
+            results = []; amPmPending = []; inputText = ""; errorMessage = nil
+        }
+    }
+
+    private func reportPersistenceFailure() {
+        errorMessage = lang.tr("변경사항을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.")
+        Haptics.notify(.error)
     }
 
     /// 대량 삭제 대상 — 정확 일치 우선, 없으면 부분 일치.
@@ -647,6 +708,7 @@ struct AIScheduleView: View {
 
 // AI 처리 중 배경에서 천천히 떠다니는 알록달록한 빛.
 private struct AIThinkingGlow: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var t = false
     var body: some View {
         ZStack {
@@ -657,7 +719,18 @@ private struct AIThinkingGlow: View {
         }
         .ignoresSafeArea()
         .allowsHitTesting(false)
-        .onAppear { withAnimation(.easeInOut(duration: 4).repeatForever(autoreverses: true)) { t = true } }
+        .onAppear {
+            if !reduceMotion {
+                withAnimation(.easeInOut(duration: 4).repeatForever(autoreverses: true)) { t = true }
+            }
+        }
+        .onChange(of: reduceMotion) { _, reduce in
+            if reduce {
+                t = false
+            } else {
+                withAnimation(.easeInOut(duration: 4).repeatForever(autoreverses: true)) { t = true }
+            }
+        }
     }
     private func blob(_ c: Color, _ size: CGFloat, _ x1: CGFloat, _ y1: CGFloat, _ x2: CGFloat, _ y2: CGFloat) -> some View {
         Circle().fill(c.opacity(0.45)).frame(width: size, height: size).blur(radius: 85)
@@ -668,6 +741,7 @@ private struct AIThinkingGlow: View {
 // Apple Intelligence 답변 — 천상의 느낌(은은한 오로라 + 위에서 내리는 빛 + 부드럽게 숨 쉬는 발광 헤일로).
 private struct AIReplyCard: View {
     let text: String
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var glow = false
 
     private let corner: CGFloat = 24
@@ -729,7 +803,16 @@ private struct AIReplyCard: View {
         .shadow(color: Color(red: 0.55, green: 0.80, blue: 1.0).opacity(glow ? 0.24 : 0.12),
                 radius: glow ? 34 : 22, y: 2)
         .onAppear {
-            withAnimation(.easeInOut(duration: 3.2).repeatForever(autoreverses: true)) { glow = true }
+            if !reduceMotion {
+                withAnimation(.easeInOut(duration: 3.2).repeatForever(autoreverses: true)) { glow = true }
+            }
+        }
+        .onChange(of: reduceMotion) { _, reduce in
+            if reduce {
+                glow = false
+            } else {
+                withAnimation(.easeInOut(duration: 3.2).repeatForever(autoreverses: true)) { glow = true }
+            }
         }
     }
 }
@@ -757,10 +840,10 @@ private struct AIResultEditView: View {
                             TextField(lang.tr("제목"), text: $event.title).multilineTextAlignment(.trailing)
                         }
                         field(lang.tr("시작")) {
-                            DatePicker("", selection: $event.start).labelsHidden()
+                            DatePicker(lang.tr("시작"), selection: $event.start).labelsHidden()
                         }
                         field(lang.tr("종료")) {
-                            DatePicker("", selection: $event.end, in: event.start...).labelsHidden()
+                            DatePicker(lang.tr("종료"), selection: $event.end, in: event.start...).labelsHidden()
                         }
                         field(lang.tr("장소")) {
                             TextField(lang.tr("위치"), text: $event.location).multilineTextAlignment(.trailing)

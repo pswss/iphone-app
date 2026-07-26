@@ -33,8 +33,10 @@ struct RootView: View {
     @AppStorage("appearance") private var appearanceRaw = Appearance.system.rawValue
     @AppStorage("userType") private var userType = "general"
     @AppStorage("didOnboardUserType") private var didOnboard = false   // 첫 실행: 학생 기능 안내
+    @AppStorage("ttSetup") private var timetableSetup = false
     @Environment(\.modelContext) private var context
     @Environment(\.scenePhase) private var scenePhase
+    @State private var onboardingStudentSetup = false
     #if os(iOS)
     @State private var fadeSnapshot: UIImage?          // 외형 전환 시 이전 화면을 덮어 서서히 사라지게
     @State private var iosTab: IOSTab = RootView.initialTab()
@@ -228,40 +230,64 @@ struct RootView: View {
     }
 
     // 첫 실행 — 사용자 유형 선택(학생 기능이 설정 토글 뒤에 숨어 발견 불가하던 문제)
+    @ViewBuilder
     private var onboardSheet: some View {
-        VStack(spacing: 18) {
-            Image(systemName: "sparkles").font(.system(size: 40)).foregroundStyle(Color.appAccentText)
-            Text(lang.tr("어떻게 사용하시나요?")).font(.title2).bold()
-            Text(lang.tr("학생을 선택하면 학교 시간표·급식·학사일정을 자동으로 불러올 수 있어요."))
-                .font(.subheadline).foregroundStyle(.secondary)
-                .multilineTextAlignment(.center).padding(.horizontal, 8)
-            VStack(spacing: 10) {
-                Button {
-                    userType = "student"; didOnboard = true
-                    NotificationManager.shared.requestAuthorizationIfNeeded()   // 맥락 있는 시점에 권한 요청
-                } label: {
-                    Label(lang.tr("학생 — 시간표·급식 사용"), systemImage: "graduationcap.fill")
-                        .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 14)
-                }
-                .buttonStyle(.borderedProminent)
-                Button {
-                    userType = "general"; didOnboard = true
-                    NotificationManager.shared.requestAuthorizationIfNeeded()
-                } label: {
-                    Text(lang.tr("일반 — 일정·메모만"))
-                        .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 14)
-                }
-                .buttonStyle(.bordered)
+        if onboardingStudentSetup {
+            NavigationStack {
+                SchoolSetupView()
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button(lang.tr("나중에")) { didOnboard = true }
+                        }
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button(lang.tr("완료")) { didOnboard = true }
+                                .disabled(!timetableSetup)
+                        }
+                    }
             }
-            Text(lang.tr("설정에서 언제든 바꿀 수 있어요")).font(.caption2).foregroundStyle(.secondary)
+            .interactiveDismissDisabled()
+            #if os(macOS)
+            .frame(width: 640, height: 640)
+            #else
+            .presentationDetents([.large])
+            #endif
+        } else {
+            ScrollView {
+                VStack(spacing: 18) {
+                    Image(systemName: "sparkles").font(.system(size: 40)).foregroundStyle(Color.appAccentText)
+                    Text(lang.tr("어떻게 사용하시나요?")).font(.title2).bold()
+                    Text(lang.tr("학생을 선택하면 학교 시간표·급식·학사일정을 자동으로 불러올 수 있어요."))
+                        .font(.subheadline).foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center).padding(.horizontal, 8)
+                    VStack(spacing: 10) {
+                        Button {
+                            userType = "student"
+                            onboardingStudentSetup = true
+                        } label: {
+                            Label(lang.tr("학생 — 시간표·급식 사용"), systemImage: "graduationcap.fill")
+                                .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 14)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        Button {
+                            userType = "general"
+                            didOnboard = true
+                        } label: {
+                            Text(lang.tr("일반 — 일정·메모만"))
+                                .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 14)
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                    Text(lang.tr("설정에서 언제든 바꿀 수 있어요")).font(.caption2).foregroundStyle(.secondary)
+                }
+                .padding(28)
+            }
+            .interactiveDismissDisabled()
+            #if os(macOS)
+            .frame(width: 420)
+            #else
+            .presentationDetents([.medium, .large])
+            #endif
         }
-        .padding(28)
-        .interactiveDismissDisabled()
-        #if os(macOS)
-        .frame(width: 420)
-        #else
-        .presentationDetents([.medium])
-        #endif
     }
 
     #if os(macOS)

@@ -248,7 +248,6 @@ struct TodayView: View {
                     isSpecial: { hasDayMarker($0) },
                     scrollHour: $sharedScrollHour)
             .padding(.horizontal, 12)
-            .focusEffectDisabled()   // 마우스 중심 그리드만 국소 제거(클릭 시 셀 파란 링 노이즈) — 전역 제거는 HIG 위반
     }
 
     // 주 이동 컨트롤(맥·아이패드 regular) — ‹ / 오늘 / › + Left/Right 화살표 단축키(주 그리드라 한 주씩 이동).
@@ -256,12 +255,14 @@ struct TodayView: View {
         HStack(spacing: 12) {
             Button { shiftWeek(-1) } label: { Image(systemName: "chevron.left") }
                 .keyboardShortcut(.leftArrow, modifiers: [])
+                .accessibilityLabel(lang.tr("이전 주"))
             Spacer()
             Button(lang.tr("오늘")) { selectedDay = .now }
                 .font(.subheadline).bold()
             Spacer()
             Button { shiftWeek(1) } label: { Image(systemName: "chevron.right") }
                 .keyboardShortcut(.rightArrow, modifiers: [])
+                .accessibilityLabel(lang.tr("다음 주"))
         }
         .buttonStyle(.borderless)
         .padding(.horizontal, 16)
@@ -283,10 +284,12 @@ struct TodayView: View {
 
     private let compactTitleH: CGFloat = 34
 
-    // 접힌 상태에서 남는 제목(월·연) — 헤더 날짜와 같은 기기 로케일
+    // 접힌 상태에서도 선택한 날짜 맥락(월·일·요일)을 유지 — 헤더와 같은 기기 로케일
     private var compactMonthTitle: some View {
-        Text(selectedDay, format: .dateTime.year().month(.wide))
+        Text(selectedDay, format: .dateTime.month(.abbreviated).day().weekday(.abbreviated))
             .font(.headline).bold()
+            .lineLimit(1)
+            .minimumScaleFactor(0.75)
             .frame(maxWidth: .infinity)
     }
 
@@ -801,30 +804,21 @@ struct MacWeekGrid: View {
     @State private var didInitialScroll = false
     private var anchorHour: Int { max(0, min(23, cal.component(.hour, from: Date()) - 1)) }   // 첫 진입 위치(현재 시각 한 시간 위)
 
-    // 열 최소폭 규격 — 좁아지면 150pt 고정에 월요일부터 잘려 나가고, 넓으면 열이 늘어나 창을 꽉 채움
-    private let minColW: CGFloat = 150
+    // 모든 지원 regular 폭에서 7일을 유지하되, 각 날짜 열은 최소 탭 크기까지 축소 가능.
+    private let minColW: CGFloat = 44
     private let gutterW: CGFloat = 52          // 시각축 전용 거터(열과 분리 → 7열 폭 완전 균등)
     private let hourH: CGFloat = 70            // DayGridView hourHeight와 동일
 
-    @State private var colW: CGFloat = 150
-    private var totalW: CGFloat { gutterW + colW * 7 }
-
     var body: some View {
         GeometryReader { geo in
-            let eff = max(minColW, (geo.size.width - gutterW) / 7)   // 전체화면에선 늘려서 여백 없이
-            let total = gutterW + eff * 7
-            fixedGrid
-                .frame(width: total)
-                // 넓으면 꽉 참(중앙), 좁으면 오른쪽(일요일) 고정 → 월요일부터 서서히 사라짐
-                .frame(width: geo.size.width, height: geo.size.height,
-                       alignment: geo.size.width >= total ? .center : .trailing)
-                .clipped()
-                .onAppear { colW = eff }
-                .onChange(of: eff) { _, v in colW = v }
+            let colW = max(minColW, (geo.size.width - gutterW) / 7)
+            fixedGrid(columnWidth: colW)
+                .frame(width: gutterW + colW * 7, height: geo.size.height)
+                .frame(maxWidth: .infinity, alignment: .center)
         }
     }
 
-    private var fixedGrid: some View {
+    private func fixedGrid(columnWidth colW: CGFloat) -> some View {
         VStack(spacing: 0) {
             HStack(spacing: 0) {                              // 요일 헤더는 고정(스크롤 안 함)
                 Color.clear.frame(width: gutterW, height: 1)
@@ -833,7 +827,7 @@ struct MacWeekGrid: View {
                 }
             }
             .padding(.bottom, 4)
-            allDayBand   // 요일 아래 고정 밴드 — 여러 날 걸친 종일 일정을 연속 바로(스크롤해도 보임)
+            allDayBand(columnWidth: colW)   // 요일 아래 고정 밴드 — 여러 날 걸친 종일 일정을 연속 바로(스크롤해도 보임)
             ScrollViewReader { proxy in
                 ScrollView(showsIndicators: false) {          // 7열을 감싸는 단일 스크롤 → 모든 요일이 함께 세로 이동
                     HStack(spacing: 0) {
@@ -851,8 +845,11 @@ struct MacWeekGrid: View {
                                         Rectangle().fill(.primary.opacity(0.14)).frame(width: 0.5)
                                     }
                                 }
+                            }
                         }
-                    }
+                    #if os(iOS)
+                    .padding(.bottom, 92)   // 우하단 58pt 추가 버튼 + 여백만큼 마지막 일정 아래 스크롤 공간 확보
+                    #endif
                 }
                 .onAppear {
                     guard !didInitialScroll else { return }
@@ -871,7 +868,7 @@ struct MacWeekGrid: View {
                     .font(.caption2).foregroundStyle(.secondary)
                     .frame(width: gutterW - 8, alignment: .leading)
                     .frame(height: hourH, alignment: .top)
-                    .offset(y: -7)   // DayGridView 라벨과 동일 정렬
+                    .offset(y: h == 0 ? 0 : -7)   // 첫 라벨만 상단 안쪽에 두어 잘림 방지
             }
         }
         .frame(width: gutterW, alignment: .leading)
@@ -919,7 +916,7 @@ struct MacWeekGrid: View {
         return packed
     }
 
-    @ViewBuilder private var allDayBand: some View {
+    @ViewBuilder private func allDayBand(columnWidth colW: CGFloat) -> some View {
         let bars = allDayBars
         if !bars.isEmpty {
             let rows = (bars.map { $0.row }.max() ?? 0) + 1
@@ -932,7 +929,9 @@ struct MacWeekGrid: View {
                         .offset(x: x0 + 3, y: CGFloat(bar.row) * (barH + barVGap))
                 }
             }
-            .frame(width: totalW, height: CGFloat(rows) * (barH + barVGap) - barVGap, alignment: .topLeading)
+            .frame(width: gutterW + colW * 7,
+                   height: CGFloat(rows) * (barH + barVGap) - barVGap,
+                   alignment: .topLeading)
             .padding(.top, 2).padding(.bottom, 8)
         }
     }

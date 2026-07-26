@@ -20,6 +20,7 @@ struct SchoolSetupView: View {
     @State private var periodsTick = 0
     @State private var availableClasses: [String] = []
     @FocusState private var focused: Bool
+    @AccessibilityFocusState private var messageFocused: Bool
     private let lang = AppLanguage.shared
 
     private var gradeRange: ClosedRange<Int> { kind.contains("초") ? 1...6 : 1...3 }
@@ -44,6 +45,7 @@ struct SchoolSetupView: View {
                     if !message.isEmpty {
                         Text(message).font(.footnote).foregroundStyle(.secondary).padding(.horizontal, 4)
                             .transition(.opacity)
+                            .accessibilityFocused($messageFocused)
                     }
                 }
                 .padding(16)
@@ -59,6 +61,9 @@ struct SchoolSetupView: View {
         }
         .navigationTitle(lang.tr("학교 설정"))
         .navBarInline()
+        .onChange(of: message) { _, value in
+            if !value.isEmpty { messageFocused = true }
+        }
         #if os(iOS)
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
@@ -127,7 +132,7 @@ struct SchoolSetupView: View {
             HStack {
                 Text(lang.tr("학년")).foregroundStyle(.secondary)
                 Spacer()
-                Picker("", selection: $grade) {
+                Picker(lang.tr("학년"), selection: $grade) {
                     ForEach(gradeRange, id: \.self) { Text(lang.isEnglish ? "Grade \($0)" : "\($0)학년").tag($0) }
                 }
                 .labelsHidden().pickerStyle(.menu).tint(Color.appAccentText)
@@ -135,7 +140,7 @@ struct SchoolSetupView: View {
             HStack {
                 Text(lang.tr("반")).foregroundStyle(.secondary)
                 Spacer()
-                Picker("", selection: $classNm) {
+                Picker(lang.tr("반"), selection: $classNm) {
                     ForEach(classOptions, id: \.self) { Text(lang.isEnglish ? "Class \($0)" : "\($0)반").tag($0) }
                 }
                 .labelsHidden().pickerStyle(.menu).tint(Color.appAccentText)
@@ -158,10 +163,12 @@ struct SchoolSetupView: View {
                             Text(lang.isEnglish ? "P\(p)" : "\(p)교시").font(.caption).foregroundStyle(.secondary)
                                 .frame(width: 42, alignment: .leading)
                             Spacer()
-                            DatePicker("", selection: timeBinding(p, true), displayedComponents: .hourAndMinute)
+                            DatePicker((lang.isEnglish ? "Period \(p)" : "\(p)교시") + " " + lang.tr("시작"),
+                                       selection: timeBinding(p, true), displayedComponents: .hourAndMinute)
                                 .labelsHidden()
                             Text("~").font(.caption).foregroundStyle(.secondary)
-                            DatePicker("", selection: timeBinding(p, false), displayedComponents: .hourAndMinute)
+                            DatePicker((lang.isEnglish ? "Period \(p)" : "\(p)교시") + " " + lang.tr("종료"),
+                                       selection: timeBinding(p, false), displayedComponents: .hourAndMinute)
                                 .labelsHidden()
                         }
                     }
@@ -237,8 +244,8 @@ struct SchoolSetupView: View {
             let r = try await TimetableImporter.importAll(
                 school: s, grade: grade, classNm: classNm, into: context)
             message = (r.timetable + r.academic) > 0
-                ? "수업 \(r.timetable)개 · 학사일정 \(r.academic)개를 추가했어요."
-                : "시간표/학사일정을 찾지 못했어요."
+                ? String(format: lang.tr("수업 %d개 · 학사일정 %d개를 추가했어요."), r.timetable, r.academic)
+                : lang.tr("시간표/학사일정을 찾지 못했어요.")
         } catch {
             message = error.localizedDescription
         }
