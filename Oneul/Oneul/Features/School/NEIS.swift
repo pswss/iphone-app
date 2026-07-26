@@ -251,26 +251,24 @@ struct NEISClient {
 enum TimetableImporter {
     /// 이번 주 시간표를 읽어 요일별 수업을 **졸업(학년도 말)까지** 매주 반복으로 생성. 생성한 일정 수 반환.
     /// @MainActor: SwiftData 메인 컨텍스트 insert가 메인 스레드에서 일어나도록 (백그라운드 insert 크래시 방지).
-    /// 시간표 + 학사일정 전부 가져오기. 재가져오기 시 이전 학교 일정(timetable/academic)을 먼저 삭제.
+    /// 시간표 + 학사일정 전부 가져오기. 원격 조회가 모두 끝난 뒤 기존 학교 일정을 한 번에 교체한다.
     @MainActor
     static func importAll(school: School, grade: Int, classNm: String,
                           into context: ModelContext) async throws -> (timetable: Int, academic: Int) {
-        EventActions.deleteBySource("timetable", in: context)
-        EventActions.deleteBySource("academic", in: context)
-
         let cal = Calendar.current
         let until = graduationDate(kind: school.kind, grade: grade)
 
         // 학사일정 먼저 — 시험일을 시간표에서 제외하려고
-        let academic = (try? await NEISClient.shared.fetchSchedule(
-            school: school, from: cal.startOfDay(for: Date()), to: until)) ?? []
-        let ac = createAcademic(academic, into: context)
+        let academic = try await NEISClient.shared.fetchSchedule(
+            school: school, from: cal.startOfDay(for: Date()), to: until)
         let excludeDays = examDateSet(academic).union(noClassDateSet(academic))
+        let entries = try await fetchTimetable(school: school, grade: grade, classNm: classNm)
 
-        let tt = try await importTimetable(school: school, grade: grade, classNm: classNm,
-                                           until: until, excludeDays: excludeDays, into: context)
-        EventActions.dedupBySource(["timetable", "academic"], in: context)   // 멀티기기/CloudKit 중복 정리
-        return (tt, ac)
+        return try EventActions.replaceSources(["timetable", "academic"], in: context) { replacement in
+            let ac = createAcademic(academic, into: replacement)
+            let tt = createTimetable(entries, until: until, excludeDays: excludeDays, into: replacement)
+            return (tt, ac)
+        }
     }
 
     /// 사용자가 고른 (요일·교시·과목)으로 시간표 생성 (선택과목 반영).
@@ -279,46 +277,45 @@ enum TimetableImporter {
     static func importSelections(school: School, grade: Int,
                                  selections: [(weekday: Int, period: Int, subject: String)],
                                  into context: ModelContext) async throws -> (timetable: Int, academic: Int) {
-        EventActions.deleteBySource("timetable", in: context)
-        EventActions.deleteBySource("academic", in: context)
-
         let cal = Calendar.current
         let gradEnd = graduationDate(kind: school.kind, grade: grade)
         // 학년에 맞는 일정만 (예: 고2한테 대수능모의평가·고3 전용 학평 제외)
-        let academic = ((try? await NEISClient.shared.fetchSchedule(
-            school: school, from: cal.startOfDay(for: Date()), to: gradEnd)) ?? [])
+        let academic = try await NEISClient.shared.fetchSchedule(
+            school: school, from: cal.startOfDay(for: Date()), to: gradEnd)
             .filter { $0.applies(toGrade: grade) }
-        let (vacationDays, semesterEnd, ac) = processAcademic(academic, into: context)
-        let until = semesterEnd ?? gradEnd   // 방학 전까지만 (없으면 졸업까지)
-        // 공휴일도 수업 제외
-        var holidays: Set<Date> = []
-        var hd = cal.startOfDay(for: Date())
-        while hd <= until {
-            if Holidays.name(for: hd) != nil { holidays.insert(hd) }
-            guard let nx = cal.date(byAdding: .day, value: 1, to: hd) else { break }
-            hd = nx
-        }
-        let excludeDays = examDateSet(academic).union(vacationDays).union(holidays)
-            .union(noClassDateSet(academic))
 
-        let todayMid = cal.startOfDay(for: Date())
-        let daysFromMon = (cal.component(.weekday, from: todayMid) + 5) % 7
-        guard let mon = cal.date(byAdding: .day, value: -daysFromMon, to: todayMid) else { return (0, ac) }
+        return try EventActions.replaceSources(["timetable", "academic"], in: context) { replacement in
+            let (vacationDays, semesterEnd, ac) = processAcademic(academic, into: replacement)
+            let until = semesterEnd ?? gradEnd   // 방학 전까지만 (없으면 졸업까지)
+            // 공휴일도 수업 제외
+            var holidays: Set<Date> = []
+            var hd = cal.startOfDay(for: Date())
+            while hd <= until {
+                if Holidays.name(for: hd) != nil { holidays.insert(hd) }
+                guard let nx = cal.date(byAdding: .day, value: 1, to: hd) else { break }
+                hd = nx
+            }
+            let excludeDays = examDateSet(academic).union(vacationDays).union(holidays)
+                .union(noClassDateSet(academic))
+            let todayMid = cal.startOfDay(for: Date())
+            let daysFromMon = (cal.component(.weekday, from: todayMid) + 5) % 7
+            guard let mon = cal.date(byAdding: .day, value: -daysFromMon, to: todayMid) else { return (0, ac) }
 
-        var count = 0
-        for sel in selections where !sel.subject.isEmpty {
-            guard let t = PeriodSchedule.time(period: sel.period) else { continue }
-            let offset = (sel.weekday + 5) % 7   // 월(2)=0 … 금(6)=4
-            guard let date = cal.date(byAdding: .day, value: offset, to: mon),
-                  let start = cal.date(bySettingHour: t.0, minute: t.1, second: 0, of: date),
-                  let end = cal.date(bySettingHour: t.2, minute: t.3, second: 0, of: date) else { continue }
-            EventActions.create(title: sel.subject, start: start, end: end, location: "",
-                                reminderMinutes: -1, recurrence: .weekly, weekdays: [sel.weekday],
-                                endDate: until, source: "timetable", excludeDays: excludeDays, into: context)
-            count += 1
+            var count = 0
+            for sel in selections where !sel.subject.isEmpty {
+                guard let t = PeriodSchedule.time(period: sel.period) else { continue }
+                let offset = (sel.weekday + 5) % 7   // 월(2)=0 … 금(6)=4
+                guard let date = cal.date(byAdding: .day, value: offset, to: mon),
+                      let start = cal.date(bySettingHour: t.0, minute: t.1, second: 0, of: date),
+                      let end = cal.date(bySettingHour: t.2, minute: t.3, second: 0, of: date) else { continue }
+                EventActions.stageCreate(title: sel.subject, start: start, end: end, location: "",
+                                         reminderMinutes: -1, recurrence: .weekly, weekdays: [sel.weekday],
+                                         endDate: until, source: "timetable", excludeDays: excludeDays,
+                                         into: replacement)
+                count += 1
+            }
+            return (count, ac)
         }
-        EventActions.dedupBySource(["timetable", "academic"], in: context)   // 멀티기기/CloudKit 중복 정리
-        return (count, ac)
     }
 
     /// 학사일정 처리: 방학은 멀티데이 1개로, 시험·행사는 단일일로 생성.
@@ -356,11 +353,11 @@ enum TimetableImporter {
         // 시험·행사 → 단일일
         for o in others {
             guard let (start, end) = academicSpan(name: o.name, isExam: o.isExam, day: o.day, cal: cal) else { continue }
-            EventActions.create(title: o.name, start: start, end: end, location: "",
-                                reminderMinutes: -1, recurrence: .none, source: "academic", into: context)
+            EventActions.stageCreate(title: o.name, start: start, end: end, location: "",
+                                     reminderMinutes: -1, recurrence: .none,
+                                     source: "academic", into: context)
             count += 1
         }
-        try? context.save()
         // 다음 방학 시작 직전 = 이번 학기 끝
         let today0 = cal.startOfDay(for: Date())
         let vacStarts = vacByName.values.compactMap { $0.sorted().first }.filter { $0 > today0 }.sorted()
@@ -370,19 +367,21 @@ enum TimetableImporter {
 
     /// 시험일(`excludeDays`)엔 평소 수업을 넣지 않음.
     @MainActor
-    private static func importTimetable(school: School, grade: Int, classNm: String,
-                                        until: Date, excludeDays: Set<Date>,
-                                        into context: ModelContext) async throws -> Int {
+    private static func fetchTimetable(school: School, grade: Int, classNm: String) async throws -> [TimetableEntry] {
         let cal = Calendar.current
         let todayMid = cal.startOfDay(for: Date())
         let weekday = cal.component(.weekday, from: todayMid)          // 1=일 … 7=토
         let daysFromMon = (weekday + 5) % 7                            // 월=0
         guard let mon = cal.date(byAdding: .day, value: -daysFromMon, to: todayMid),
-              let fri = cal.date(byAdding: .day, value: 4, to: mon) else { return 0 }
+              let fri = cal.date(byAdding: .day, value: 4, to: mon) else { return [] }
 
-        let entries = try await NEISClient.shared.fetchTimetable(
+        return try await NEISClient.shared.fetchTimetable(
             school: school, grade: grade, classNm: classNm, from: mon, to: fri)
+    }
 
+    private static func createTimetable(_ entries: [TimetableEntry], until: Date,
+                                        excludeDays: Set<Date>, into context: ModelContext) -> Int {
+        let cal = Calendar.current
         let f = DateFormatter(); f.dateFormat = "yyyyMMdd"; f.locale = Locale(identifier: "ko_KR")
         var count = 0
         for e in entries {
@@ -392,10 +391,10 @@ enum TimetableImporter {
                   let start = cal.date(bySettingHour: t.0, minute: t.1, second: 0, of: date),
                   let end = cal.date(bySettingHour: t.2, minute: t.3, second: 0, of: date) else { continue }
             let wd = cal.component(.weekday, from: date)
-            EventActions.create(title: e.subject, start: start, end: end, location: "",
-                                reminderMinutes: -1, recurrence: .weekly,
-                                weekdays: [wd], endDate: until, source: "timetable",
-                                excludeDays: excludeDays, into: context)
+            EventActions.stageCreate(title: e.subject, start: start, end: end, location: "",
+                                     reminderMinutes: -1, recurrence: .weekly,
+                                     weekdays: [wd], endDate: until, source: "timetable",
+                                     excludeDays: excludeDays, into: context)
             count += 1
         }
         return count
@@ -413,8 +412,9 @@ enum TimetableImporter {
             guard let day = f.date(from: e.date), !cal.isDateInWeekend(day) else { continue }   // 학교 일정은 월~금만
             let exam = examWords.contains(where: e.name.contains)
             guard let (start, end) = academicSpan(name: e.name, isExam: exam, day: day, cal: cal) else { continue }
-            EventActions.create(title: e.name, start: start, end: end, location: "",
-                                reminderMinutes: -1, recurrence: .none, source: "academic", into: context)
+            EventActions.stageCreate(title: e.name, start: start, end: end, location: "",
+                                     reminderMinutes: -1, recurrence: .none,
+                                     source: "academic", into: context)
             count += 1
         }
         return count

@@ -278,7 +278,7 @@ enum EventActions {
         }
     }
 
-    private static func stageCreate(
+    static func stageCreate(
         title: String, start: Date, end: Date, location: String, notes: String = "",
         reminderMinutes: Int, reminderMinutes2: Int = -1, recurrence: Recurrence,
         weekdays: Set<Int> = [], endDate: Date? = nil, source: String = "",
@@ -487,14 +487,43 @@ enum EventActions {
     /// 여러 기기에서 각자 임포트 → CloudKit 병합으로 동일 일정이 두 벌 생기거나, 삭제가 동기화되기 전
     /// 재생성돼 좀비 레코드가 남는 경우를 정리한다. 사용자 일정(source="")은 절대 건드리지 않는다.
     static func dedupBySource(_ sources: Set<String>, in context: ModelContext) {
-        guard let all = try? context.fetch(FetchDescriptor<ScheduleEvent>()) else { return }
+        guard let changed = try? stageDedupBySource(sources, in: context) else { return }
+        if changed { try? context.save() }
+    }
+
+    /// 기존 출처 일정 삭제와 새 일정 생성을 격리된 컨텍스트에서 한 번에 저장한다.
+    static func replaceSources<Output>(
+        _ sources: Set<String>, in context: ModelContext,
+        build: (ModelContext) throws -> Output
+    ) throws -> Output {
+        let replacement = ModelContext(context.container)
+        replacement.autosaveEnabled = false
+        do {
+            for source in sources {
+                let descriptor = FetchDescriptor<ScheduleEvent>(
+                    predicate: #Predicate<ScheduleEvent> { $0.source == source }
+                )
+                for event in try replacement.fetch(descriptor) { replacement.delete(event) }
+            }
+            let result = try build(replacement)
+            _ = try stageDedupBySource(sources, in: replacement)
+            try replacement.save()
+            return result
+        } catch {
+            replacement.rollback()
+            throw error
+        }
+    }
+
+    private static func stageDedupBySource(_ sources: Set<String>, in context: ModelContext) throws -> Bool {
+        let all = try context.fetch(FetchDescriptor<ScheduleEvent>())
         var seen = Set<String>()
         var changed = false
         for e in all where sources.contains(e.source) {
             let key = "\(e.source)|\(e.title)|\(Int(e.start.timeIntervalSince1970))|\(Int(e.end.timeIntervalSince1970))"
             if !seen.insert(key).inserted { context.delete(e); changed = true }   // 같은 (출처·제목·시작·끝) → 하나만 남김
         }
-        if changed { try? context.save() }
+        return changed
     }
 
     /// 특정 출처(timetable/academic)의 일정 전부 삭제. 재가져오기 전 호출.

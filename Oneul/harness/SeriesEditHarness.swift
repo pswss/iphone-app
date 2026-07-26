@@ -6,6 +6,8 @@ import SwiftData
 
 @main
 struct SeriesEditHarness {
+    enum HarnessError: Error { case forcedReplacementFailure }
+
     static var failures = 0
 
     static func check(_ cond: Bool, _ name: String) {
@@ -227,6 +229,56 @@ struct SeriesEditHarness {
         check(ExamKind.school.checklist(english: true) == ["watch", "writing tools"]
               && ExamKind.csat.checklist(english: true) == ["watch", "writing tools", "admission ticket", "photo ID"],
               "T10e English school/CSAT checklists are localized")
+
+        // T11 — 출처 교체는 실패 시 기존 데이터를 보존하고, 성공 시 사용자 일정은 건드리지 않는다.
+        do {
+            let ctx = try freshContext()
+            let start = baseMonday()
+            let oldTimetable = ScheduleEvent(title: "수학", start: start, end: start.addingTimeInterval(3600),
+                                             reminderMinutes: -1, source: "timetable")
+            let oldAcademic = ScheduleEvent(title: "시험", start: start, end: start.addingTimeInterval(3600),
+                                            reminderMinutes: -1, source: "academic")
+            let oldIDs = Set([oldTimetable.id, oldAcademic.id])
+            ctx.insert(oldTimetable)
+            ctx.insert(oldAcademic)
+            ctx.insert(ScheduleEvent(title: "개인 일정", start: start, end: start.addingTimeInterval(3600),
+                                     reminderMinutes: -1))
+            try ctx.save()
+
+            do {
+                let _: Int = try EventActions.replaceSources(["timetable", "academic"], in: ctx) { replacement in
+                    replacement.insert(ScheduleEvent(title: "미완성 새 수업", start: start,
+                                                     end: start.addingTimeInterval(3600),
+                                                     reminderMinutes: -1, source: "timetable"))
+                    throw HarnessError.forcedReplacementFailure
+                }
+            } catch HarnessError.forcedReplacementFailure {}
+
+            let afterFailure = try fetchAll(ModelContext(ctx.container))
+            check(afterFailure.count == 3
+                  && afterFailure.contains { $0.id == oldTimetable.id && $0.source == "timetable" }
+                  && afterFailure.contains { $0.id == oldAcademic.id && $0.source == "academic" }
+                  && afterFailure.contains { $0.title == "개인 일정" && $0.source.isEmpty }
+                  && !afterFailure.contains { $0.title == "미완성 새 수업" },
+                  "T11a failed source replacement preserves last-known-good data")
+
+            let _: Int = try EventActions.replaceSources(["timetable", "academic"], in: ctx) { replacement in
+                replacement.insert(ScheduleEvent(title: "수학", start: start,
+                                                 end: start.addingTimeInterval(3600),
+                                                 reminderMinutes: -1, source: "timetable"))
+                replacement.insert(ScheduleEvent(title: "시험", start: start,
+                                                 end: start.addingTimeInterval(3600),
+                                                 reminderMinutes: -1, source: "academic"))
+                return 2
+            }
+            let afterSuccess = try fetchAll(ctx)
+            check(afterSuccess.count == 3
+                  && afterSuccess.contains { $0.title == "수학" && $0.source == "timetable" && !oldIDs.contains($0.id) }
+                  && afterSuccess.contains { $0.title == "시험" && $0.source == "academic" && !oldIDs.contains($0.id) }
+                  && afterSuccess.contains { $0.title == "개인 일정" && $0.source.isEmpty }
+                  && afterSuccess.allSatisfy { !oldIDs.contains($0.id) || $0.source.isEmpty },
+                  "T11b successful source replacement swaps generated data and keeps user data")
+        }
 
         print(failures == 0 ? "ALL PASS" : "\(failures) FAILURE(S)")
         exit(failures == 0 ? 0 : 1)
