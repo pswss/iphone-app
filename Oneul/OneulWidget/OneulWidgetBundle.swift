@@ -30,15 +30,9 @@ struct HomeProvider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<HomeEntry>) -> Void) {
         let snap = SharedStore.readToday()
         let now = Date()
-        // 현재/다음 일정·진행 바가 갱신돼야 하는 시점 = 각 일정의 시작·끝. (최대 30개)
-        var marks: [Date] = [now]
-        for s in snap?.segments ?? [] {
-            if s.start > now { marks.append(s.start) }
-            if s.end > now { marks.append(s.end) }
-        }
-        marks = Array(Set(marks)).sorted().prefix(30).map { $0 }
+        let marks = snap?.segments.glanceTimelineDates(from: now) ?? [now]
         let entries = marks.map { HomeEntry(date: $0, snapshot: snap) }
-        completion(Timeline(entries: entries, policy: .atEnd))
+        completion(Timeline(entries: entries, policy: marks.count > 1 ? .atEnd : .never))
     }
 }
 
@@ -97,25 +91,27 @@ struct HomeWidgetView: View {
 
 
     private func statusLine(_ s: HomeSnapshot) -> String {
-        if let cur = s.currentTitle { return L("현재", "Now", s.isEnglish) + " · " + cur }
-        if s.nextTitle != nil { return L("대기 중", "Waiting", s.isEnglish) }
+        let status = s.segments.glanceStatus(at: entry.date)
+        if let current = status.current { return L("현재", "Now", s.isEnglish) + " · " + current.title }
+        if status.next != nil { return L("대기 중", "Waiting", s.isEnglish) }
         return L("오늘 일정 종료", "All done", s.isEnglish)
     }
 
     private func nextLine(_ s: HomeSnapshot) -> String? {
-        guard let title = s.nextTitle, let start = s.nextStart else { return nil }
+        guard let next = s.segments.glanceStatus(at: entry.date).next else { return nil }
         let f = DateFormatter()
         f.locale = Locale(identifier: s.isEnglish ? "en_US" : "ko_KR")
         f.dateFormat = "a h:mm"
-        return L("다음", "Next", s.isEnglish) + " · \(title) \(f.string(from: start))"
+        return L("다음", "Next", s.isEnglish) + " · \(next.title) \(f.string(from: next.start))"
     }
 
     @ViewBuilder
     private func countdown(_ s: HomeSnapshot) -> some View {
-        if s.currentTitle != nil {
+        let status = s.segments.glanceStatus(at: entry.date)
+        if status.current != nil {
             Text(L("진행 중", "Now", s.isEnglish)).font(.caption2).bold().foregroundStyle(.white)
-        } else if let start = s.nextStart, start > .now {
-            Text(remainingLabel(to: start, english: s.isEnglish))
+        } else if let next = status.next {
+            Text(remainingLabel(to: next.start, english: s.isEnglish, now: entry.date))
                 .font(.caption2).bold().foregroundStyle(.white)
         } else {
             Text(L("끝", "Done", s.isEnglish)).font(.caption2).bold().foregroundStyle(.white.opacity(0.6))
@@ -171,30 +167,33 @@ struct LockAccessoryView: View {
     private var progress: Double {
         guard let snap else { return 0 }
         let single = snap.segments.filter { !$0.isMultiDay }
-        return PackedLayout(intervals: single.map { (start: $0.start, end: $0.end) }).fraction(at: Date())
+        return PackedLayout(intervals: single.map { (start: $0.start, end: $0.end) }).fraction(at: entry.date)
     }
 
     private var inlineText: String {
         guard let snap, !snap.segments.isEmpty else { return L("일정 없음", "No events", en) }
-        if let cur = snap.currentTitle { return L("현재", "Now", en) + " · " + cur }
-        if let title = snap.nextTitle, let start = snap.nextStart {
-            return L("다음", "Next", en) + " · \(title) " + remainingLabel(to: start, english: en)
+        let status = snap.segments.glanceStatus(at: entry.date)
+        if let current = status.current { return L("현재", "Now", en) + " · " + current.title }
+        if let next = status.next {
+            return L("다음", "Next", en) + " · \(next.title) "
+                + remainingLabel(to: next.start, english: en, now: entry.date)
         }
         return L("오늘 일정 종료", "All done", en)
     }
 
     private var statusText: String {
         guard let snap, !snap.segments.isEmpty else { return L("오늘 일정 없음", "No events", en) }
-        if let cur = snap.currentTitle { return L("현재", "Now", en) + " · " + cur }
-        if snap.nextTitle != nil { return L("대기 중", "Waiting", en) }
+        let status = snap.segments.glanceStatus(at: entry.date)
+        if let current = status.current { return L("현재", "Now", en) + " · " + current.title }
+        if status.next != nil { return L("대기 중", "Waiting", en) }
         return L("오늘 일정 종료", "All done", en)
     }
 
     private var nextText: String? {
-        guard let title = snap?.nextTitle, let start = snap?.nextStart else { return nil }
+        guard let snap, let next = snap.segments.glanceStatus(at: entry.date).next else { return nil }
         let f = DateFormatter()
         f.locale = Locale(identifier: en ? "en_US" : "ko_KR")
         f.dateFormat = "a h:mm"
-        return L("다음", "Next", en) + " · \(title) \(f.string(from: start))"
+        return L("다음", "Next", en) + " · \(next.title) \(f.string(from: next.start))"
     }
 }

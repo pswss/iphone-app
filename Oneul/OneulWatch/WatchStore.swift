@@ -29,7 +29,8 @@ final class WatchStore: NSObject, WCSessionDelegate {
         SharedStore.writeToday(HomeSnapshot(
             dayLabel: p.dayLabel, dayStart: p.dayStart, dayEnd: p.dayEnd, segments: p.events,
             currentTitle: p.currentTitle, currentEnd: p.currentEnd,
-            nextTitle: p.nextTitle, nextStart: p.nextStart, updatedAt: p.updatedAt))
+            nextTitle: p.nextTitle, nextStart: p.nextStart,
+            isEnglish: p.isEnglish, updatedAt: p.updatedAt))
         WidgetCenter.shared.reloadAllTimelines()
         Task { @MainActor in self.payload = p }
     }

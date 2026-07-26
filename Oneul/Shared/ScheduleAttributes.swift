@@ -17,6 +17,16 @@ func longEventRemainingLabel(until end: Date, now: Date = .now, english: Bool) -
     return english ? "\(amount) left" : "남은 \(amount)"
 }
 
+/// 확장 화면 공용 남은 시간 표기. 초는 보이지 않고 기존 n시간/n분 형식을 유지한다.
+func remainingLabel(to target: Date, english: Bool, now: Date = .now) -> String {
+    let seconds = target.timeIntervalSince(now)
+    if seconds <= 0 { return english ? "soon" : "곧" }
+    let minutes = Int(seconds) / 60
+    if minutes < 1 { return english ? "< 1 min" : "< 1분" }
+    if minutes < 60 { return english ? "\(minutes) min" : "\(minutes)분" }
+    return english ? "\(Int(seconds) / 3_600) hr" : "\(Int(seconds) / 3_600)시간"
+}
+
 /// Live Activity 한 칸(일정)의 스냅샷.
 /// SwiftData 모델(`ScheduleEvent`)과 별개로, 위젯에 넘기기 위한 가벼운 값 타입입니다.
 struct EventSnapshot: Codable, Hashable, Identifiable {
@@ -30,6 +40,71 @@ struct EventSnapshot: Codable, Hashable, Identifiable {
     var isMultiDay: Bool = false
 }
 
+/// Live Activity 상태 판정 전용 compact 일정. 4KB payload를 위해 색·UUID를 싣지 않는다.
+struct GlanceEventSnapshot: Codable, Hashable {
+    var title: String
+    var start: Date
+    var end: Date
+    var isMultiDay: Bool = false
+}
+
+/// 저장 당시 current/next 문자열 대신 일정 시각에서 다시 계산한 확장 화면 상태.
+struct GlanceStatus {
+    let current: GlanceEventSnapshot?
+    let next: GlanceEventSnapshot?
+}
+
+extension Array where Element == EventSnapshot {
+    private var glanceEvents: [GlanceEventSnapshot] {
+        map { GlanceEventSnapshot(title: $0.title, start: $0.start, end: $0.end, isMultiDay: $0.isMultiDay) }
+    }
+
+    func glanceStatus(at now: Date) -> GlanceStatus { glanceEvents.glanceStatus(at: now) }
+
+    func glanceTimelineDates(from now: Date, limit: Int = 64) -> [Date] {
+        glanceEvents.glanceTimelineDates(from: now, limit: limit)
+    }
+}
+
+extension Array where Element == GlanceEventSnapshot {
+    /// DayPlan과 같은 규칙: 당일 시간제 일정을 우선하고, 없을 때만 멀티데이 일정을 사용한다.
+    func glanceStatus(at now: Date) -> GlanceStatus {
+        let ordered = sorted { $0.start < $1.start }
+        let timed = ordered.filter { !$0.isMultiDay }
+        let statusEvents = timed.isEmpty ? ordered : timed
+        return GlanceStatus(
+            current: statusEvents.first { now >= $0.start && now < $0.end },
+            next: statusEvents.first { $0.start > now }
+        )
+    }
+
+    /// WidgetKit이 앱 종료 뒤에도 상태·거친 남은 시간 경계에서 다시 그릴 timeline 날짜.
+    func glanceTimelineDates(from now: Date, limit: Int = 64) -> [Date] {
+        let boundaries = flatMap { [$0.start, $0.end] }.filter { $0 > now }.sorted()
+        var dates = [now]
+        var cursor = now
+
+        while dates.count < Swift.max(1, limit) {
+            let status = glanceStatus(at: cursor)
+            let target = status.current?.end ?? status.next?.start
+            let labelChange = target.flatMap { nextRemainingRefresh(to: $0, after: cursor) }
+            let eventChange = boundaries.first { $0 > cursor }
+            guard let next = [labelChange, eventChange].compactMap({ $0 }).min() else { break }
+            dates.append(next)
+            cursor = next
+        }
+        return dates
+    }
+}
+
+/// WidgetKit budget에 맞춘 거친 갱신: 65분 이하는 5분, 그보다 길면 1시간 간격.
+private func nextRemainingRefresh(to target: Date, after now: Date) -> Date? {
+    let seconds = target.timeIntervalSince(now)
+    guard seconds > 0 else { return nil }
+    let interval = seconds > 3_900 ? 3_600.0 : 300.0
+    return min(target, now.addingTimeInterval(interval))
+}
+
 #if os(iOS)
 /// 잠금화면 + 다이나믹 아일랜드 Live Activity의 데이터 정의.
 /// - `attributes`(고정): 그날 라벨
@@ -41,6 +116,8 @@ struct ScheduleActivityAttributes: ActivityAttributes {
         var dayEnd: Date
         /// 그날 일정들(시간 순, colorIndex 부여됨).
         var segments: [EventSnapshot]
+        /// cap된 표시 segment와 별개인 현재/다음 판정용 compact 일정.
+        var statusSegments: [GlanceEventSnapshot]?
 
         /// 지금 진행 중인 일정(없으면 nil).
         var currentTitle: String?
@@ -54,6 +131,13 @@ struct ScheduleActivityAttributes: ActivityAttributes {
 
     /// 예: "6월 17일 화요일"
     var dayLabel: String
+}
+
+extension ScheduleActivityAttributes.ContentState {
+    func glanceStatus(at now: Date) -> GlanceStatus {
+        guard let statusSegments, !statusSegments.isEmpty else { return segments.glanceStatus(at: now) }
+        return statusSegments.glanceStatus(at: now)
+    }
 }
 #endif
 

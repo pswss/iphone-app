@@ -106,12 +106,18 @@ struct DayPlan {
             EventSnapshot(id: e.id, title: String(e.title.prefix(16)), start: e.start, end: e.end,
                           colorIndex: snapshotColorIndex(e), isMultiDay: e.isMultiDay() || e.isDayMarker())
         }
+        // ponytail: compact 24개면 4KB 안에서 실사용 하루를 덮는다. 초과 사례가 측정되면 payload budget부터 재측정.
+        let statusSnaps = statusEvents.filter { $0.end >= now }.prefix(24).map { e in
+            GlanceEventSnapshot(title: String(e.title.prefix(16)), start: e.start, end: e.end,
+                                isMultiDay: e.isMultiDay() || e.isDayMarker())
+        }
         let cur = current(at: now)
         let nxt = next(at: now)
         return .init(
             dayStart: dayStart,
             dayEnd: dayEnd,
             segments: snaps,
+            statusSegments: statusSnaps,
             currentTitle: cur?.title,
             currentEnd: cur?.end,
             nextTitle: nxt?.title,

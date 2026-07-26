@@ -26,14 +26,14 @@ struct WatchComplicationProvider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<WatchEntry>) -> Void) {
         let snap = SharedStore.readToday()
         let now = Date()
-        var marks: [Date] = [now]
-        for s in snap?.segments ?? [] {
-            if s.start > now { marks.append(s.start) }
-            if s.end > now { marks.append(s.end) }
-        }
-        marks = Array(Set(marks)).sorted().prefix(30).map { $0 }
-        completion(Timeline(entries: marks.map { WatchEntry(date: $0, snapshot: snap) }, policy: .atEnd))
+        let marks = snap?.segments.glanceTimelineDates(from: now) ?? [now]
+        let policy: TimelineReloadPolicy = marks.count > 1 ? .atEnd : .never
+        completion(Timeline(entries: marks.map { WatchEntry(date: $0, snapshot: snap) }, policy: policy))
     }
+}
+
+private func complicationText(_ ko: String, _ en: String) -> String {
+    (SharedStore.readToday()?.isEnglish ?? false) ? en : ko
 }
 
 // MARK: - 컴플리케이션
@@ -44,8 +44,9 @@ struct OneulComplication: Widget {
             WatchComplicationView(entry: entry)
                 .containerBackground(for: .widget) { Color.clear }
         }
-        .configurationDisplayName("오늘 일정")
-        .description("워치 페이스에 현재/다음 일정과 진행 상황.")
+        .configurationDisplayName(complicationText("오늘 일정", "Today's Schedule"))
+        .description(complicationText("워치 페이스에 현재/다음 일정과 진행 상황.",
+                                      "Current and next events with daily progress."))
         .supportedFamilies([.accessoryCircular, .accessoryInline, .accessoryRectangular])
     }
 }
@@ -82,37 +83,41 @@ struct WatchComplicationView: View {
     private var progress: Double {
         guard let snap else { return 0 }
         let single = snap.segments.filter { !$0.isMultiDay }
-        return PackedLayout(intervals: single.map { (start: $0.start, end: $0.end) }).fraction(at: Date())
+        return PackedLayout(intervals: single.map { (start: $0.start, end: $0.end) }).fraction(at: entry.date)
     }
 
     private var inlineText: String {
         guard let snap, !snap.segments.isEmpty else { return tr("일정 없음", "No events") }
-        if let cur = snap.currentTitle { return tr("현재", "Now") + " · " + cur }
-        if let title = snap.nextTitle, let start = snap.nextStart {
-            return tr("다음", "Next") + " · \(title) " + remaining(to: start)
+        let status = snap.segments.glanceStatus(at: entry.date)
+        if let current = status.current { return tr("현재", "Now") + " · " + current.title }
+        if let next = status.next {
+            return tr("다음", "Next") + " · \(next.title) " + remaining(to: next.start, at: entry.date)
         }
         return tr("오늘 종료", "All done")
     }
 
     private var statusText: String {
         guard let snap, !snap.segments.isEmpty else { return tr("일정 없음", "No events") }
-        if let cur = snap.currentTitle { return cur }
-        if let title = snap.nextTitle { return title }
+        let status = snap.segments.glanceStatus(at: entry.date)
+        if let current = status.current { return current.title }
+        if let next = status.next { return next.title }
         return tr("오늘 종료", "All done")
     }
 
     private var nextText: String? {
-        if let snap, snap.currentTitle != nil, let title = snap.nextTitle, let start = snap.nextStart {
-            return tr("다음", "Next") + " · \(title) " + timeString(start)
+        guard let snap else { return nil }
+        let status = snap.segments.glanceStatus(at: entry.date)
+        if status.current != nil, let next = status.next {
+            return tr("다음", "Next") + " · \(next.title) " + timeString(next.start)
         }
-        if let start = snap?.nextStart { return remaining(to: start) + tr(" 후", " left") }
+        if let next = status.next { return remaining(to: next.start, at: entry.date) + tr(" 후", " left") }
         return nil
     }
 
     private func tr(_ ko: String, _ en2: String) -> String { en ? en2 : ko }
 
-    private func remaining(to target: Date) -> String {
-        let s = target.timeIntervalSince(Date())
+    private func remaining(to target: Date, at now: Date) -> String {
+        let s = target.timeIntervalSince(now)
         if s <= 0 { return tr("곧", "soon") }
         let m = Int(s) / 60
         if m < 60 { return en ? "\(m)m" : "\(m)분" }
