@@ -96,6 +96,7 @@ struct OneulApp: App {
         // AI = 메뉴바 상단 ✨ (클릭→자연어 입력 팝오버, 바깥 클릭으로 닫힘) — 반짝 튀어나오는 등장
         MenuBarExtra("Oneul AI", systemImage: "sparkles", isInserted: $menuBarAI) {
             AIScheduleView()
+                .eventDeletionUndoHost()
                 .modelContainer(container)
                 .frame(width: 420)
                 .fixedSize(horizontal: false, vertical: true)   // 콘텐츠 높이에 딱 맞춤 — 스크롤·빈 여백 없음

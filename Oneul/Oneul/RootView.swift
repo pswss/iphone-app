@@ -4,6 +4,106 @@ import SwiftData
 import UIKit
 #endif
 
+struct EventDeletionAction {
+    let perform: (EventActions.DeletionReceipt) -> Void
+    func callAsFunction(_ receipt: EventActions.DeletionReceipt) { perform(receipt) }
+}
+
+private struct EventDeletionActionKey: EnvironmentKey {
+    static let defaultValue = EventDeletionAction { _ in }
+}
+
+extension EnvironmentValues {
+    var eventDeleted: EventDeletionAction {
+        get { self[EventDeletionActionKey.self] }
+        set { self[EventDeletionActionKey.self] = newValue }
+    }
+}
+
+private struct EventDeletionUndoHost: ViewModifier {
+    @Environment(\.modelContext) private var context
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var receipt: EventActions.DeletionReceipt?
+    @State private var dismissTask: Task<Void, Never>?
+    @State private var saveError: String?
+    @AccessibilityFocusState private var undoFocused: Bool
+    private let lang = AppLanguage.shared
+
+    func body(content: Content) -> some View {
+        content
+            .environment(\.eventDeleted, EventDeletionAction(perform: offer))
+            .overlay(alignment: .bottom) { undoSnackbar }
+            .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: receipt?.id)
+            .onChange(of: receipt?.id) { _, id in
+                if id != nil { undoFocused = true }
+            }
+            .onDisappear {
+                dismissTask?.cancel()
+                dismissTask = nil
+                receipt = nil
+            }
+            .alert(lang.tr("저장하지 못했어요"), isPresented: Binding(
+                get: { saveError != nil }, set: { if !$0 { saveError = nil } }
+            )) {
+                Button(lang.tr("확인"), role: .cancel) {}
+            } message: {
+                Text(saveError ?? "")
+            }
+    }
+
+    @ViewBuilder private var undoSnackbar: some View {
+        if let receipt {
+            HStack(spacing: 12) {
+                Text(receipt.count == 1
+                     ? lang.tr("일정 삭제됨")
+                     : String(format: lang.tr("일정 %d개 삭제됨"), receipt.count))
+                    .font(.subheadline)
+                Button(lang.tr("실행 취소")) { undo(receipt) }
+                    .font(.subheadline.bold())
+            }
+            .padding(.horizontal, 16).padding(.vertical, 10)
+            .glassEffect(.regular, in: Capsule())
+            .padding(.horizontal, 16)
+            .padding(.bottom, undoBottomPadding)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+            .accessibilityElement(children: .contain)
+            .accessibilityFocused($undoFocused)
+        }
+    }
+
+    private var undoBottomPadding: CGFloat {
+        #if os(iOS)
+        70
+        #else
+        12
+        #endif
+    }
+
+    private func offer(_ newReceipt: EventActions.DeletionReceipt) {
+        receipt = receipt?.merging(newReceipt) ?? newReceipt
+        dismissTask?.cancel()
+        dismissTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 6_000_000_000)
+            if !Task.isCancelled { receipt = nil }
+        }
+    }
+
+    private func undo(_ receipt: EventActions.DeletionReceipt) {
+        guard EventActions.undoDeletion(receipt, in: context) else {
+            saveError = lang.tr("변경사항을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.")
+            Haptics.notify(.error)
+            return
+        }
+        self.receipt = nil
+        dismissTask?.cancel()
+        Haptics.impact(.soft)
+    }
+}
+
+extension View {
+    func eventDeletionUndoHost() -> some View { modifier(EventDeletionUndoHost()) }
+}
+
 #if os(macOS)
 /// macOS 사이드바 섹션(아이폰의 탭에 대응).
 enum MacSection: Hashable, CaseIterable {
@@ -70,6 +170,7 @@ struct RootView: View {
 
     var body: some View {
         content
+            .eventDeletionUndoHost()
             .tint(Color.appAccentText)
             .preferredColorScheme(colorScheme)
             .environment(\.locale, lang.locale)
@@ -195,6 +296,7 @@ struct RootView: View {
                     Button { showAIPopover = true } label: { Label("AI", systemImage: "sparkles") }
                         .popover(isPresented: $showAIPopover, arrowEdge: .bottom) {
                             AIScheduleView()
+                                .eventDeletionUndoHost()
                                 .frame(width: 420)
                                 .fixedSize(horizontal: false, vertical: true)
                         }

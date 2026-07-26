@@ -23,6 +23,7 @@ struct DayGridView: View {
     var scrollsInternally: Bool = true               // false면 내부 ScrollView 없이 전체 높이 렌더 → 외부(주 그리드)가 통합 스크롤
 
     @Environment(\.modelContext) private var context
+    @Environment(\.eventDeleted) private var eventDeleted
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private let lang = AppLanguage.shared
@@ -548,7 +549,8 @@ struct DayGridView: View {
     }
     private func dismissMenu() { deleteBubbleID = nil; selectedID = nil }
     private func deleteEvent(_ e: ScheduleEvent, onSuccess: () -> Void = {}) {
-        if EventActions.deleteSingle(e, in: context) {
+        if let receipt = EventActions.deleteSingle(e, in: context) {
+            eventDeleted(receipt)
             onSuccess()
         } else {
             reportPersistenceFailure()

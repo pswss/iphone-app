@@ -187,13 +187,24 @@ enum SourceTombstones {
         return keys.contains(instanceKey(source: source, title: title, start: start))
     }
 
-    static func record(source: String, title: String, start: Date) {
-        guard !source.isEmpty else { return }
+    @discardableResult
+    static func record(source: String, title: String, start: Date) -> Bool {
+        guard !source.isEmpty else { return false }
         var all = Set(UserDefaults.standard.stringArray(forKey: key) ?? [])
-        all.insert(instanceKey(source: source, title: title, start: start))
+        let inserted = all.insert(instanceKey(source: source, title: title, start: start)).inserted
         // 60일 지난 과거 키는 정리(재가져오기 범위 밖)
         let cutoff = Int(Date().addingTimeInterval(-60 * 86400).timeIntervalSince1970)
         all = Set(all.filter { Int($0.split(separator: "|").last.map(String.init) ?? "") ?? 0 >= cutoff })
+        UserDefaults.standard.set(Array(all), forKey: key)
+        return inserted
+    }
+
+    static func remove(_ tombstones: [(source: String, title: String, start: Date)]) {
+        guard !tombstones.isEmpty else { return }
+        var all = Set(UserDefaults.standard.stringArray(forKey: key) ?? [])
+        for tombstone in tombstones {
+            all.remove(instanceKey(source: tombstone.source, title: tombstone.title, start: tombstone.start))
+        }
         UserDefaults.standard.set(Array(all), forKey: key)
     }
 
@@ -204,24 +215,34 @@ enum SourceTombstones {
 }
 
 enum EventActions {
-    private struct EditableSnapshot {
+    typealias Tombstone = (source: String, title: String, start: Date)
+
+    fileprivate struct EventSnapshot {
+        let id: UUID
         let title: String
         let location: String
         let start: Date
         let end: Date
         let reminderMinutes: Int
         let reminderMinutes2: Int
+        let recurrenceRaw: String
+        let seriesID: String
+        let recurrenceGeneratedThrough: Date?
         let pinned: Bool
         let notes: String
         let source: String
 
         init(_ event: ScheduleEvent) {
+            id = event.id
             title = event.title
             location = event.location
             start = event.start
             end = event.end
             reminderMinutes = event.reminderMinutes
             reminderMinutes2 = event.reminderMinutes2
+            recurrenceRaw = event.recurrenceRaw
+            seriesID = event.seriesID
+            recurrenceGeneratedThrough = event.recurrenceGeneratedThrough
             pinned = event.pinned
             notes = event.notes
             source = event.source
@@ -234,9 +255,87 @@ enum EventActions {
             event.end = end
             event.reminderMinutes = reminderMinutes
             event.reminderMinutes2 = reminderMinutes2
+            event.recurrenceRaw = recurrenceRaw
+            event.seriesID = seriesID
+            event.recurrenceGeneratedThrough = recurrenceGeneratedThrough
             event.pinned = pinned
             event.notes = notes
             event.source = source
+        }
+
+        func makeEvent() -> ScheduleEvent {
+            ScheduleEvent(
+                id: id, title: title, start: start, end: end, location: location, notes: notes,
+                reminderMinutes: reminderMinutes, reminderMinutes2: reminderMinutes2,
+                recurrenceRaw: recurrenceRaw, seriesID: seriesID,
+                recurrenceGeneratedThrough: recurrenceGeneratedThrough, source: source, pinned: pinned)
+        }
+    }
+
+    struct DeletionReceipt: Identifiable {
+        let id = UUID()
+        private let deleted: [EventSnapshot]
+        private let closed: [(id: UUID, generatedThrough: Date?)]
+        private let tombstones: [Tombstone]
+
+        var count: Int { deleted.count }
+
+        fileprivate init(deletion: StagedDeletion, tombstones: [Tombstone]) {
+            deleted = deletion.deleted.map(EventSnapshot.init)
+            closed = deletion.closed.map { ($0.event.id, $0.generatedThrough) }
+            self.tombstones = tombstones
+        }
+
+        fileprivate init(snapshot: EventSnapshot, tombstones: [Tombstone]) {
+            deleted = [snapshot]
+            closed = []
+            self.tombstones = tombstones
+        }
+
+        fileprivate func stageRestore(in context: ModelContext) throws {
+            let existing = try context.fetch(FetchDescriptor<ScheduleEvent>())
+            var byID = Dictionary(existing.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+            for snapshot in deleted {
+                if let event = byID[snapshot.id] { snapshot.restore(event) }
+                else {
+                    let event = snapshot.makeEvent()
+                    context.insert(event)
+                    byID[snapshot.id] = event
+                }
+            }
+            for cursor in closed {
+                byID[cursor.id]?.recurrenceGeneratedThrough = cursor.generatedThrough
+            }
+        }
+
+        fileprivate func removeTombstones() {
+            SourceTombstones.remove(tombstones)
+        }
+
+        func withTombstones(_ tombstones: [Tombstone]) -> DeletionReceipt {
+            DeletionReceipt(deleted: deleted, closed: closed, tombstones: tombstones)
+        }
+
+        func merging(_ other: DeletionReceipt) -> DeletionReceipt {
+            var mergedDeleted = deleted
+            var deletedIDs = Set(deleted.map(\.id))
+            mergedDeleted += other.deleted.filter { deletedIDs.insert($0.id).inserted }
+            var mergedClosed = closed
+            var closedIDs = Set(closed.map(\.id))
+            mergedClosed += other.closed.filter { closedIDs.insert($0.id).inserted }
+            return DeletionReceipt(
+                deleted: mergedDeleted,
+                closed: mergedClosed,
+                tombstones: tombstones + other.tombstones)
+        }
+
+        private init(
+            deleted: [EventSnapshot], closed: [(id: UUID, generatedThrough: Date?)],
+            tombstones: [Tombstone]
+        ) {
+            self.deleted = deleted
+            self.closed = closed
+            self.tombstones = tombstones
         }
     }
 
@@ -449,7 +548,27 @@ enum EventActions {
         reminderMinutes: Int, reminderMinutes2: Int, pinned: Bool,
         in context: ModelContext
     ) -> Bool {
-        let original = EditableSnapshot(event)
+        let original = EventSnapshot(event)
+        let tombstone = stageUpdate(
+            event, title: title, start: start, end: end, location: location, notes: notes,
+            reminderMinutes: reminderMinutes, reminderMinutes2: reminderMinutes2,
+            pinned: pinned)
+        do {
+            try context.save()
+            _ = recordTombstones([tombstone])
+            return true
+        } catch {
+            original.restore(event)
+            return false
+        }
+    }
+
+    static func stageUpdate(
+        _ event: ScheduleEvent,
+        title: String, start: Date, end: Date, location: String, notes: String,
+        reminderMinutes: Int, reminderMinutes2: Int, pinned: Bool
+    ) -> Tombstone {
+        let tombstone = (event.source, event.title, event.start)
         event.title = title
         event.location = location
         event.start = start
@@ -459,26 +578,44 @@ enum EventActions {
         event.pinned = pinned
         event.notes = notes
         event.source = ""
-        do {
-            try context.save()
-            SourceTombstones.record(source: original.source, title: original.title, start: original.start)
-            return true
-        } catch {
-            original.restore(event)
-            return false
-        }
+        return tombstone
     }
 
     @discardableResult
-    static func deleteSingle(_ event: ScheduleEvent, in context: ModelContext) -> Bool {
-        let tombstone = (event.source, event.title, event.start)
-        context.delete(event)
+    static func deleteSingle(_ event: ScheduleEvent, in context: ModelContext) -> DeletionReceipt? {
+        let staged = stageDeleteSingleWithReceipt(event, in: context)
         do {
             try context.save()
-            SourceTombstones.record(source: tombstone.0, title: tombstone.1, start: tombstone.2)
-            return true
+            return staged.receipt.withTombstones(recordTombstones(staged.tombstones))
         } catch {
             context.insert(event)
+            return nil
+        }
+    }
+
+    static func stageDeleteSingleWithReceipt(
+        _ event: ScheduleEvent, in context: ModelContext
+    ) -> (receipt: DeletionReceipt, tombstones: [Tombstone]) {
+        let snapshot = EventSnapshot(event)
+        let tombstone = stageDeleteSingle(event, in: context)
+        let tombstones = [tombstone]
+        return (DeletionReceipt(snapshot: snapshot, tombstones: []), tombstones)
+    }
+
+    static func stageDeleteSingle(_ event: ScheduleEvent, in context: ModelContext) -> Tombstone {
+        let tombstone = (event.source, event.title, event.start)
+        context.delete(event)
+        return tombstone
+    }
+
+    static func undoDeletion(_ receipt: DeletionReceipt, in context: ModelContext) -> Bool {
+        do {
+            try receipt.stageRestore(in: context)
+            try context.save()
+            receipt.removeTombstones()
+            return true
+        } catch {
+            context.rollback()
             return false
         }
     }
@@ -496,9 +633,7 @@ enum EventActions {
         _ sources: Set<String>, in context: ModelContext,
         build: (ModelContext) throws -> Output
     ) throws -> Output {
-        let replacement = ModelContext(context.container)
-        replacement.autosaveEnabled = false
-        do {
+        try performAtomically(in: context) { replacement, _ in
             for source in sources {
                 let descriptor = FetchDescriptor<ScheduleEvent>(
                     predicate: #Predicate<ScheduleEvent> { $0.source == source }
@@ -507,10 +642,25 @@ enum EventActions {
             }
             let result = try build(replacement)
             _ = try stageDedupBySource(sources, in: replacement)
-            try replacement.save()
+            return result
+        }
+    }
+
+    /// 격리된 컨텍스트에 모든 변경을 staging한 뒤 한 번만 저장한다.
+    static func performAtomically<Output>(
+        in context: ModelContext,
+        build: (ModelContext, inout [Tombstone]) throws -> Output
+    ) throws -> Output {
+        let batchContext = ModelContext(context.container)
+        batchContext.autosaveEnabled = false
+        var tombstones: [Tombstone] = []
+        do {
+            let result = try build(batchContext, &tombstones)
+            try batchContext.save()
+            _ = recordTombstones(tombstones)
             return result
         } catch {
-            replacement.rollback()
+            batchContext.rollback()
             throw error
         }
     }
@@ -558,7 +708,7 @@ enum EventActions {
             source: "", pinned: pinned, into: context)
         do {
             try context.save()
-            recordTombstones(deletion.tombstones)
+            _ = recordTombstones(deletion.tombstones)
             return true
         } catch {
             for event in inserted { context.delete(event) }
@@ -569,20 +719,19 @@ enum EventActions {
 
     /// 이 일정 + 같은 시리즈의 이후(시작 ≥) 일정 모두 삭제.
     @discardableResult
-    static func deleteFutureSeries(from event: ScheduleEvent, in context: ModelContext) -> Bool {
-        guard let deletion = stageDeleteFutureSeries(from: event, in: context) else { return false }
+    static func deleteFutureSeries(from event: ScheduleEvent, in context: ModelContext) -> DeletionReceipt? {
+        guard let deletion = stageDeleteFutureSeries(from: event, in: context) else { return nil }
+        let receipt = DeletionReceipt(deletion: deletion, tombstones: [])
         do {
             try context.save()
-            recordTombstones(deletion.tombstones)
-            return true
+            return receipt.withTombstones(recordTombstones(deletion.tombstones))
         } catch {
             restore(deletion, in: context)
-            return false
+            return nil
         }
     }
 
-    private typealias Tombstone = (source: String, title: String, start: Date)
-    private struct StagedDeletion {
+    fileprivate struct StagedDeletion {
         var deleted: [ScheduleEvent] = []
         var closed: [(event: ScheduleEvent, generatedThrough: Date?)] = []
         var tombstones: [Tombstone] = []
@@ -627,6 +776,19 @@ enum EventActions {
         return deletion
     }
 
+    static func stageDeleteFutureSeriesWithReceipt(
+        from event: ScheduleEvent, in context: ModelContext
+    ) throws -> (receipt: DeletionReceipt, tombstones: [Tombstone]) {
+        guard let deletion = stageDeleteFutureSeries(from: event, in: context) else {
+            throw AtomicError.staging
+        }
+        return (
+            DeletionReceipt(deletion: deletion, tombstones: []),
+            deletion.tombstones)
+    }
+
+    private enum AtomicError: Error { case staging }
+
     private static func restore(_ deletion: StagedDeletion, in context: ModelContext) {
         for item in deletion.closed {
             item.event.recurrenceGeneratedThrough = item.generatedThrough
@@ -634,9 +796,14 @@ enum EventActions {
         for event in deletion.deleted { context.insert(event) }
     }
 
-    private static func recordTombstones(_ tombstones: [Tombstone]) {
+    @discardableResult
+    private static func recordTombstones(_ tombstones: [Tombstone]) -> [Tombstone] {
+        var recorded: [Tombstone] = []
         for tombstone in tombstones {
-            SourceTombstones.record(source: tombstone.source, title: tombstone.title, start: tombstone.start)
+            if SourceTombstones.record(
+                source: tombstone.source, title: tombstone.title, start: tombstone.start
+            ) { recorded.append(tombstone) }
         }
+        return recorded
     }
 }

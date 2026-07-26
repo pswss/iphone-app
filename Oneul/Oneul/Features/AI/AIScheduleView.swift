@@ -6,6 +6,7 @@ import Vision
 struct AIScheduleView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.eventDeleted) private var eventDeleted
 
     @State private var inputText = ""
     @State private var pickedPhoto: PhotosPickerItem?   // 사진(시간표·일정표) → OCR → 일정 생성
@@ -322,10 +323,11 @@ struct AIScheduleView: View {
             seriesPending.append(ParsedEvent(title: e.title, start: e.start, end: e.end,
                                              location: e.location, action: .delete, targetID: e.id))
         } else {
-            guard EventActions.deleteSingle(e, in: context) else {
+            guard let receipt = EventActions.deleteSingle(e, in: context) else {
                 reportPersistenceFailure()
                 return
             }
+            eventDeleted(receipt)
             reply = lang.tr("삭제했어요") + ": \(c.title)"
         }
         AIDeleteContext.lastChosen = c.id   // "아니 그거 말고" 후속용
@@ -369,10 +371,11 @@ struct AIScheduleView: View {
 
     private func applySeriesChoice(_ e: ParsedEvent, wholeSeries: Bool) {
         guard let t = find(e.targetID) else { return }
-        let saved = wholeSeries
+        let receipt = wholeSeries
             ? EventActions.deleteFutureSeries(from: t, in: context)
             : EventActions.deleteSingle(t, in: context)
-        guard saved else { reportPersistenceFailure(); return }
+        guard let receipt else { reportPersistenceFailure(); return }
+        eventDeleted(receipt)
         seriesPending.removeAll { $0.id == e.id }
         reply = lang.tr("삭제했어요") + ": \(e.title)"
         Haptics.notify(.warning)
@@ -615,75 +618,111 @@ struct AIScheduleView: View {
         return items.map { ExistingEvent(id: $0.id, title: $0.title, start: $0.start, end: $0.end, location: $0.location) }
     }
 
+    private enum ApplyFailure: Error { case targetMissing, persistence }
+    private struct ApplySummary {
+        var created = 0
+        var updated = 0
+        var deleted = 0
+        var deletionReceipt: EventActions.DeletionReceipt?
+        var deletionTombstones: [EventActions.Tombstone] = []
+        var nonUndoTombstones: [EventActions.Tombstone] = []
+        var total: Int { created + updated + deleted }
+
+        mutating func include(_ receipt: EventActions.DeletionReceipt) {
+            deletionReceipt = deletionReceipt?.merging(receipt) ?? receipt
+        }
+    }
+
     private func addAll() {
         errorMessage = nil
-        var applied = 0
-        var failed = false
-        var targetMissing = false
-        var succeeded = Set<UUID>()
-        for e in results {
-            switch e.action {
-            case .create:
-                if EventActions.create(title: e.title, start: e.start, end: e.end, location: e.location,
-                                       reminderMinutes: 10, recurrence: e.recurrence,
-                                       weekdays: e.weekdays, into: context) {
-                    applied += 1
-                    succeeded.insert(e.id)
-                } else {
-                    failed = true
-                }
-            case .update:
-                if let t = find(e.targetID) {
-                    if EventActions.update(
-                        t, title: e.title, start: e.start, end: e.end, location: e.location, notes: t.notes,
-                        reminderMinutes: t.reminderMinutes, reminderMinutes2: t.reminderMinutes2,
-                        pinned: t.pinned, in: context
-                    ) {
-                        applied += 1
-                        succeeded.insert(e.id)
-                    } else {
-                        failed = true
-                    }
-                } else { targetMissing = true }
-            case .delete:
-                if let id = e.targetID {
-                    if let t = find(id) {
-                        let saved = e.deleteSeries
-                            ? EventActions.deleteFutureSeries(from: t, in: context)
-                            : EventActions.deleteSingle(t, in: context)   // 톰스톤 경유
-                        if saved {
-                            applied += 1
-                            succeeded.insert(e.id)
-                        } else {
-                            failed = true
+        do {
+            let summary = try EventActions.performAtomically(in: context) { batchContext, tombstones in
+                var summary = ApplySummary()
+                for e in results {
+                    switch e.action {
+                    case .create:
+                        let inserted = EventActions.stageCreate(
+                            title: e.title, start: e.start, end: e.end, location: e.location,
+                            reminderMinutes: 10, recurrence: e.recurrence,
+                            weekdays: e.weekdays, into: batchContext)
+                        guard !inserted.isEmpty else { throw ApplyFailure.persistence }
+                        summary.created += 1
+                    case .update:
+                        guard let target = try find(e.targetID, in: batchContext) else {
+                            throw ApplyFailure.targetMissing
                         }
-                    } else { targetMissing = true }
-                } else {
-                    // bulk: 정확히 같은 제목 우선, 없을 때만 부분 일치("수학"이 "수학여행"을 지우는 오폭 방지)
-                    let targets = bulkDeleteTargets(e.title)
-                    var allSaved = !targets.isEmpty
-                    for t in targets {
-                        if EventActions.deleteSingle(t, in: context) {
-                            applied += 1
+                        let tombstone = EventActions.stageUpdate(
+                            target, title: e.title, start: e.start, end: e.end,
+                            location: e.location, notes: target.notes,
+                            reminderMinutes: target.reminderMinutes,
+                            reminderMinutes2: target.reminderMinutes2, pinned: target.pinned)
+                        tombstones.append(tombstone)
+                        summary.nonUndoTombstones.append(tombstone)
+                        summary.updated += 1
+                    case .delete:
+                        if let id = e.targetID {
+                            guard let target = try find(id, in: batchContext) else {
+                                throw ApplyFailure.targetMissing
+                            }
+                            if e.deleteSeries {
+                                let staged = try EventActions.stageDeleteFutureSeriesWithReceipt(
+                                    from: target, in: batchContext)
+                                tombstones += staged.tombstones
+                                summary.deletionTombstones += staged.tombstones
+                                summary.include(staged.receipt)
+                                summary.deleted += staged.receipt.count
+                            } else {
+                                let staged = EventActions.stageDeleteSingleWithReceipt(target, in: batchContext)
+                                tombstones += staged.tombstones
+                                summary.deletionTombstones += staged.tombstones
+                                summary.include(staged.receipt)
+                                summary.deleted += staged.receipt.count
+                            }
                         } else {
-                            allSaved = false
-                            failed = true
+                            // bulk: 정확히 같은 제목 우선, 없을 때만 부분 일치("수학"이 "수학여행"을 지우는 오폭 방지)
+                            let targets = try bulkDeleteTargets(e.title, in: batchContext)
+                            guard !targets.isEmpty else { throw ApplyFailure.targetMissing }
+                            for target in targets {
+                                let staged = EventActions.stageDeleteSingleWithReceipt(target, in: batchContext)
+                                tombstones += staged.tombstones
+                                summary.deletionTombstones += staged.tombstones
+                                summary.include(staged.receipt)
+                            }
+                            summary.deleted += targets.count
                         }
                     }
-                    if targets.isEmpty { targetMissing = true }
-                    if allSaved { succeeded.insert(e.id) }
                 }
+                guard summary.total > 0 else { throw ApplyFailure.targetMissing }
+                if let receipt = summary.deletionReceipt {
+                    let owned = summary.deletionTombstones.filter { candidate in
+                        !SourceTombstones.contains(
+                            source: candidate.source, title: candidate.title, start: candidate.start)
+                            && !summary.nonUndoTombstones.contains {
+                                $0.source == candidate.source && $0.title == candidate.title
+                                    && $0.start == candidate.start
+                            }
+                    }
+                    summary.deletionReceipt = receipt.withTombstones(owned)
+                }
+                return summary
             }
-        }
-        if failed || targetMissing {
-            results.removeAll { succeeded.contains($0.id) }
-            if failed { reportPersistenceFailure() }
-            else { errorMessage = lang.tr("적용할 대상을 찾지 못했어요.") }
-        } else if applied == 0 {
-            errorMessage = lang.tr("적용할 대상을 찾지 못했어요.")
-        } else {
             results = []; amPmPending = []; inputText = ""; errorMessage = nil
+            reply = applyReceipt(summary)
+            if let receipt = summary.deletionReceipt { eventDeleted(receipt) }
+            Haptics.notify(.success)
+        } catch ApplyFailure.targetMissing {
+            errorMessage = lang.tr("적용할 대상을 찾지 못했어요.")
+        } catch {
+            reportPersistenceFailure()
         }
+    }
+
+    private func applyReceipt(_ summary: ApplySummary) -> String {
+        var parts: [String] = []
+        if summary.created > 0 { parts.append(String(format: lang.tr("추가 %d개"), summary.created)) }
+        if summary.updated > 0 { parts.append(String(format: lang.tr("수정 %d개"), summary.updated)) }
+        if summary.deleted > 0 { parts.append(String(format: lang.tr("삭제 %d개"), summary.deleted)) }
+        return lang.tr("일정 변경 완료") + " · " + parts.joined(separator: " · ")
     }
 
     private func reportPersistenceFailure() {
@@ -693,18 +732,26 @@ struct AIScheduleView: View {
 
     /// 대량 삭제 대상 — 정확 일치 우선, 없으면 부분 일치.
     private func bulkDeleteTargets(_ title: String) -> [ScheduleEvent] {
+        (try? bulkDeleteTargets(title, in: context)) ?? []
+    }
+
+    private func bulkDeleteTargets(_ title: String, in modelContext: ModelContext) throws -> [ScheduleEvent] {
         guard !title.isEmpty else { return [] }
-        let all = (try? context.fetch(FetchDescriptor<ScheduleEvent>())) ?? []
+        let all = try modelContext.fetch(FetchDescriptor<ScheduleEvent>())
         let exact = all.filter { $0.title == title }
         return exact.isEmpty ? all.filter { $0.title.contains(title) } : exact
     }
     private func bulkDeleteCount(_ title: String) -> Int { bulkDeleteTargets(title).count }
 
     private func find(_ id: UUID?) -> ScheduleEvent? {
+        try? find(id, in: context)
+    }
+
+    private func find(_ id: UUID?, in modelContext: ModelContext) throws -> ScheduleEvent? {
         guard let id else { return nil }
         var d = FetchDescriptor<ScheduleEvent>(predicate: #Predicate { $0.id == id })
         d.fetchLimit = 1
-        return (try? context.fetch(d))?.first
+        return try modelContext.fetch(d).first
     }
 }
 

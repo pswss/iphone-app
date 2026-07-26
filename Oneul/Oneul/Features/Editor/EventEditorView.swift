@@ -5,6 +5,7 @@ struct EventEditorView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.eventDeleted) private var eventDeleted
 
     let event: ScheduleEvent?
     let day: Date
@@ -217,10 +218,11 @@ struct EventEditorView: View {
     }
 
     private func delete(_ event: ScheduleEvent, includingFuture: Bool = false) {
-        let saved = includingFuture
+        let receipt = includingFuture
             ? EventActions.deleteFutureSeries(from: event, in: context)
             : EventActions.deleteSingle(event, in: context)
-        guard saved else { reportSaveFailure(); return }
+        guard let receipt else { reportSaveFailure(); return }
+        eventDeleted(receipt)
         Haptics.notify(.warning)
         dismiss()
     }

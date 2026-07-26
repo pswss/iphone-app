@@ -280,6 +280,175 @@ struct SeriesEditHarness {
                   "T11b successful source replacement swaps generated data and keeps user data")
         }
 
+        // T12 — 삭제 Undo는 원본 필드·시리즈 cursor·source 톰스톤을 함께 복원한다.
+        do {
+            let ctx = try freshContext()
+            let start = baseMonday()
+            let generatedThrough = Calendar.current.date(byAdding: .month, value: 6, to: start)!
+            let original = ScheduleEvent(
+                title: "원본 수학", start: start, end: start.addingTimeInterval(5400),
+                location: "2학년 1반", notes: "준비물", reminderMinutes: 30, reminderMinutes2: 10,
+                recurrenceRaw: Recurrence.weekly.rawValue, seriesID: "undo-single",
+                recurrenceGeneratedThrough: generatedThrough, source: "timetable", pinned: true)
+            ctx.insert(original)
+            try ctx.save()
+            let originalID = original.id
+
+            let receipt = EventActions.deleteSingle(original, in: ctx)
+            let afterDelete = try fetchAll(ctx)
+            check(receipt?.count == 1 && afterDelete.isEmpty
+                  && SourceTombstones.contains(source: "timetable", title: "원본 수학", start: start),
+                  "T12a delete receipt commits deletion and source tombstone")
+            let undone = receipt.map { EventActions.undoDeletion($0, in: ctx) } ?? false
+            let restored = try fetchAll(ctx).first
+            check(undone && restored?.id == originalID && restored?.title == "원본 수학"
+                  && restored?.location == "2학년 1반" && restored?.notes == "준비물"
+                  && restored?.start == start && restored?.end == start.addingTimeInterval(5400)
+                  && restored?.reminderMinutes == 30 && restored?.reminderMinutes2 == 10
+                  && restored?.recurrenceRaw == Recurrence.weekly.rawValue
+                  && restored?.seriesID == "undo-single"
+                  && restored?.recurrenceGeneratedThrough == generatedThrough
+                  && restored?.source == "timetable" && restored?.pinned == true
+                  && !SourceTombstones.contains(source: "timetable", title: "원본 수학", start: start),
+                  "T12b undo restores every field, original id, and removes its tombstone")
+        }
+
+        do {
+            let ctx = try freshContext()
+            let start = baseMonday()
+            EventActions.create(title: "연속 수업", start: start, end: start.addingTimeInterval(3600), location: "",
+                                reminderMinutes: -1, recurrence: .weekly, weekdays: [2],
+                                source: "timetable", into: ctx)
+            let initial = try fetchAll(ctx)
+            let originalIDs = Set(initial.map(\.id))
+            let originalCursors = Dictionary(uniqueKeysWithValues: initial.map { ($0.id, $0.recurrenceGeneratedThrough) })
+            let cutoff = initial[10]
+            let receipt = EventActions.deleteFutureSeries(from: cutoff, in: ctx)
+            let closed = try fetchAll(ctx)
+            let closedWasClosed = closed.count == 10
+                && closed.allSatisfy { $0.recurrenceGeneratedThrough == nil }
+            let undone = receipt.map { EventActions.undoDeletion($0, in: ctx) } ?? false
+            let restored = try fetchAll(ctx)
+            let restoredIDs = Set(restored.map(\.id))
+            let cursorMismatches = restored.filter {
+                $0.recurrenceGeneratedThrough != (originalCursors[$0.id] ?? nil)
+            }.count
+            let blocked = restored.filter {
+                SourceTombstones.contains(source: $0.source, title: $0.title, start: $0.start)
+            }.count
+            check(closedWasClosed,
+                  "T12c future-series delete closes surviving cursor")
+            check(undone && restoredIDs == originalIDs && cursorMismatches == 0 && blocked == 0,
+                  "T12d future-series undo restores ids/cursors/tombstones "
+                  + "(count \(restored.count)/\(initial.count), ids \(restoredIDs.count)/\(originalIDs.count), "
+                  + "cursor mismatches \(cursorMismatches), blocked \(blocked))")
+        }
+
+        do {
+            let ctx = try freshContext()
+            let start = baseMonday()
+            EventActions.create(title: "연속 삭제", start: start, end: start.addingTimeInterval(3600), location: "",
+                                reminderMinutes: -1, recurrence: .weekly, weekdays: [2],
+                                source: "timetable", into: ctx)
+            let initial = try fetchAll(ctx)
+            let originalIDs = Set(initial.map(\.id))
+            let originalCursors = Dictionary(uniqueKeysWithValues: initial.map { ($0.id, $0.recurrenceGeneratedThrough) })
+            if initial.count > 20 {
+                let first = EventActions.deleteFutureSeries(from: initial[20], in: ctx)
+                let remaining = try fetchAll(ctx)
+                let second = EventActions.deleteFutureSeries(from: remaining[10], in: ctx)
+                let merged = first.flatMap { firstReceipt in
+                    second.map { firstReceipt.merging($0) }
+                }
+                let undone = merged.map { EventActions.undoDeletion($0, in: ctx) } ?? false
+                let restored = try fetchAll(ctx)
+                let cursorMismatches = restored.filter {
+                    $0.recurrenceGeneratedThrough != (originalCursors[$0.id] ?? nil)
+                }.count
+                check(undone && Set(restored.map(\.id)) == originalIDs && cursorMismatches == 0,
+                      "T12e merged same-series deletes restore every event and original cursor")
+            } else {
+                check(false, "T12e merged same-series deletes had enough generated occurrences")
+            }
+        }
+
+        // T13 — AI가 쓰는 혼합 batch는 실패 시 0건, 성공 시 전부를 한 번에 반영한다.
+        do {
+            let ctx = try freshContext()
+            let start = baseMonday()
+            let updateTarget = ScheduleEvent(title: "수정 전", start: start,
+                                             end: start.addingTimeInterval(3600),
+                                             reminderMinutes: -1, source: "timetable")
+            let deleteTarget = ScheduleEvent(title: "수정 전", start: start,
+                                             end: start.addingTimeInterval(7200),
+                                             reminderMinutes: -1, source: "timetable")
+            ctx.insert(updateTarget)
+            ctx.insert(deleteTarget)
+            try ctx.save()
+
+            do {
+                let _: Int = try EventActions.performAtomically(in: ctx) { batch, tombstones in
+                    let all = try batch.fetch(FetchDescriptor<ScheduleEvent>())
+                    let u = all.first { $0.id == updateTarget.id }!
+                    let d = all.first { $0.id == deleteTarget.id }!
+                    tombstones.append(EventActions.stageUpdate(
+                        u, title: "수정 후", start: u.start, end: u.end, location: "",
+                        notes: "", reminderMinutes: -1, reminderMinutes2: -1, pinned: false))
+                    tombstones.append(EventActions.stageDeleteSingle(d, in: batch))
+                    _ = EventActions.stageCreate(title: "새 일정", start: start.addingTimeInterval(14400),
+                                                 end: start.addingTimeInterval(18000), location: "",
+                                                 reminderMinutes: -1, recurrence: .none, into: batch)
+                    throw HarnessError.forcedReplacementFailure
+                }
+            } catch HarnessError.forcedReplacementFailure {}
+
+            let failed = try fetchAll(ModelContext(ctx.container))
+            check(failed.count == 2 && failed.contains { $0.id == updateTarget.id && $0.title == "수정 전" }
+                  && failed.contains { $0.id == deleteTarget.id }
+                  && !failed.contains { $0.title == "새 일정" }
+                  && !SourceTombstones.contains(source: "timetable", title: "수정 전", start: start),
+                  "T13a failed mixed batch leaves data and tombstones untouched")
+
+            let receipt: EventActions.DeletionReceipt = try EventActions.performAtomically(in: ctx) { batch, tombstones in
+                let all = try batch.fetch(FetchDescriptor<ScheduleEvent>())
+                let u = all.first { $0.id == updateTarget.id }!
+                let d = all.first { $0.id == deleteTarget.id }!
+                let updateTombstone = EventActions.stageUpdate(
+                    u, title: "수정 후", start: u.start, end: u.end, location: "",
+                    notes: "", reminderMinutes: -1, reminderMinutes2: -1, pinned: false)
+                tombstones.append(updateTombstone)
+                let staged = EventActions.stageDeleteSingleWithReceipt(d, in: batch)
+                tombstones += staged.tombstones
+                _ = EventActions.stageCreate(title: "새 일정", start: start.addingTimeInterval(14400),
+                                             end: start.addingTimeInterval(18000), location: "",
+                                             reminderMinutes: -1, recurrence: .none, into: batch)
+                let owned = staged.tombstones.filter { candidate in
+                    !SourceTombstones.contains(
+                        source: candidate.source, title: candidate.title, start: candidate.start)
+                        && !(updateTombstone.source == candidate.source
+                             && updateTombstone.title == candidate.title
+                             && updateTombstone.start == candidate.start)
+                }
+                return staged.receipt.withTombstones(owned)
+            }
+            let succeeded = try fetchAll(ctx)
+            check(succeeded.count == 2
+                  && succeeded.contains { $0.id == updateTarget.id && $0.title == "수정 후" && $0.source.isEmpty }
+                  && !succeeded.contains { $0.id == deleteTarget.id }
+                  && succeeded.contains { $0.title == "새 일정" }
+                  && SourceTombstones.contains(source: "timetable", title: "수정 전", start: start),
+                  "T13b successful mixed batch commits every change and deferred tombstones")
+
+            let undone = EventActions.undoDeletion(receipt, in: ctx)
+            let afterUndo = try fetchAll(ctx)
+            check(undone && afterUndo.count == 3
+                  && afterUndo.contains { $0.id == updateTarget.id && $0.title == "수정 후" }
+                  && afterUndo.contains { $0.id == deleteTarget.id && $0.title == "수정 전" }
+                  && afterUndo.contains { $0.title == "새 일정" }
+                  && SourceTombstones.contains(source: "timetable", title: "수정 전", start: start),
+                  "T13c deletion-only undo preserves an update-owned tombstone")
+        }
+
         print(failures == 0 ? "ALL PASS" : "\(failures) FAILURE(S)")
         exit(failures == 0 ? 0 : 1)
     }
