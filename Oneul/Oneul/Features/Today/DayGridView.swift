@@ -177,13 +177,29 @@ struct DayGridView: View {
                     .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.primary.opacity(0.15)))
                 }
                 .buttonStyle(.plain)
+                .contextMenu {
+                    Button(lang.tr("수정")) { onEdit(e) }
+                    Button(lang.tr("잘라내기")) { cut(e) }
+                    Button(lang.tr("복사")) { copy(e) }
+                    Button(lang.tr("복제")) { duplicate(e) }
+                    Divider()
+                    Button(lang.tr("삭제"), role: .destructive) { deleteEvent(e) }
+                }
+                .accessibilityLabel("\(e.title.isEmpty ? lang.tr("제목 없음") : e.title), \(lang.tr("종일"))")
+                .accessibilityAction(named: lang.tr("수정")) { onEdit(e) }
+                .accessibilityAction(named: lang.tr("잘라내기")) { cut(e) }
+                .accessibilityAction(named: lang.tr("복사")) { copy(e) }
+                .accessibilityAction(named: lang.tr("복제")) { duplicate(e) }
+                .accessibilityAction(named: lang.tr("삭제")) { deleteEvent(e) }
             }
         }
     }
 
     // MARK: 시간선
     private func hourRow(_ h: Int, width: CGFloat) -> some View {
-        ZStack(alignment: .topLeading) {
+        let hourStart = gridTop.addingTimeInterval(Double(h) * 3600)
+        let halfHour = hourStart.addingTimeInterval(1800)
+        return ZStack(alignment: .topLeading) {
             Rectangle().fill(.primary.opacity(0.14)).frame(height: 1)   // 적응형 — 라이트/다크 모두 보이게
                 .padding(.leading, leftInset)                            // 시간 라벨 영역은 비우고 일정 영역만
             if showHourLabels {
@@ -194,6 +210,15 @@ struct DayGridView: View {
             }
         }
         .frame(width: width, height: hourHeight, alignment: .topLeading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(hourStart.formatted(
+            .dateTime.month().day().weekday(.wide).hour().minute().locale(lang.locale)))
+        .accessibilityHint(slotActionLabel(hourStart))
+        .accessibilityAddTraits(.isButton)
+        .accessibilitySortPriority(-1)
+        .accessibilityAction { addAt(date: hourStart) }
+        .accessibilityAction(named: slotActionLabel(hourStart)) { addAt(date: hourStart) }
+        .accessibilityAction(named: slotActionLabel(halfHour)) { addAt(date: halfHour) }
     }
 
     private func nowLine(width: CGFloat) -> some View {
@@ -280,7 +305,7 @@ struct DayGridView: View {
             // 맥 표준: 우클릭 컨텍스트 메뉴(기존 '가로 드래그 후 릴리즈' 커스텀 메뉴는 발견 불가)
             .contextMenu {
                 Button(lang.tr("잘라내기")) { cut(e) }
-                Button(lang.tr("복사")) { EventClipboard.shared.copy(e) }
+                Button(lang.tr("복사")) { copy(e) }
                 Button(lang.tr("복제")) { duplicate(e) }
                 Divider()
                 Button(lang.tr("삭제"), role: .destructive) { deleteEvent(e) }
@@ -296,6 +321,10 @@ struct DayGridView: View {
             .accessibilityLabel("\(e.title.isEmpty ? lang.tr("제목 없음") : e.title), \(timeText(e.start)) – \(timeText(e.end))")
             .accessibilityAddTraits(.isButton)
             .accessibilityAction { onEdit(e) }
+            .accessibilityAction(named: lang.tr("수정")) { onEdit(e) }
+            .accessibilityAction(named: lang.tr("잘라내기")) { cut(e) }
+            .accessibilityAction(named: lang.tr("복사")) { copy(e) }
+            .accessibilityAction(named: lang.tr("복제")) { duplicate(e) }
             .accessibilityAction(named: lang.tr("삭제")) { deleteEvent(e) }
     }
 
@@ -516,7 +545,7 @@ struct DayGridView: View {
                     cut(e) { dismissMenu() } }
                 menuSep
                 menuItem(lang.tr("복사")) {
-                    EventClipboard.shared.copy(e); dismissMenu() }
+                    copy(e) { dismissMenu() } }
                 menuSep
                 menuItem(lang.tr("복제")) {
                     duplicate(e) { dismissMenu() } }
@@ -560,8 +589,14 @@ struct DayGridView: View {
         let copied = EventClipboard.shared.snapshot(e)
         deleteEvent(e) {
             EventClipboard.shared.item = copied
+            Haptics.impact(.soft)
             onSuccess()
         }
+    }
+    private func copy(_ e: ScheduleEvent, onSuccess: () -> Void = {}) {
+        EventClipboard.shared.copy(e)
+        Haptics.impact(.soft)
+        onSuccess()
     }
     private func duplicate(_ e: ScheduleEvent, onSuccess: () -> Void = {}) {
         if EventActions.create(title: e.title, start: e.start, end: e.end, location: e.location,
@@ -603,7 +638,9 @@ struct DayGridView: View {
     private func addAt(y: CGFloat) {
         let mins = Double(y) / Double(hourHeight) * 60
         let snapped = (mins / 30).rounded(.down) * 30
-        let date = gridTop.addingTimeInterval(snapped * 60)
+        addAt(date: gridTop.addingTimeInterval(snapped * 60))
+    }
+    private func addAt(date: Date) {
         if let c = EventClipboard.shared.item {                   // 복사/잘라낸 일정이 있으면 그 자리에 붙여넣기(상단 칩으로 모드 표시·취소 가능)
             if EventActions.create(title: c.title, start: date, end: date.addingTimeInterval(c.duration),
                                    location: c.location, notes: c.notes, reminderMinutes: c.reminderMinutes,
@@ -616,6 +653,10 @@ struct DayGridView: View {
         } else {
             onAdd(date)
         }
+    }
+    private func slotActionLabel(_ date: Date) -> String {
+        let key = EventClipboard.shared.item == nil ? "%@에 일정 추가" : "%@에 붙여넣기"
+        return String(format: lang.tr(key), timeText(date))
     }
     private func commitDrag(_ e: ScheduleEvent, dy: CGFloat, dayShift: Int = 0) -> Bool {
         let mins = dragMinutes(dy)

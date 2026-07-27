@@ -22,7 +22,7 @@ struct CalendarBar: View {
     private let monthRange = -120...120
     private let lang = AppLanguage.shared
     private var weekdaySymbols: [String] {
-        lang.isEnglish ? ["S", "M", "T", "W", "T", "F", "S"] : ["일", "월", "화", "수", "목", "금", "토"]
+        (1...7).map(lang.weekdayShort)
     }
 
     var body: some View {
@@ -160,7 +160,7 @@ struct CalendarBar: View {
         let today = cal.isDateInToday(date)
         return Button { select(date) } label: {
             VStack(spacing: 4) {
-                Text(date, format: .dateTime.weekday(.narrow))
+                Text(lang.weekdayShort(cal.component(.weekday, from: date)))
                     .font(.caption2).foregroundStyle(.secondary)
                 Text(verbatim: "\(cal.component(.day, from: date))")
                     .font(.subheadline).bold()

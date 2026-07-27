@@ -833,10 +833,13 @@ struct MacWeekGrid: View {
     var isSpecial: (Date) -> Bool = { _ in false }     // 생일·기념일 — 헤더 날짜 빨강
     @Binding var scrollHour: Int?
 
+    @Environment(\.modelContext) private var context
+    @Environment(\.eventDeleted) private var eventDeleted
     private let cal = Calendar.current
     private let lang = AppLanguage.shared
     private var days: [Date] { (0..<7).compactMap { cal.date(byAdding: .day, value: $0, to: weekStart) } }
     @State private var didInitialScroll = false
+    @State private var saveError: String?
     private var anchorHour: Int { max(0, min(23, cal.component(.hour, from: Date()) - 1)) }   // 첫 진입 위치(현재 시각 한 시간 위)
 
     // 모든 지원 regular 폭에서 7일을 유지하되, 각 날짜 열은 최소 탭 크기까지 축소 가능.
@@ -850,6 +853,13 @@ struct MacWeekGrid: View {
             fixedGrid(columnWidth: colW)
                 .frame(width: gutterW + colW * 7, height: geo.size.height)
                 .frame(maxWidth: .infinity, alignment: .center)
+        }
+        .alert(lang.tr("저장하지 못했어요"), isPresented: Binding(
+            get: { saveError != nil }, set: { if !$0 { saveError = nil } }
+        )) {
+            Button(lang.tr("확인"), role: .cancel) {}
+        } message: {
+            Text(saveError ?? "")
         }
     }
 
@@ -1002,6 +1012,62 @@ struct MacWeekGrid: View {
             .overlay(shape.strokeBorder(.primary.opacity(0.15)))
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            Button(lang.tr("수정")) { onEdit(bar.event) }
+            Button(lang.tr("잘라내기")) { cut(bar.event) }
+            Button(lang.tr("복사")) { copy(bar.event) }
+            Button(lang.tr("복제")) { duplicate(bar.event) }
+            Divider()
+            Button(lang.tr("삭제"), role: .destructive) { delete(bar.event) }
+        }
+        .accessibilityLabel("\(bar.event.title.isEmpty ? lang.tr("제목 없음") : bar.event.title), \(lang.tr("종일"))")
+        .accessibilityAction(named: lang.tr("수정")) { onEdit(bar.event) }
+        .accessibilityAction(named: lang.tr("잘라내기")) { cut(bar.event) }
+        .accessibilityAction(named: lang.tr("복사")) { copy(bar.event) }
+        .accessibilityAction(named: lang.tr("복제")) { duplicate(bar.event) }
+        .accessibilityAction(named: lang.tr("삭제")) { delete(bar.event) }
+    }
+
+    private func copy(_ event: ScheduleEvent) {
+        EventClipboard.shared.copy(event)
+        Haptics.impact(.soft)
+    }
+
+    private func cut(_ event: ScheduleEvent) {
+        let copied = EventClipboard.shared.snapshot(event)
+        guard let receipt = EventActions.deleteSingle(event, in: context) else {
+            reportPersistenceFailure()
+            return
+        }
+        eventDeleted(receipt)
+        EventClipboard.shared.item = copied
+        Haptics.impact(.soft)
+    }
+
+    private func duplicate(_ event: ScheduleEvent) {
+        guard EventActions.create(
+            title: event.title, start: event.start, end: event.end, location: event.location,
+            notes: event.notes, reminderMinutes: event.reminderMinutes,
+            reminderMinutes2: event.reminderMinutes2, recurrence: .none,
+            pinned: event.pinned, into: context
+        ) else {
+            reportPersistenceFailure()
+            return
+        }
+        Haptics.impact(.soft)
+    }
+
+    private func delete(_ event: ScheduleEvent) {
+        guard let receipt = EventActions.deleteSingle(event, in: context) else {
+            reportPersistenceFailure()
+            return
+        }
+        eventDeleted(receipt)
+    }
+
+    private func reportPersistenceFailure() {
+        saveError = lang.tr("변경사항을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.")
+        Haptics.notify(.error)
     }
 
     /// 종일 밴드에 배치된 한 개의 연속 바.

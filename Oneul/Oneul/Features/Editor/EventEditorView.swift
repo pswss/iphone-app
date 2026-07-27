@@ -246,7 +246,7 @@ struct EventEditorView: View {
                         if on { weekdays.remove(wd) } else { weekdays.insert(wd) }
                     }
                 } label: {
-                    Text(weekdaySymbol(wd))
+                    Text(lang.weekdayShort(wd))
                         .font(.subheadline).bold()
                         .frame(width: 44, height: 44)
                         .background(on ? Color.appAccent : Color.clear, in: Circle())
@@ -254,18 +254,13 @@ struct EventEditorView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(lang.weekdayName(wd))
                 .accessibilityAddTraits(on ? .isSelected : [])
             }
         }
         .frame(maxWidth: .infinity)
         .padding(8)
         .glassCard(cornerRadius: 22)
-    }
-
-    private func weekdaySymbol(_ wd: Int) -> String {
-        let ko = ["일", "월", "화", "수", "목", "금", "토"]
-        let en = ["S", "M", "T", "W", "T", "F", "S"]
-        return (lang.isEnglish ? en : ko)[wd - 1]
     }
 
     private func load() {

@@ -130,12 +130,23 @@ final class AppLanguage {
         return "\(h < 12 || h == 24 ? "오전" : "오후") \(h12)시"
     }
 
-    /// 요일 나열("월수금" / "Mon·Wed·Fri") — AI 반복 배지 공용.
-    func weekdayShortList(_ weekdays: Set<Int>) -> String {
+    func weekdayShort(_ weekday: Int) -> String {
+        guard (1...7).contains(weekday) else { return "" }
         let ko = ["일", "월", "화", "수", "목", "금", "토"]
         let en = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-        let syms = isEnglish ? en : ko
-        return weekdays.sorted().compactMap { (1...7).contains($0) ? syms[$0 - 1] : nil }
+        return (isEnglish ? en : ko)[weekday - 1]
+    }
+
+    func weekdayName(_ weekday: Int) -> String {
+        guard (1...7).contains(weekday) else { return "" }
+        let ko = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"]
+        let en = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+        return (isEnglish ? en : ko)[weekday - 1]
+    }
+
+    /// 요일 나열("월수금" / "Mon·Wed·Fri") — AI 반복 배지 공용.
+    func weekdayShortList(_ weekdays: Set<Int>) -> String {
+        return weekdays.sorted().filter { (1...7).contains($0) }.map(weekdayShort)
             .joined(separator: isEnglish ? "·" : "")
     }
 
@@ -341,6 +352,8 @@ final class AppLanguage {
         "파일": "File",
         "일정 복사됨 · 빈 곳을 길게 눌러 붙여넣기": "Event copied · long-press empty space to paste",
         "일정 복사됨 · 빈 곳을 두 번 클릭해 붙여넣기": "Event copied · double-click empty space to paste",
+        "%@에 일정 추가": "Add event at %@",
+        "%@에 붙여넣기": "Paste at %@",
         "반복 일정 수정": "Edit Repeating Event",
         "이 일정만 수정": "Edit This Event Only",
         "이후 일정 모두 수정": "Edit All Future Events",
