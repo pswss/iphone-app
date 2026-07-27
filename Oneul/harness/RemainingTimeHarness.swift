@@ -25,6 +25,8 @@ struct RemainingTimeHarness {
         assert(events.glanceStatus(at: now).next?.title == first.title)
         assert(events.glanceStatus(at: first.start).current?.title == first.title)
         assert(events.glanceStatus(at: first.end).next?.title == second.title)
+        assert(events.glanceStatus(at: second.end).current == nil)
+        assert(events.glanceStatus(at: second.end).next == nil)
         assert([long].glanceStatus(at: now).current?.title == long.title)
 
         let dates = events.glanceTimelineDates(from: now)

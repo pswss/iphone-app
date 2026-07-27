@@ -5,33 +5,40 @@ struct WatchTodayView: View {
 
     private var p: WatchSchedulePayload { store.payload }
     private var en: Bool { p.isEnglish }   // 폰 앱 언어 설정을 따라감
+    private var locale: Locale { Locale(identifier: en ? "en_US" : "ko_KR") }
+    private var dayTitle: String { p.dayLabel.isEmpty ? (en ? "Today" : "오늘") : p.dayLabel }
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 10) {
-                    highlight
-                    if p.events.isEmpty {
-                        Text(en ? "No events today" : "오늘 일정이 없어요")
-                            .font(.footnote).foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .padding(.top, 8)
-                    } else {
-                        ForEach(p.events) { row($0) }
+            TimelineView(.everyMinute) { timeline in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 10) {
+                        highlight(at: timeline.date)
+                        if p.events.isEmpty {
+                            Text(en ? "No events" : "일정이 없어요")
+                                .font(.footnote).foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding(.top, 8)
+                        } else {
+                            ForEach(p.events) { row($0, at: timeline.date) }
+                        }
                     }
+                    .padding(.horizontal, 4)
                 }
-                .padding(.horizontal, 4)
+                .navigationTitle(dayTitle)
             }
-            .navigationTitle(en ? "Today" : "오늘")
         }
+        .environment(\.locale, locale)
     }
 
     /// 진행 중 일정 우선, 없으면 다음 일정 강조 카드.
-    @ViewBuilder private var highlight: some View {
-        if let title = p.currentTitle, let end = p.currentEnd {
-            card(tag: en ? "Ongoing" : "진행 중", title: title, time: end, accent: .green, isEnd: true)
-        } else if let title = p.nextTitle, let start = p.nextStart {
-            card(tag: en ? "Next" : "다음", title: title, time: start, accent: .orange)
+    @ViewBuilder private func highlight(at now: Date) -> some View {
+        let status = p.events.glanceStatus(at: now)
+        if let current = status.current {
+            card(tag: en ? "Ongoing" : "진행 중", title: current.title,
+                 time: current.end, accent: .green, isEnd: true)
+        } else if let next = status.next {
+            card(tag: en ? "Next" : "다음", title: next.title, time: next.start, accent: .orange)
         }
     }
 
@@ -52,7 +59,7 @@ struct WatchTodayView: View {
         }
     }
 
-    private func row(_ e: EventSnapshot) -> some View {
+    private func row(_ e: EventSnapshot, at now: Date) -> some View {
         HStack(spacing: 8) {
             Text(e.start, format: .dateTime.hour().minute())
                 .font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
@@ -63,6 +70,6 @@ struct WatchTodayView: View {
         }
         .padding(.vertical, 5).padding(.horizontal, 6)
         .background(.gray.opacity(0.12), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
-        .opacity(e.end < Date() ? 0.45 : 1)   // 지난 일정은 흐리게
+        .opacity(e.end < now ? 0.45 : 1)   // 지난 일정은 흐리게
     }
 }
