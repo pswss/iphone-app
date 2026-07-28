@@ -1,4 +1,0 @@
-# 오늘(Oneul) 개인정보 처리방침 정적 페이지 (App Store 필수 URL)
-name = "oneul-privacy"
-main = "src/index.js"
-compatibility_date = "2026-07-01"
