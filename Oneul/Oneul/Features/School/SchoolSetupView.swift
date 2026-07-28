@@ -20,6 +20,8 @@ struct SchoolSetupView: View {
     @State private var showPeriods = false
     @State private var periodsTick = 0
     @State private var availableClasses: [String] = []
+    @State private var classesLoading = true
+    @State private var classLoadFailed = false
     @FocusState private var focused: Bool
     @AccessibilityFocusState private var messageFocused: Bool
     private let lang = AppLanguage.shared
@@ -140,13 +142,41 @@ struct SchoolSetupView: View {
                 }
                 .labelsHidden().pickerStyle(.menu).tint(Color.appAccentText)
             }
-            HStack {
-                Text(lang.tr("반")).foregroundStyle(.secondary)
-                Spacer()
-                Picker(lang.tr("반"), selection: $classNm) {
-                    ForEach(classOptions, id: \.self) { Text(lang.isEnglish ? "Class \($0)" : "\($0)반").tag($0) }
+            Group {
+                if classesLoading {
+                    HStack {
+                        Text(lang.tr("반")).foregroundStyle(.secondary)
+                        Spacer()
+                        ProgressView().controlSize(.small)
+                    }
+                    .frame(minHeight: 44)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel(lang.tr("반 정보 불러오는 중…"))
+                } else if classLoadFailed {
+                    HStack(spacing: 10) {
+                        Label(lang.tr("반 정보를 불러오지 못했어요"), systemImage: "wifi.exclamationmark")
+                            .font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        Button(lang.tr("다시 시도")) { Task { await loadClasses() } }
+                            .buttonStyle(.bordered)
+                            .frame(minHeight: 44)
+                    }
+                } else {
+                    HStack {
+                        Text(lang.tr("반")).foregroundStyle(.secondary)
+                        Spacer()
+                        Picker(lang.tr("반"), selection: $classNm) {
+                            ForEach(classOptions, id: \.self) {
+                                Text(lang.isEnglish ? "Class \($0)" : "\($0)반").tag($0)
+                            }
+                        }
+                        .labelsHidden().pickerStyle(.menu).tint(Color.appAccentText)
+                    }
+                    if availableClasses.isEmpty {
+                        Text(lang.tr("반 정보가 없어 번호를 직접 선택해 주세요."))
+                            .font(.caption2).foregroundStyle(.secondary)
+                    }
                 }
-                .labelsHidden().pickerStyle(.menu).tint(Color.appAccentText)
             }
             .task(id: "\(code)-\(grade)") { await loadClasses() }
 
@@ -191,6 +221,7 @@ struct SchoolSetupView: View {
                     .background(Color.appAccent, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                     .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(.white.opacity(0.22), lineWidth: 1))
             }
+            .disabled(classesLoading || classLoadFailed)
         }
         .padding(14)
         .glassCard(cornerRadius: 22)
@@ -229,16 +260,30 @@ struct SchoolSetupView: View {
     private func pick(_ s: School) {
         office = s.office; code = s.code; schoolName = s.name; kind = s.kind
         if grade > (s.kind.contains("초") ? 6 : 3) { grade = 1 }   // 학교에 맞게 학년 보정
+        availableClasses = []; classesLoading = true; classLoadFailed = false
         results = []
         message = ""
     }
 
     private func loadClasses() async {
-        guard !code.isEmpty else { availableClasses = []; return }
+        guard !code.isEmpty else {
+            availableClasses = []; classesLoading = false; classLoadFailed = false
+            return
+        }
+        classesLoading = true
+        classLoadFailed = false
+        availableClasses = []
+        defer { classesLoading = false }
         let s = School(office: office, code: code, name: schoolName, kind: kind, address: "")
-        let list = (try? await NEISClient.shared.fetchClasses(school: s, grade: grade)) ?? []
-        availableClasses = list
-        if !list.isEmpty, !list.contains(classNm) { classNm = list.first ?? classNm }
+        do {
+            let list = try await NEISClient.shared.fetchClasses(school: s, grade: grade)
+            guard !Task.isCancelled else { return }
+            availableClasses = list
+            if !list.isEmpty, !list.contains(classNm) { classNm = list.first ?? classNm }
+        } catch {
+            guard !Task.isCancelled else { return }
+            classLoadFailed = true
+        }
     }
 
     private func importTimetable(_ s: School) async {

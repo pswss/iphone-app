@@ -499,7 +499,13 @@ enum TimetableImporter {
 
     /// 학년 전체 반 조회 → "일부 반만 듣는 과목 = 선택과목" 판별 + 본인 반 시간표 + 교시별 선택지.
     static func analyzeGrade(school: School, grade: Int, classNm: String) async -> GradeTimetable {
-        let classes = (try? await NEISClient.shared.fetchClasses(school: school, grade: grade)) ?? []
+        let classes: [String]
+        do {
+            classes = try await NEISClient.shared.fetchClasses(school: school, grade: grade)
+        } catch {
+            return GradeTimetable(failed: true)
+        }
+        let canClassifyElectives = !classes.isEmpty
         let useClasses = classes.isEmpty ? [classNm] : classes
         let cal = Calendar.current
         let todayMid = cal.startOfDay(for: Date())
@@ -545,7 +551,9 @@ enum TimetableImporter {
         func isActivity(_ s: String) -> Bool {
             ["자율", "동아리", "진로", "봉사", "자치", "창의적", "체험"].contains { s.contains($0) }
         }
-        let rawElective = classOf.keys.filter { !isActivity($0) && (classOf[$0]?.count ?? 0) < threshold }
+        let rawElective = canClassifyElectives
+            ? classOf.keys.filter { !isActivity($0) && (classOf[$0]?.count ?? 0) < threshold }
+            : []
         // 사용자가 '선택 아님'으로 직접 뺀 과목 제외(표기 차이 무관 매칭). 분류 공식은 그대로.
         let overrideN = Set((UserDefaults.standard.stringArray(forKey: "ttCommonOverride") ?? []).map { normalizeSubject($0) })
         let electiveSet = Set(rawElective.filter { !overrideN.contains(normalizeSubject($0)) })

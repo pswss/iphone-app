@@ -269,6 +269,9 @@ final class AppLanguage {
         "변경": "Change",
         "학년": "Grade",
         "반": "Class",
+        "반 정보 불러오는 중…": "Loading classes…",
+        "반 정보를 불러오지 못했어요": "Couldn't load classes",
+        "반 정보가 없어 번호를 직접 선택해 주세요.": "No class list was available. Select a class number manually.",
         "교시 시간 조정": "Adjust period times",
         // 시간표/선택과목
         "시간표 가져오기": "Import timetable",
@@ -284,6 +287,7 @@ final class AppLanguage {
         "다음": "Next",
         "나중에": "Later",
         "뒤로": "Back",
+        "선택과목 %d개 · 다시 고르기": "%d electives · Choose again",
         "배치된 선택과목이에요. 일정이 안 맞는 과목은 고쳐주세요.":
             "Here's the placement. Fix any period that looks wrong.",
         "시간표를 추가했어요 (수업 %d개). 새 학사일정·다음 학기는 자동으로 갱신돼요.":

@@ -130,6 +130,18 @@ struct ElectiveSetupView: View {
 
     // MARK: 2단계 — 배치 미리보기/수정
     @ViewBuilder private var reviewPhase: some View {
+        HStack {
+            Button {
+                reviewing = false
+                message = ""
+            } label: {
+                Label(String(format: lang.tr("선택과목 %d개 · 다시 고르기"), checked.count),
+                      systemImage: "chevron.backward")
+                    .frame(minHeight: 44)
+            }
+            .buttonStyle(.plain)
+            Spacer()
+        }
         Text(lang.tr("배치된 선택과목이에요. 일정이 안 맞는 과목은 고쳐주세요."))
             .font(.caption).foregroundStyle(.secondary).padding(.horizontal, 4)
         ForEach(reviewWeekdays, id: \.self) { reviewDayCard($0) }
