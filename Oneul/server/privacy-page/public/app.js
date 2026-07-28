@@ -14,6 +14,52 @@ function visitorPlatform() {
   return "other";
 }
 
+function storyFrame(progress, stepCount) {
+  const count = Math.max(1, stepCount);
+  const value = Math.min(Math.max(progress, 0), 1);
+  const phase = value * (count - 1);
+  const current = Math.min(count - 1, Math.floor(phase));
+  const local = phase - current;
+  const blend = current === count - 1
+    ? 0
+    : Math.min(Math.max((local - 0.2) / 0.6, 0), 1);
+  const eased = blend * blend * (3 - 2 * blend);
+  const copyOutProgress = Math.min(Math.max((local - 0.12) / 0.22, 0), 1);
+  const copyInProgress = Math.min(Math.max((local - 0.72) / 0.2, 0), 1);
+  const copyOut = 1 - copyOutProgress * copyOutProgress * (3 - 2 * copyOutProgress);
+  const copyIn = copyInProgress * copyInProgress * (3 - 2 * copyInProgress);
+  const steps = Array.from({ length: count }, () => ({
+    opacity: 0,
+    copyOpacity: 0,
+    copyY: 16,
+    productY: 18,
+    productScale: 0.985,
+  }));
+
+  steps[current] = {
+    opacity: 1 - eased,
+    copyOpacity: current === count - 1 ? 1 : copyOut,
+    copyY: -12 * (1 - copyOut),
+    productY: -22 * eased,
+    productScale: 1 - 0.025 * eased,
+  };
+
+  if (current < count - 1) {
+    steps[current + 1] = {
+      opacity: eased,
+      copyOpacity: copyIn,
+      copyY: 14 * (1 - copyIn),
+      productY: 28 * (1 - eased),
+      productScale: 0.975 + 0.025 * eased,
+    };
+  }
+
+  return {
+    progress: value,
+    steps,
+  };
+}
+
 const platform = visitorPlatform();
 const ctas = document.querySelectorAll("[data-platform-cta]");
 const platformNote = document.querySelector("[data-platform-note]");
@@ -67,4 +113,82 @@ if (revealTargets.length && !reducedMotion && "IntersectionObserver" in globalTh
   }, { threshold: [0, 0.18], rootMargin: "0px 0px -8% 0px" });
 
   for (const target of revealTargets) revealObserver.observe(target);
+}
+
+const story = document.querySelector("[data-scroll-story]");
+const storySteps = story?.querySelectorAll("[data-story-step]") ?? [];
+const storyProducts = story?.querySelectorAll("[data-story-product]") ?? [];
+
+if (
+  story
+  && storySteps.length
+  && storySteps.length === storyProducts.length
+  && !reducedMotion
+  && "requestAnimationFrame" in globalThis
+) {
+  const storySticky = story.querySelector(".story-visual-sticky");
+  let storyTicking = false;
+  let storyNeedsMeasure = false;
+  let storyStart = 0;
+  let storyDistance = 1;
+  let lastStoryProgress = Number.NaN;
+
+  const applyStoryFrame = (frame) => {
+    if (frame.progress === lastStoryProgress) return;
+    lastStoryProgress = frame.progress;
+
+    story.style.setProperty("--story-progress", frame.progress.toFixed(4));
+
+    for (let index = 0; index < storySteps.length; index += 1) {
+      const step = storySteps[index];
+      const product = storyProducts[index];
+      const state = frame.steps[index];
+      step.style.setProperty("--step-opacity", state.copyOpacity.toFixed(4));
+      step.style.setProperty("--copy-y", `${state.copyY.toFixed(2)}px`);
+      product.style.setProperty("--product-opacity", state.opacity.toFixed(4));
+      product.style.setProperty("--product-y", `${state.productY.toFixed(2)}px`);
+      product.style.setProperty("--product-scale", state.productScale.toFixed(4));
+    }
+  };
+
+  const scrollY = () => globalThis.scrollY || document.documentElement?.scrollTop || 0;
+
+  const renderStory = () => {
+    applyStoryFrame(storyFrame(
+      (scrollY() - storyStart) / storyDistance,
+      storySteps.length,
+    ));
+  };
+
+  const measureStory = () => {
+    const currentScrollY = scrollY();
+    const headerHeight = Number.parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue("--header-height"),
+    ) || 0;
+    storyStart = story.getBoundingClientRect().top + currentScrollY - headerHeight;
+    storyDistance = Math.max(
+      story.offsetHeight - (storySticky?.clientHeight || globalThis.innerHeight || 1),
+      1,
+    );
+    lastStoryProgress = Number.NaN;
+    renderStory();
+  };
+
+  const scheduleStory = (measure = false) => {
+    storyNeedsMeasure ||= measure;
+    if (storyTicking) return;
+    storyTicking = true;
+    requestAnimationFrame(() => {
+      if (storyNeedsMeasure) measureStory();
+      else renderStory();
+      storyNeedsMeasure = false;
+      storyTicking = false;
+    });
+  };
+
+  applyStoryFrame(storyFrame(0, storySteps.length));
+  document.documentElement?.classList.add("story-ready");
+  measureStory();
+  globalThis.addEventListener("scroll", () => scheduleStory(), { passive: true });
+  globalThis.addEventListener("resize", () => scheduleStory(true));
 }

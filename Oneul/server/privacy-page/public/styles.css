@@ -29,6 +29,8 @@
 }
 
 html {
+  overflow-x: hidden;
+  overflow-x: clip;
   scroll-behavior: smooth;
   scroll-padding-top: calc(var(--header-height) + 24px);
 }
@@ -36,6 +38,7 @@ html {
 body {
   margin: 0;
   overflow-x: hidden;
+  overflow-x: clip;
   background: var(--bg);
   color: var(--ink);
   font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
@@ -82,6 +85,18 @@ a {
 
 .skip-link:focus {
   transform: translateY(0);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
 .section-shell {
@@ -411,7 +426,6 @@ html.motion-ready [data-reveal="emphasis"].is-visible {
 
 .phone-frame,
 .watch-frame,
-.product-shot,
 .mac-stage {
   margin: 0;
 }
@@ -444,6 +458,319 @@ html.motion-ready [data-reveal="emphasis"].is-visible {
   background: black;
   box-shadow: 0 8px 8px color-mix(in oklab, var(--ink) 18%, transparent);
   transform: rotate(-4deg);
+}
+
+.story-scroll {
+  padding-block: var(--section-gap);
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.story-shell {
+  position: relative;
+  width: min(calc(100% - clamp(2rem, 7vw, 7rem)), 1220px);
+  margin-inline: auto;
+}
+
+.story-copy-sequence {
+  display: grid;
+}
+
+.story-copy-step {
+  padding-block: clamp(3rem, 7vw, 6rem);
+  display: grid;
+  grid-template-columns: minmax(0, 0.82fr) minmax(320px, 1fr);
+  align-items: center;
+  gap: clamp(3rem, 8vw, 8rem);
+  border-top: 1px solid var(--line);
+}
+
+.story-copy {
+  position: relative;
+  z-index: 2;
+  max-width: 580px;
+}
+
+.story-kicker {
+  margin: 0 0 1rem;
+  color: var(--accent);
+  font-weight: 760;
+  letter-spacing: -0.015em;
+}
+
+.story-copy h3 {
+  margin: 0;
+  font-size: clamp(2.8rem, 5.4vw, 5rem);
+  line-height: 1.02;
+  letter-spacing: -0.045em;
+  text-wrap: balance;
+}
+
+.story-copy > p:last-child {
+  max-width: 38rem;
+  margin: 1.5rem 0 0;
+  color: var(--ink-soft);
+  font-size: clamp(1rem, 1.45vw, 1.16rem);
+  line-height: 1.72;
+  text-wrap: pretty;
+}
+
+.story-visual-sticky {
+  display: none;
+}
+
+.story-product {
+  margin: 0;
+  justify-self: center;
+  overflow: hidden;
+  background: var(--surface);
+  box-shadow: 0 12px 32px color-mix(in oklab, var(--ink) 18%, transparent);
+  transform-origin: center;
+}
+
+.story-product img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.story-product-phone {
+  width: min(100%, 330px);
+  aspect-ratio: 520 / 1130;
+  border: 8px solid var(--ink);
+  border-radius: 46px;
+}
+
+.story-product-tablet {
+  width: min(100%, 620px);
+  aspect-ratio: 3 / 4;
+  border: 8px solid var(--ink);
+  border-radius: 28px;
+}
+
+.story-product-tablet img {
+  object-position: center 42%;
+}
+
+.story-product-watch {
+  width: min(100%, 300px);
+  aspect-ratio: 328 / 402;
+  border: 7px solid var(--ink);
+  border-radius: 54px;
+  background: black;
+}
+
+.story-meter {
+  display: none;
+}
+
+@media screen and (min-height: 640px) and (prefers-reduced-motion: no-preference) {
+  html.story-ready .story-scroll {
+    padding-block: 0;
+  }
+
+  html.story-ready .story-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 0.78fr) minmax(380px, 1.22fr);
+    align-items: start;
+    gap: clamp(3rem, 8vw, 8rem);
+  }
+
+  html.story-ready .story-copy-sequence {
+    grid-area: 1 / 1;
+    display: block;
+  }
+
+  html.story-ready .story-copy-step {
+    min-height: calc(100svh - var(--header-height));
+    padding-block: clamp(2rem, 7vh, 5rem);
+    display: flex;
+    align-items: center;
+    border: 0;
+  }
+
+  html.story-ready .story-copy {
+    opacity: var(--step-opacity, 0);
+    transform: translate3d(0, var(--copy-y, 16px), 0);
+  }
+
+  html.story-ready .story-inline-product {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    border: 0;
+    box-shadow: none;
+    white-space: nowrap;
+  }
+
+  html.story-ready .story-visual-sticky {
+    position: sticky;
+    z-index: 1;
+    top: var(--header-height);
+    grid-area: 1 / 2;
+    height: calc(100svh - var(--header-height));
+    margin: 0;
+    display: block;
+    overflow: clip;
+    isolation: isolate;
+  }
+
+  html.story-ready .story-product-stack {
+    position: relative;
+    height: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+    place-items: center;
+  }
+
+  html.story-ready .story-product-stack::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    width: min(52vw, 720px);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 28% 30%, color-mix(in oklab, var(--red) 13%, transparent), transparent 44%),
+      radial-gradient(circle at 72% 30%, color-mix(in oklab, var(--blue) 16%, transparent), transparent 46%),
+      radial-gradient(circle at 45% 76%, color-mix(in oklab, var(--green) 13%, transparent), transparent 49%);
+  }
+
+  html.story-ready .story-product {
+    position: absolute;
+    opacity: var(--product-opacity, 0);
+    pointer-events: none;
+    transform: translate3d(0, var(--product-y, 18px), 0) scale(var(--product-scale, 0.985));
+  }
+
+  html.story-ready .story-product-phone {
+    width: auto;
+    height: min(72svh, 690px);
+  }
+
+  html.story-ready .story-product-tablet {
+    width: auto;
+    height: min(64svh, 620px);
+  }
+
+  html.story-ready .story-product-watch {
+    width: auto;
+    height: min(40svh, 320px);
+  }
+
+  html.story-ready .story-meter {
+    position: absolute;
+    right: 0;
+    bottom: 2rem;
+    width: min(180px, 22vw);
+    height: 2px;
+    display: block;
+    overflow: hidden;
+    background: var(--line);
+  }
+
+  html.story-ready .story-meter span {
+    width: 100%;
+    height: 100%;
+    display: block;
+    background: var(--accent);
+    transform: scaleX(var(--story-progress, 0));
+    transform-origin: left;
+  }
+}
+
+@media screen and (max-width: 1000px) and (min-height: 640px) and (prefers-reduced-motion: no-preference) {
+  html.story-ready .story-shell {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  html.story-ready .story-copy-sequence,
+  html.story-ready .story-visual-sticky {
+    grid-area: 1 / 1;
+  }
+
+  html.story-ready .story-copy-sequence {
+    position: relative;
+    z-index: 2;
+  }
+
+  html.story-ready .story-copy-step {
+    padding: 52svh 0 7svh;
+    align-items: flex-end;
+    justify-content: center;
+  }
+
+  html.story-ready .story-copy {
+    width: min(100%, 720px);
+    padding: clamp(1rem, 3vw, 1.5rem);
+    border-radius: var(--radius);
+    background: color-mix(in oklab, var(--bg) 94%, transparent);
+  }
+
+  html.story-ready .story-visual-sticky {
+    height: calc(100svh - var(--header-height));
+  }
+
+  html.story-ready .story-product-stack {
+    height: 51svh;
+  }
+
+  html.story-ready .story-product-stack::before {
+    width: min(90vw, 680px);
+  }
+
+  html.story-ready .story-product-phone {
+    height: min(46svh, 560px);
+  }
+
+  html.story-ready .story-product-tablet {
+    height: min(44svh, 520px);
+  }
+
+  html.story-ready .story-product-watch {
+    height: min(30svh, 300px);
+  }
+
+  html.story-ready .story-meter {
+    right: 1rem;
+    bottom: 1.25rem;
+  }
+}
+
+@media screen and (max-width: 760px) and (min-height: 640px) and (prefers-reduced-motion: no-preference) {
+  html.story-ready .story-copy-step {
+    padding-top: 51svh;
+    padding-bottom: 5svh;
+  }
+
+  html.story-ready .story-copy {
+    padding-inline: 0.85rem;
+  }
+
+  html.story-ready .story-product-stack {
+    height: 49svh;
+  }
+
+  html.story-ready .story-product-phone {
+    height: min(45svh, 420px);
+  }
+
+  html.story-ready .story-product-tablet {
+    height: min(41svh, 390px);
+  }
+
+  html.story-ready .story-product-watch {
+    height: min(30svh, 240px);
+  }
+
+  html.story-ready .story-meter {
+    width: min(140px, 34vw);
+  }
 }
 
 .statement {
@@ -505,14 +832,6 @@ html.motion-ready [data-reveal="emphasis"].is-visible {
   gap: clamp(3rem, 8vw, 8rem);
 }
 
-.feature-row-reverse .feature-copy {
-  order: 2;
-}
-
-.feature-row-reverse .product-shot {
-  order: 1;
-}
-
 .feature-copy h3 {
   font-size: clamp(2.2rem, 4.3vw, 4.1rem);
   line-height: 1.08;
@@ -526,53 +845,6 @@ html.motion-ready [data-reveal="emphasis"].is-visible {
   font-size: 1.05rem;
   line-height: 1.75;
   text-wrap: pretty;
-}
-
-.plain-list {
-  margin: 1.8rem 0 0;
-  padding: 0;
-  display: grid;
-  gap: 10px;
-  list-style: none;
-}
-
-.plain-list li {
-  position: relative;
-  padding-left: 25px;
-  font-weight: 650;
-}
-
-.plain-list li::before {
-  content: "✓";
-  position: absolute;
-  left: 0;
-  color: var(--accent);
-  font-weight: 800;
-}
-
-.product-shot {
-  justify-self: center;
-  overflow: hidden;
-  background: var(--surface);
-  box-shadow: 0 8px 8px color-mix(in oklab, var(--ink) 12%, transparent);
-}
-
-.product-shot-phone {
-  width: min(100%, 330px);
-  border-radius: 42px;
-}
-
-.product-shot-tablet {
-  width: min(100%, 620px);
-  max-height: 700px;
-  border-radius: var(--radius);
-}
-
-.product-shot-tablet img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center 42%;
 }
 
 .feature-row-wide {
@@ -1040,23 +1312,24 @@ html.motion-ready [data-reveal="emphasis"].is-visible {
     transform: translateX(50%);
   }
 
+  .story-copy {
+    max-width: 720px;
+    margin-inline: auto;
+    text-align: center;
+  }
+
+  .story-copy-step {
+    grid-template-columns: 1fr;
+    gap: 3rem;
+  }
+
   .feature-row,
   .feature-row-wide {
     grid-template-columns: 1fr;
   }
 
-  .feature-row-reverse .feature-copy,
-  .feature-row-reverse .product-shot {
-    order: initial;
-  }
-
   .feature-copy {
     max-width: 700px;
-  }
-
-  .product-shot-tablet {
-    width: 100%;
-    max-height: 620px;
   }
 
   .device-options {
@@ -1142,6 +1415,36 @@ html.motion-ready [data-reveal="emphasis"].is-visible {
     width: min(118%, 440px);
     height: 58px;
     gap: 6px;
+  }
+
+  .story-copy h3 {
+    font-size: clamp(2.2rem, 9vw, 3.4rem);
+  }
+
+  .story-copy > p:last-child {
+    margin-top: 1rem;
+    font-size: 0.96rem;
+    line-height: 1.62;
+  }
+
+  .story-product-phone {
+    width: min(46vw, 224px);
+    border-width: 6px;
+    border-radius: 34px;
+  }
+
+  .story-product-tablet {
+    width: min(76vw, 460px);
+    max-height: 43svh;
+    border-width: 6px;
+    border-radius: 22px;
+  }
+
+  .story-product-watch {
+    width: min(54vw, 240px);
+    max-height: 40svh;
+    border-width: 6px;
+    border-radius: 42px;
   }
 
   .feature-row {

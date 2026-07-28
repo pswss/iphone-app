@@ -3,6 +3,7 @@ import fs from "node:fs";
 import vm from "node:vm";
 
 const source = fs.readFileSync(new URL("./public/app.js", import.meta.url), "utf8");
+const html = fs.readFileSync(new URL("./public/index.html", import.meta.url), "utf8");
 
 function render(navigator, prefersReducedMotion = false) {
   const classes = new Set();
@@ -41,13 +42,24 @@ function render(navigator, prefersReducedMotion = false) {
     observe() {}
   }
 
-  vm.runInNewContext(source, {
+  const sandbox = {
     navigator,
     document,
     IntersectionObserver,
     matchMedia() { return { matches: prefersReducedMotion }; },
-  });
-  return { cta, note, status, classes, reveal, revealClasses, rootClasses, revealCallback };
+  };
+  vm.runInNewContext(source, sandbox);
+  return {
+    cta,
+    note,
+    status,
+    classes,
+    reveal,
+    revealClasses,
+    rootClasses,
+    revealCallback,
+    storyFrame: sandbox.storyFrame,
+  };
 }
 
 const mac = render({ userAgent: "Macintosh", platform: "MacIntel", maxTouchPoints: 0 });
@@ -73,4 +85,25 @@ assert(mac.revealClasses.has("is-visible"));
 const reduced = render({ userAgent: "Macintosh", platform: "MacIntel", maxTouchPoints: 0 }, true);
 assert(!reduced.rootClasses.has("motion-ready"));
 
-console.log("platform CTA and scroll reveal checks passed");
+const storyStart = mac.storyFrame(0, 4);
+assert.equal(storyStart.steps[0].opacity, 1);
+assert.equal(storyStart.steps[1].opacity, 0);
+
+const storyMiddle = mac.storyFrame(0.5, 4);
+assert.equal(storyMiddle.steps[1].opacity, 0.5);
+assert.equal(storyMiddle.steps[2].opacity, 0.5);
+assert.equal(storyMiddle.steps[1].copyOpacity, 0);
+assert.equal(storyMiddle.steps[2].copyOpacity, 0);
+assert.equal(storyMiddle.steps[1].productY, -11);
+assert.equal(storyMiddle.steps[2].productY, 14);
+
+const storyEnd = mac.storyFrame(1, 4);
+assert.equal(storyEnd.steps[3].opacity, 1);
+assert.equal(storyEnd.steps[3].productScale, 1);
+
+const storyClamped = mac.storyFrame(2, 4);
+assert.equal(storyClamped.progress, 1);
+assert.equal(storyClamped.steps[3].opacity, 1);
+assert.equal(html.match(/data-inline-product/g)?.length, 4);
+
+console.log("platform CTA, reveal, and scroll story checks passed");
