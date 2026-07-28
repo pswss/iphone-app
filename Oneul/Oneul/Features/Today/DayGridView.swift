@@ -147,7 +147,11 @@ struct DayGridView: View {
                 .onTapGesture { selectedID = nil; deleteBubbleID = nil }
                 .gesture(SpatialTapGesture(count: 2).onEnded { v in selectedID = nil; addAt(y: v.location.y) })
             #endif
-            if cal.isDateInToday(day) { nowLine(width: width) }
+            TimelineView(.everyMinute) { timeline in
+                if cal.isDate(day, inSameDayAs: timeline.date) {
+                    nowLine(width: width, at: timeline.date)
+                }
+            }
             ForEach(laidOut, id: \.event.id) { eventBlock($0, gridW: gridW) }
             if let ps = previewStart { previewBlock(ps, gridW: gridW) }
         }
@@ -221,14 +225,14 @@ struct DayGridView: View {
         .accessibilityAction(named: slotActionLabel(halfHour)) { addAt(date: halfHour) }
     }
 
-    private func nowLine(width: CGFloat) -> some View {
+    private func nowLine(width: CGFloat, at now: Date) -> some View {
         ZStack(alignment: .leading) {   // 애플 캘린더식 빨간 현재선 — 라이트/다크 모두 또렷
             Circle().fill(.red).frame(width: 7, height: 7).offset(x: leftInset - 3)
             Rectangle().fill(.red).frame(height: 2)
                 .shadow(color: .red.opacity(0.5), radius: 3).padding(.leading, leftInset)
         }
         .frame(width: width)
-        .offset(y: yOffset(for: Date()) - 1)
+        .offset(y: yOffset(for: now) - 1)
     }
 
 

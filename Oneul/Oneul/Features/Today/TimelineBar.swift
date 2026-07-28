@@ -8,6 +8,7 @@ struct TimelineBar: View {
     let plan: DayPlan
     var height: CGFloat = 16
     var live: Bool = true
+    let now: Date
 
     private var single: [ScheduleEvent] { plan.singleDayEvents }
     private var layout: PackedLayout {
@@ -15,13 +16,7 @@ struct TimelineBar: View {
     }
 
     var body: some View {
-        if live {
-            // 30초 주기 — 현재선은 분당 1pt도 안 움직여 시각적으로 동일.
-            // (.animation은 매 프레임(120Hz) 전체 재렌더 → 그리드 스크롤 끊김의 주범이었음)
-            TimelineView(.periodic(from: .now, by: 30)) { context in barContent(now: context.date) }
-        } else {
-            barContent(now: Date())
-        }
+        barContent(now: now)
     }
 
     @ViewBuilder

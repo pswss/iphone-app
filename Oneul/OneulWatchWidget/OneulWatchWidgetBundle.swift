@@ -26,7 +26,7 @@ struct WatchComplicationProvider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<WatchEntry>) -> Void) {
         let snap = SharedStore.readToday()
         let now = Date()
-        let marks = snap?.segments.glanceTimelineDates(from: now) ?? [now]
+        let marks = snap?.timelineDates(from: now) ?? [now]
         let policy: TimelineReloadPolicy = marks.count > 1 ? .atEnd : .never
         completion(Timeline(entries: marks.map { WatchEntry(date: $0, snapshot: snap) }, policy: policy))
     }
@@ -56,6 +56,7 @@ struct WatchComplicationView: View {
     @Environment(\.widgetFamily) private var family
     private var snap: HomeSnapshot? { entry.snapshot }
     private var en: Bool { snap?.isEnglish ?? false }
+    private var stale: Bool { snap.map { !$0.isDisplayable(at: entry.date) } ?? false }
 
     var body: some View {
         switch family {
@@ -63,19 +64,32 @@ struct WatchComplicationView: View {
             Text(inlineText)
 
         case .accessoryCircular:
-            Gauge(value: progress) {
-                Image(systemName: "calendar")
+            if stale {
+                Image(systemName: "arrow.clockwise")
+                    .accessibilityLabel(tr("Oneul을 열어 새로고침", "Open Oneul to refresh"))
+            } else {
+                Gauge(value: progress) {
+                    Image(systemName: "calendar")
+                }
+                .gaugeStyle(.accessoryCircularCapacity)
             }
-            .gaugeStyle(.accessoryCircularCapacity)
 
         default:   // accessoryRectangular
-            VStack(alignment: .leading, spacing: 1) {
-                Text(snap?.dayLabel ?? tr("오늘", "Today"))
-                    .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
-                Text(statusText).font(.headline).lineLimit(1)
-                if let n = nextText { Text(n).font(.caption2).foregroundStyle(.secondary).lineLimit(1) }
+            if stale {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(tr("새로고침 필요", "Refresh needed")).font(.caption).bold()
+                    Text(tr("iPhone에서 Oneul을 열어주세요", "Open Oneul on iPhone")).font(.caption2)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(snap?.dayLabel ?? tr("오늘", "Today"))
+                        .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                    Text(statusText).font(.headline).lineLimit(1)
+                    if let n = nextText { Text(n).font(.caption2).foregroundStyle(.secondary).lineLimit(1) }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -87,6 +101,7 @@ struct WatchComplicationView: View {
     }
 
     private var inlineText: String {
+        if stale { return tr("Oneul 새로고침 필요", "Open Oneul") }
         guard let snap, !snap.segments.isEmpty else { return tr("일정 없음", "No events") }
         let status = snap.segments.glanceStatus(at: entry.date)
         if let current = status.current { return tr("현재", "Now") + " · " + current.title }

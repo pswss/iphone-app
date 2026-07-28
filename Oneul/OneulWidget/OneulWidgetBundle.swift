@@ -30,7 +30,7 @@ struct HomeProvider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<HomeEntry>) -> Void) {
         let snap = SharedStore.readToday()
         let now = Date()
-        let marks = snap?.segments.glanceTimelineDates(from: now) ?? [now]
+        let marks = snap?.timelineDates(from: now) ?? [now]
         let entries = marks.map { HomeEntry(date: $0, snapshot: snap) }
         completion(Timeline(entries: entries, policy: marks.count > 1 ? .atEnd : .never))
     }
@@ -59,9 +59,12 @@ struct HomeWidgetView: View {
 
     private var snap: HomeSnapshot? { entry.snapshot }
     private var small: Bool { family == .systemSmall }
+    private var stale: Bool { snap.map { !$0.isDisplayable(at: entry.date) } ?? false }
 
     var body: some View {
-        if let snap, !snap.segments.isEmpty {
+        if stale {
+            refreshState
+        } else if let snap, !snap.segments.isEmpty {
             VStack(alignment: .leading, spacing: small ? 6 : 8) {
                 HStack {
                     Text(snap.dayLabel)
@@ -87,6 +90,15 @@ struct HomeWidgetView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+    }
+
+    private var refreshState: some View {
+        VStack(spacing: 6) {
+            Image(systemName: "arrow.clockwise").font(.title2).foregroundStyle(.white.opacity(0.6))
+            Text(L("Oneul을 열어 새로고침", "Open Oneul to refresh", snap?.isEnglish ?? false))
+                .font(.caption).foregroundStyle(.white.opacity(0.7)).multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
 
@@ -138,6 +150,7 @@ struct LockAccessoryView: View {
     @Environment(\.widgetFamily) private var family
     private var snap: HomeSnapshot? { entry.snapshot }
     private var en: Bool { snap?.isEnglish ?? false }
+    private var stale: Bool { snap.map { !$0.isDisplayable(at: entry.date) } ?? false }
 
     var body: some View {
         switch family {
@@ -145,21 +158,34 @@ struct LockAccessoryView: View {
             Label(inlineText, systemImage: "calendar")
 
         case .accessoryCircular:
-            Gauge(value: progress) {
-                Image(systemName: "calendar")
-            } currentValueLabel: {
-                Text("\(Int(progress * 100))")
+            if stale {
+                Image(systemName: "arrow.clockwise")
+                    .accessibilityLabel(L("Oneul을 열어 새로고침", "Open Oneul to refresh", en))
+            } else {
+                Gauge(value: progress) {
+                    Image(systemName: "calendar")
+                } currentValueLabel: {
+                    Text("\(Int(progress * 100))")
+                }
+                .gaugeStyle(.accessoryCircularCapacity)
             }
-            .gaugeStyle(.accessoryCircularCapacity)
 
         default:   // accessoryRectangular
-            VStack(alignment: .leading, spacing: 1) {
-                Text(snap?.dayLabel ?? L("오늘", "Today", en))
-                    .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
-                Text(statusText).font(.caption).bold().lineLimit(1)
-                if let n = nextText { Text(n).font(.caption2).lineLimit(1) }
+            if stale {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(L("새로고침 필요", "Refresh needed", en)).font(.caption).bold()
+                    Text(L("Oneul을 열어주세요", "Open Oneul", en)).font(.caption2)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(snap?.dayLabel ?? L("오늘", "Today", en))
+                        .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                    Text(statusText).font(.caption).bold().lineLimit(1)
+                    if let n = nextText { Text(n).font(.caption2).lineLimit(1) }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -171,6 +197,7 @@ struct LockAccessoryView: View {
     }
 
     private var inlineText: String {
+        if stale { return L("Oneul 새로고침 필요", "Open Oneul", en) }
         guard let snap, !snap.segments.isEmpty else { return L("일정 없음", "No events", en) }
         let status = snap.segments.glanceStatus(at: entry.date)
         if let current = status.current { return L("현재", "Now", en) + " · " + current.title }

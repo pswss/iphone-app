@@ -19,3 +19,9 @@ struct WatchSchedulePayload: Codable, Equatable {
         currentTitle: nil, currentEnd: nil, nextTitle: nil, nextStart: nil,
         isEnglish: false, updatedAt: .distantPast)
 }
+
+extension WatchSchedulePayload {
+    func isDisplayable(at now: Date, calendar: Calendar = .current) -> Bool {
+        snapshotIsDisplayable(dayStart: dayStart, at: now, calendar: calendar)
+    }
+}

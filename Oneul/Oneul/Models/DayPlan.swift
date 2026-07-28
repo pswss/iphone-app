@@ -40,7 +40,7 @@ struct DayPlan {
                          now: Date = .now, calendar: Calendar = .current) -> (plan: DayPlan, day: Date)? {
         for off in 0..<days {
             guard let d = calendar.date(byAdding: .day, value: off, to: now) else { continue }
-            let p = DayPlan(events: events, day: d)
+            let p = DayPlan(events: events, day: d, calendar: calendar)
             if !p.isEmpty { return (p, d) }
         }
         return nil
@@ -65,12 +65,12 @@ struct DayPlan {
     }
 
     /// 지금 진행 중인 일정.
-    func current(at now: Date = .now) -> ScheduleEvent? {
+    func current(at now: Date) -> ScheduleEvent? {
         statusEvents.first { now >= $0.start && now < $0.end }
     }
 
     /// 아직 시작 안 한 다음 일정.
-    func next(at now: Date = .now) -> ScheduleEvent? {
+    func next(at now: Date) -> ScheduleEvent? {
         statusEvents.first { $0.start > now }
     }
 

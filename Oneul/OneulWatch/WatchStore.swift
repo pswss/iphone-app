@@ -24,6 +24,7 @@ final class WatchStore: NSObject, WCSessionDelegate {
     private func apply(_ context: [String: Any]) {
         guard let data = context["payload"] as? Data,
               let p = try? JSONDecoder().decode(WatchSchedulePayload.self, from: data) else { return }
+        guard p.updatedAt >= payload.updatedAt else { return }
         UserDefaults.standard.set(data, forKey: cacheKey)
         // 컴플리케이션(별도 프로세스)이 읽도록 App Group에 공유 스냅샷 저장 + 워치 페이스 갱신
         SharedStore.writeToday(HomeSnapshot(

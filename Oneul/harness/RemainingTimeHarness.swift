@@ -48,6 +48,39 @@ struct RemainingTimeHarness {
                                 end: now.addingTimeInterval(Double(index * 600 + 300)))
         }
         assert(compact.glanceStatus(at: now.addingTimeInterval(6_060)).current?.title == "일정 10")
+
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let today = calendar.startOfDay(for: now)
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: today)!
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: today)!
+        let future = EventSnapshot(id: UUID(), title: "내일", start: tomorrow,
+                                   end: tomorrow.addingTimeInterval(3_600), colorIndex: 0)
+
+        let paddedToday = today.addingTimeInterval(-1_800)
+        let paddedTomorrow = tomorrow.addingTimeInterval(-1_800)
+        assert(snapshotDay(from: paddedTomorrow, calendar: calendar) == tomorrow)
+        assert(snapshotIsDisplayable(dayStart: paddedToday, at: now, calendar: calendar))
+        assert(!snapshotIsDisplayable(dayStart: yesterday, at: now, calendar: calendar))
+        assert(snapshotIsDisplayable(dayStart: paddedTomorrow, at: now, calendar: calendar))
+
+        let home = HomeSnapshot(dayLabel: "내일", dayStart: paddedTomorrow, dayEnd: tomorrow.addingTimeInterval(3_600),
+                                segments: [future], currentTitle: nil, currentEnd: nil,
+                                nextTitle: future.title, nextStart: future.start,
+                                isEnglish: false, updatedAt: yesterday)
+        assert(home.isDisplayable(at: now, calendar: calendar))
+        assert(home.timelineDates(from: now, calendar: calendar).contains(tomorrow))
+        assert(home.timelineDates(from: now, limit: 0, calendar: calendar).isEmpty)
+
+        let watch = WatchSchedulePayload(
+            dayLabel: "내일", dayStart: paddedTomorrow, dayEnd: tomorrow.addingTimeInterval(3_600), events: [future],
+            currentTitle: nil, currentEnd: nil, nextTitle: future.title, nextStart: future.start,
+            isEnglish: false, updatedAt: yesterday)
+        assert(watch.isDisplayable(at: now, calendar: calendar))
+        let endOfTomorrow = tomorrow.addingTimeInterval(86_399)
+        let dayAfterTomorrow = calendar.date(byAdding: .day, value: 1, to: tomorrow)!
+        assert(watch.isDisplayable(at: endOfTomorrow, calendar: calendar))
+        assert(!watch.isDisplayable(at: dayAfterTomorrow, calendar: calendar))
         print("ALL PASS")
     }
 }

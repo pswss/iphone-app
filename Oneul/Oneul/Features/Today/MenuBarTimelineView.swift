@@ -7,19 +7,24 @@ struct MenuBarTimelineView: View {
     @Query(sort: \ScheduleEvent.start) private var events: [ScheduleEvent]
     private let lang = AppLanguage.shared
 
-    private var shown: (plan: DayPlan, day: Date)? { DayPlan.upcoming(events: events) }
-
     var body: some View {
+        TimelineView(.everyMinute) { timeline in
+            content(at: timeline.date)
+        }
+    }
+
+    @ViewBuilder private func content(at now: Date) -> some View {
+        let shown = DayPlan.upcoming(events: events, now: now)
         VStack(alignment: .leading, spacing: 10) {
             if let shown {
                 HStack {
                     Text(shown.day, format: .dateTime.month().day().weekday(.wide).locale(lang.locale))
                         .font(.headline)
                     Spacer()
-                    countdown(shown.plan)
+                    countdown(shown.plan, at: now)
                 }
-                TimelineBar(plan: shown.plan, live: Calendar.current.isDateInToday(shown.day))
-                statusLines(shown.plan)
+                TimelineBar(plan: shown.plan, live: Calendar.current.isDate(shown.day, inSameDayAs: now), now: now)
+                statusLines(shown.plan, at: now)
             } else {
                 HStack(spacing: 8) {
                     Image(systemName: "calendar").foregroundStyle(.secondary)
@@ -32,8 +37,7 @@ struct MenuBarTimelineView: View {
         .padding(14)
     }
 
-    @ViewBuilder private func countdown(_ plan: DayPlan) -> some View {
-        let now = Date()
+    @ViewBuilder private func countdown(_ plan: DayPlan, at now: Date) -> some View {
         if let cur = plan.current(at: now) {
             HStack(spacing: 3) {
                 Text(lang.tr("남은")).font(.caption).foregroundStyle(.secondary)
@@ -49,8 +53,7 @@ struct MenuBarTimelineView: View {
         }
     }
 
-    @ViewBuilder private func statusLines(_ plan: DayPlan) -> some View {
-        let now = Date()
+    @ViewBuilder private func statusLines(_ plan: DayPlan, at now: Date) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(lang.tr("현재") + " · " + (plan.current(at: now)?.title ?? lang.tr("진행 중인 일정 없음")))
                 .font(.subheadline).bold()

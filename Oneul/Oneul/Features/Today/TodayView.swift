@@ -105,6 +105,10 @@ struct TodayView: View {
             // LA가 영영 재시작되지 않던 문제. 활성화 때마다 오늘 기준으로 재동기화.
             if phase == .active { syncLiveActivity(); bandCache = computeBandItems() }   // 날짜 넘어간 경우 D-Day 재계산
         }
+        .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
+            bandCache = computeBandItems()
+            syncLiveActivity()
+        }
         .onReceive(NotificationCenter.default.publisher(for: .oneulNewEvent)) { _ in addStart = nil; showingAdd = true }
         .onReceive(NotificationCenter.default.publisher(for: .oneulToday)) { _ in selectedDay = .now }
         .onReceive(NotificationCenter.default.publisher(for: .oneulShiftDay)) { note in
@@ -315,7 +319,7 @@ struct TodayView: View {
                 chromeRow(index: 2, order: 1) { CalendarBar(selectedDay: $selectedDay,
                                                          isSpecial: { hasDayMarker($0) },
                                                          eventCount: { (eventsByDay[Calendar.current.startOfDay(for: $0)] ?? []).count }) }   // 맥은 주 그리드가 대신함 → 주간 스트립 불필요
-                chromeRow(index: 3, order: 0) { timelineCard(plan, live: Calendar.current.isDateInToday(selectedDay)) }   // 맥은 주 그리드가 타임라인 → 하루짜리 타임라인 카드 불필요
+                chromeRow(index: 3, order: 0) { timelineCard(plan) }   // 맥은 주 그리드가 타임라인 → 하루짜리 타임라인 카드 불필요
             }
             #endif
         }
@@ -475,23 +479,35 @@ struct TodayView: View {
     // 시험 D-Day + 방학·주요 일정을 하나의 밴드로 — 위젯 전폭, 한 장씩 페이지 슬라이드
     private struct BandItem: Identifiable {
         let id: String
-        let badge: String        // "D-58" / "D-DAY" / "남은 3일"
-        let urgent: Bool         // 7일 이내 → 빨강
         let title: String
         let trailing: String     // 날짜
+        let targetDate: Date
         let multiDayStart: Date?
         let multiDayEnd: Date?
 
         func badge(at now: Date, english: Bool) -> String {
-            guard let start = multiDayStart, let end = multiDayEnd else { return badge }
-            if now >= start { return longEventRemainingLabel(until: end, now: now, english: english) }
+            if let start = multiDayStart, let end = multiDayEnd, now >= start {
+                return longEventRemainingLabel(until: end, now: now, english: english)
+            }
             let cal = Calendar.current
             let days = cal.dateComponents([.day], from: cal.startOfDay(for: now),
-                                          to: cal.startOfDay(for: start)).day ?? 0
+                                          to: cal.startOfDay(for: targetDate)).day ?? 0
             return days <= 0 ? "D-DAY" : "D-\(days)"
         }
 
-        func isVisible(at now: Date) -> Bool { multiDayEnd.map { $0 > now } ?? true }
+        func isUrgent(at now: Date) -> Bool {
+            if let start = multiDayStart, let end = multiDayEnd, now >= start && now < end { return true }
+            let cal = Calendar.current
+            let days = cal.dateComponents([.day], from: cal.startOfDay(for: now),
+                                          to: cal.startOfDay(for: targetDate)).day ?? 0
+            return days >= 0 && days <= 7
+        }
+
+        func isVisible(at now: Date) -> Bool {
+            if let end = multiDayEnd { return end > now }
+            let cal = Calendar.current
+            return cal.startOfDay(for: targetDate) >= cal.startOfDay(for: now)
+        }
     }
 
     /// 밴드 항목 캐시 — 전체 일정을 순회하므로 데이터 변경(rebuildIndex)·재활성화 때만 재계산.
@@ -505,27 +521,24 @@ struct TodayView: View {
         var seen = Set<String>()
         var out: [(days: Int, item: BandItem)] = []
 
-        func add(days: Int, badge: String, title: String, date: Date,
+        func add(days: Int, title: String, date: Date,
                  multiDayStart: Date? = nil, multiDayEnd: Date? = nil) {
             guard seen.insert(title).inserted else { return }
-            out.append((days, BandItem(id: title, badge: badge, urgent: days >= 0 && days <= 7,
-                                       title: title,
+            out.append((days, BandItem(id: title, title: title,
                                        trailing: date.formatted(.dateTime.month().day().locale(lang.locale)),
+                                       targetDate: date,
                                        multiDayStart: multiDayStart, multiDayEnd: multiDayEnd)))
         }
         for d in dDays {   // 시험 D-Day
             if let date = cal.date(byAdding: .day, value: d.days, to: today) {
-                add(days: d.days, badge: d.days <= 0 ? "D-DAY" : "D-\(d.days)", title: d.title, date: date)
+                add(days: d.days, title: d.title, date: date)
             }
         }
         let horizon = cal.date(byAdding: .day, value: 365, to: now) ?? now
         for e in events where (e.pinned || e.isMultiDay()) && e.end >= now && e.start <= horizon {
             let days = cal.dateComponents([.day], from: today, to: cal.startOfDay(for: e.start)).day ?? 0
             let multiDay = e.isMultiDay()
-            let badge = multiDay && e.start <= now
-                ? longEventRemainingLabel(until: e.end, now: now, english: lang.isEnglish)
-                : (days <= 0 ? "D-DAY" : "D-\(days)")
-            add(days: max(days, 0), badge: badge, title: e.title, date: e.start,
+            add(days: max(days, 0), title: e.title, date: e.start,
                 multiDayStart: multiDay ? e.start : nil, multiDayEnd: multiDay ? e.end : nil)
         }
         return out.sorted { $0.days < $1.days }.map(\.item)
@@ -568,7 +581,7 @@ struct TodayView: View {
                 .font(.caption2).bold().monospacedDigit()
                 .foregroundStyle(Color.appOnAccent)
                 .padding(.horizontal, 8).padding(.vertical, 2)
-                .background(it.urgent ? Color.red : Color.appAccent, in: Capsule())
+                .background(it.isUrgent(at: now) ? Color.red : Color.appAccent, in: Capsule())
         }
         .padding(.horizontal, 12).padding(.vertical, 8)
         .glassCard(cornerRadius: 14)
@@ -581,7 +594,7 @@ struct TodayView: View {
                 .font(.caption).bold().monospacedDigit()
                 .foregroundStyle(Color.appOnAccent)
                 .padding(.horizontal, 9).padding(.vertical, 3)
-                .background(it.urgent ? Color.red : Color.appAccent, in: Capsule())
+                .background(it.isUrgent(at: now) ? Color.red : Color.appAccent, in: Capsule())
             Text(it.title).font(.subheadline).bold().lineLimit(1)
             Spacer(minLength: 6)
             Text(it.trailing).font(.caption2).foregroundStyle(.secondary)
@@ -592,14 +605,21 @@ struct TodayView: View {
     }
 
     // MARK: 타임라인 카드
-    private func timelineCard(_ p: DayPlan, live: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 7) {   // 제목·바·상태를 촘촘히 붙임
+    private func timelineCard(_ p: DayPlan) -> some View {
+        TimelineView(.everyMinute) { timeline in
+            timelineCardContent(p, at: timeline.date)
+        }
+    }
+
+    private func timelineCardContent(_ p: DayPlan, at now: Date) -> some View {
+        let live = Calendar.current.isDate(selectedDay, inSameDayAs: now)
+        return VStack(alignment: .leading, spacing: 7) {   // 제목·바·상태를 촘촘히 붙임
             HStack {
                 Text(live ? lang.tr("오늘 타임라인")
                           : selectedDay.formatted(.dateTime.month().day().locale(lang.locale)) + " " + lang.tr("타임라인"))
                     .font(.subheadline).bold()
                 Spacer()
-                if let next = p.next() {
+                if let next = p.next(at: now) {
                     Text("\(lang.tr("다음 ·")) \(next.title) \(next.start.formatted(.dateTime.hour().minute().locale(lang.locale)))")
                         .font(.caption2).bold()
                         .foregroundStyle(Color.appOnAccent)
@@ -616,8 +636,8 @@ struct TodayView: View {
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                TimelineBar(plan: p, height: wide ? 26 : 19, live: live)   // 원래보다 살짝만 두껍게
-                Text(currentLine(p))
+                TimelineBar(plan: p, height: wide ? 26 : 19, live: live, now: now)   // 원래보다 살짝만 두껍게
+                Text(currentLine(p, at: now))
                     .font(.subheadline).bold()
             }
         }
@@ -625,9 +645,9 @@ struct TodayView: View {
         .glassCard(cornerRadius: 22)
     }
 
-    private func currentLine(_ p: DayPlan) -> String {
-        if let cur = p.current() { return "\(lang.tr("현재 일정 ·")) \(cur.title)" }
-        if p.next() != nil { return lang.tr("대기 중 · 다음 일정까지") }
+    private func currentLine(_ p: DayPlan, at now: Date) -> String {
+        if let cur = p.current(at: now) { return "\(lang.tr("현재 일정 ·")) \(cur.title)" }
+        if p.next(at: now) != nil { return lang.tr("대기 중 · 다음 일정까지") }
         return lang.tr("오늘 일정 종료")
     }
 

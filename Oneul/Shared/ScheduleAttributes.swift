@@ -229,6 +229,33 @@ struct HomeSnapshot: Codable {
     var updatedAt: Date = .init()
 }
 
+/// DayPlan의 30분 앞 패딩을 되돌려 스냅샷이 대표하는 날짜를 복원한다.
+func snapshotDay(from dayStart: Date, calendar: Calendar = .current) -> Date {
+    let unpadded = calendar.date(byAdding: .minute, value: 30, to: dayStart) ?? dayStart
+    return calendar.startOfDay(for: unpadded)
+}
+
+/// 과거 날짜 캐시가 현재 일정처럼 보이지 않게 한다. 미래 일정 폴백은 유지한다.
+func snapshotIsDisplayable(dayStart: Date, at now: Date, calendar: Calendar = .current) -> Bool {
+    snapshotDay(from: dayStart, calendar: calendar) >= calendar.startOfDay(for: now)
+}
+
+extension HomeSnapshot {
+    func isDisplayable(at now: Date, calendar: Calendar = .current) -> Bool {
+        snapshotIsDisplayable(dayStart: dayStart, at: now, calendar: calendar)
+    }
+
+    /// 마지막 일정 뒤에도 자정에 다시 그려 과거 스냅샷을 확실히 만료한다.
+    func timelineDates(from now: Date, limit: Int = 64, calendar: Calendar = .current) -> [Date] {
+        guard limit > 0 else { return [] }
+        var dates = segments.glanceTimelineDates(from: now, limit: max(1, limit - 1))
+        if let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now)) {
+            dates.append(tomorrow)
+        }
+        return Array(Set(dates).sorted().prefix(limit))
+    }
+}
+
 /// 앱↔위젯 공유 저장소(App Group). 앱이 오늘 스냅샷을 쓰고 홈 위젯이 읽는다.
 enum SharedStore {
     static let appGroup = AppConfig.appGroupID
