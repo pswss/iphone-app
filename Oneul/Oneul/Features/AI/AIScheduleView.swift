@@ -26,8 +26,6 @@ struct AIScheduleView: View {
     @AppStorage("neisKind") private var neisKind = ""
     @FocusState private var editorFocused: Bool
     @AccessibilityFocusState private var responseFocus: ResponseFocus?
-    @AppStorage("aiMeridiemTipShown") private var meridiemTipShown = false   // 첫 진입 팁 1회
-    @State private var showMeridiemTip = false
     private let lang = AppLanguage.shared
     private enum ResponseFocus: Hashable { case error, reply, results }
 
@@ -51,7 +49,19 @@ struct AIScheduleView: View {
                     .scrollDismissesKeyboard(.interactively)
                 }
                 #else
-                contentStack.padding(16).frame(maxWidth: .infinity)   // 맥: 스크롤/GeometryReader 없이 콘텐츠에 딱 맞게(팝오버가 내용 높이대로)
+                ViewThatFits(in: .vertical) {
+                    contentStack
+                        .padding(16)
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    ScrollView {
+                        contentStack
+                            .padding(16)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .top)
                 #endif
             }
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.45), value: isLoading)   // 글로우 페이드 인/아웃
@@ -59,12 +69,6 @@ struct AIScheduleView: View {
             .navBarInline()
             .task {
                 AppleIntelligenceClient.prewarm()
-                if !meridiemTipShown { showMeridiemTip = true; meridiemTipShown = true }   // 첫 진입 1회 팁
-            }
-            .alert(lang.tr("더 정확하게 쓰는 팁"), isPresented: $showMeridiemTip) {
-                Button(lang.tr("확인"), role: .cancel) {}
-            } message: {
-                Text(lang.tr("시간 앞에 '오전/오후'를 함께 적으면 훨씬 정확해요.\n예) 내일 오전 8시 수학 · 금요일 오후 5시 학원"))
             }
             .onChange(of: pickedPhoto) { _, item in
                 guard let item else { return }
@@ -99,6 +103,9 @@ struct AIScheduleView: View {
                 }
             }
         }
+        #if os(macOS)
+        .frame(maxHeight: 600, alignment: .top)
+        #endif
     }
 
     @ViewBuilder private var contentStack: some View {

@@ -298,7 +298,6 @@ struct RootView: View {
                             AIScheduleView()
                                 .eventDeletionUndoHost()
                                 .frame(width: 420)
-                                .fixedSize(horizontal: false, vertical: true)
                         }
                 }
                 if userType == "student" && macSection != .meal {
