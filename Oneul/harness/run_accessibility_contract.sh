@@ -8,6 +8,8 @@ editor="Oneul/Features/Editor/EventEditorView.swift"
 calendar="Oneul/Features/Today/CalendarBar.swift"
 language="Oneul/Design/AppChrome.swift"
 today="Oneul/Features/Today/TodayView.swift"
+ai="Oneul/Features/AI/AIScheduleView.swift"
+glass="Oneul/Design/Glass.swift"
 
 require() {
     rg -Fq "$2" "$1" || { echo "FAIL: missing $2 in $1"; exit 1; }
@@ -36,4 +38,17 @@ if rg -Fq "eventDots" "$calendar"; then
     exit 1
 fi
 
-echo "PASS: clipboard accessibility actions and weekday labels"
+reply="$(awk '/private struct AIReplyCard/{found = 1} found {print} found && /private struct AIResultEditView/ {exit}' "$ai")"
+[[ "$reply" == *'.glassCard(cornerRadius: 22)'* ]] || {
+    echo "FAIL: AI reply bypasses the shared accessibility material"
+    exit 1
+}
+for bespoke in '.ultraThinMaterial' 'LinearGradient' 'RadialGradient' '.shadow(' 'repeatForever'; do
+    [[ "$reply" != *"$bespoke"* ]] || { echo "FAIL: bespoke AI reply effect returned: $bespoke"; exit 1; }
+done
+require "$glass" '@Environment(\.accessibilityReduceTransparency) private var reduceTransparency'
+require "$glass" '@Environment(\.colorSchemeContrast) private var contrast'
+require "$glass" 'if reduceTransparency || contrast == .increased'
+require "$glass" 'Color.appSystemBackground'
+
+echo "PASS: accessibility actions, weekday labels, and shared AI reply material"

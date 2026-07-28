@@ -794,26 +794,16 @@ private struct AIThinkingGlow: View {
     }
 }
 
-// Apple Intelligence 답변 — 천상의 느낌(은은한 오로라 + 위에서 내리는 빛 + 부드럽게 숨 쉬는 발광 헤일로).
+// Apple Intelligence 답변 — 공용 카드 재질을 사용해 투명도·대비 접근성 설정을 그대로 따름.
 private struct AIReplyCard: View {
     let text: String
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var glow = false
-
-    private let corner: CGFloat = 24
-
-    private var headerGradient: LinearGradient {
-        LinearGradient(colors: [Color(red: 0.62, green: 0.58, blue: 1.0),
-                                Color(red: 0.55, green: 0.80, blue: 1.0)],
-                       startPoint: .leading, endPoint: .trailing)
-    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 6) {
                 Image(systemName: "sparkles")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(headerGradient)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
                 Text("AI")
                     .font(.system(.caption, design: .rounded).weight(.semibold))
                     .tracking(0.3)
@@ -821,7 +811,7 @@ private struct AIReplyCard: View {
             }
 
             Text(text)
-                .font(.system(.subheadline, design: .default))   // 기본 SF Pro · 약간 작게
+                .font(.subheadline)
                 .foregroundStyle(.primary)
                 .lineSpacing(4)
                 .textSelection(.enabled)
@@ -829,47 +819,7 @@ private struct AIReplyCard: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background {
-            ZStack {
-                RoundedRectangle(cornerRadius: corner, style: .continuous).fill(.ultraThinMaterial)
-                // 은은한 오로라 틴트
-                RoundedRectangle(cornerRadius: corner, style: .continuous)
-                    .fill(LinearGradient(colors: [
-                        Color(red: 0.62, green: 0.55, blue: 0.98).opacity(0.22),
-                        Color(red: 0.95, green: 0.66, blue: 0.86).opacity(0.13),
-                        Color(red: 0.50, green: 0.80, blue: 0.98).opacity(0.20)
-                    ], startPoint: .topLeading, endPoint: .bottomTrailing))
-                // 천상의 빛 — 위에서 내리는 라디얼 하이라이트
-                RoundedRectangle(cornerRadius: corner, style: .continuous)
-                    .fill(RadialGradient(colors: [.white.opacity(0.38), .clear],
-                                         center: .top, startRadius: 0, endRadius: 190))
-            }
-        }
-        .overlay {
-            RoundedRectangle(cornerRadius: corner, style: .continuous)
-                .strokeBorder(LinearGradient(colors: [
-                    .white.opacity(0.55),
-                    Color(red: 0.70, green: 0.62, blue: 1.0).opacity(0.35),
-                    .clear
-                ], startPoint: .top, endPoint: .bottom), lineWidth: 1)
-        }
-        // 발광 헤일로 — 천천히 숨 쉬듯(빠른 반짝임 아님)
-        .shadow(color: Color(red: 0.50, green: 0.45, blue: 0.98).opacity(glow ? 0.40 : 0.22),
-                radius: glow ? 26 : 18, y: 8)
-        .shadow(color: Color(red: 0.55, green: 0.80, blue: 1.0).opacity(glow ? 0.24 : 0.12),
-                radius: glow ? 34 : 22, y: 2)
-        .onAppear {
-            if !reduceMotion {
-                withAnimation(.easeInOut(duration: 3.2).repeatForever(autoreverses: true)) { glow = true }
-            }
-        }
-        .onChange(of: reduceMotion) { _, reduce in
-            if reduce {
-                glow = false
-            } else {
-                withAnimation(.easeInOut(duration: 3.2).repeatForever(autoreverses: true)) { glow = true }
-            }
-        }
+        .glassCard(cornerRadius: 22)
     }
 }
 
