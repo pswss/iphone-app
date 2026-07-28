@@ -6,7 +6,7 @@ import SwiftUI
 struct CalendarBar: View {
     @Binding var selectedDay: Date
     var isSpecial: (Date) -> Bool = { _ in false }   // 생일·기념일 등 — 날짜 숫자 빨강
-    var eventCount: (Date) -> Int = { _ in 0 }       // 월 달력 날짜 아래 일정 점(최대 3개)용
+    var eventCount: (Date) -> Int = { _ in 0 }       // VoiceOver 일정 개수 낭독 전용 — 시각 도트는 금지
 
     @State private var expanded = false
     @State private var weekIndex = 0
@@ -198,7 +198,6 @@ struct CalendarBar: View {
                 .frame(width: monthDayDiameter, height: monthDayDiameter)
                 .background { highlight(selected: selected, today: today) }
                 .foregroundStyle(dateColor(date, selected: selected))
-                .overlay(alignment: .bottom) { eventDots(date, selected: selected) }
                 .frame(maxWidth: .infinity, minHeight: monthRowHeight)
         }
         .buttonStyle(.plain)
@@ -221,18 +220,6 @@ struct CalendarBar: View {
             events = "일정 \(count)개"
         }
         return today ? "\(lang.tr("오늘")), \(events)" : events
-    }
-
-    /// 날짜 아래 일정 존재 점 — 애플 캘린더식, 최대 3개.
-    @ViewBuilder private func eventDots(_ date: Date, selected: Bool) -> some View {
-        let n = min(3, eventCount(date))
-        if n > 0 {
-            HStack(spacing: 2.5) {
-                ForEach(0..<n, id: \.self) { _ in Circle().frame(width: 3.5, height: 3.5) }
-            }
-            .foregroundStyle(selected ? Color.appOnAccent : Color.appAccentText)
-            .offset(y: -3)
-        }
     }
 
     @ViewBuilder

@@ -31,5 +31,9 @@ if rg -Fq ".weekday(.narrow)" "$calendar"; then
     echo "FAIL: ambiguous narrow weekday formatting returned"
     exit 1
 fi
+if rg -Fq "eventDots" "$calendar"; then
+    echo "FAIL: month-calendar event dots returned"
+    exit 1
+fi
 
 echo "PASS: clipboard accessibility actions and weekday labels"
