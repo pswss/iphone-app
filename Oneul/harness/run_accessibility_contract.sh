@@ -51,4 +51,19 @@ require "$glass" '@Environment(\.colorSchemeContrast) private var contrast'
 require "$glass" 'if reduceTransparency || contrast == .increased'
 require "$glass" 'Color.appSystemBackground'
 
-echo "PASS: accessibility actions, weekday labels, and shared AI reply material"
+input="$(awk '/private var inputCard/{found = 1} found {print} found && /private var photoButton/ {exit}' "$ai")"
+[[ "$input" == *'#if os(iOS)'* && "$input" == *'.textFieldStyle(.plain)'* ]] || {
+    echo "FAIL: AI input styling is not platform-scoped"
+    exit 1
+}
+[[ "$input" != *'맥 기본 파란 포커스 링 제거'* ]] || {
+    echo "FAIL: Mac AI focus ring is still intentionally removed"
+    exit 1
+}
+results="$(awk '/private var resultsSection/{found = 1} found {print} found && /private func timeText/ {exit}' "$ai")"
+[[ "$results" == *'results.remove(at: idx)'* && "$results" == *'lang.tr("결과에서 제외")'* && "$results" == *'.frame(width: 44, height: 44)'* ]] || {
+    echo "FAIL: AI result items cannot be individually excluded"
+    exit 1
+}
+
+echo "PASS: accessible actions, focus, scalable labels, and shared AI material"

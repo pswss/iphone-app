@@ -131,7 +131,9 @@ struct AIScheduleView: View {
         // TextEditor(무거운 UITextView) 대신 TextField(axis:.vertical) — 첫 타이핑 렉↓, 플레이스홀더 내장.
         TextField(lang.tr("예: 매주 월요일 7시 영어학원 · 다음주 월요일 급식 · 내일 뭐 있어? · 다크모드로 바꿔줘"),
                   text: $inputText, axis: .vertical)
-            .textFieldStyle(.plain)          // 맥 기본 파란 포커스 링 제거 → 평범한 입력
+            #if os(iOS)
+            .textFieldStyle(.plain)          // iOS 카드 안에서는 별도 입력 테두리 없이 유지
+            #endif
             .focused($editorFocused)
             .lineLimit(nil)
             .padding(.horizontal, 14)
@@ -199,55 +201,73 @@ struct AIScheduleView: View {
                 .font(.caption).bold().foregroundStyle(.secondary).padding(.leading, 4)
 
             ForEach(Array(results.enumerated()), id: \.element.id) { idx, e in
-                Button {
-                    if e.action != .delete { editingIndex = idx }   // 삭제 항목은 대상이라 수정 불필요
-                } label: {
-                    HStack(spacing: 12) {
-                        RoundedRectangle(cornerRadius: 3).fill(EventPalette.color(idx, of: results.count)).frame(width: 4)
-                        Text(timeText(e.start))
-                            .font(.caption).bold().foregroundStyle(.secondary).frame(width: 58)
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 6) {
-                                Text(e.title).font(.subheadline).bold()
-                                if e.action != .create {
-                                    Text(e.action == .delete ? lang.tr("삭제") : lang.tr("수정"))
-                                        .font(.caption2).bold().foregroundStyle(.white)
-                                        .padding(.horizontal, 6).padding(.vertical, 1)
-                                        .background(e.action == .delete ? Color.red : Color.orange, in: Capsule())
+                HStack(spacing: 8) {
+                    Button {
+                        if e.action != .delete { editingIndex = idx }   // 삭제 항목은 대상이라 수정 불필요
+                    } label: {
+                        HStack(spacing: 12) {
+                            RoundedRectangle(cornerRadius: 3).fill(EventPalette.color(idx, of: results.count)).frame(width: 4)
+                            Text(timeText(e.start))
+                                .font(.caption).bold().foregroundStyle(.secondary).frame(width: 58)
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack(spacing: 6) {
+                                    Text(e.title).font(.subheadline).bold()
+                                    if e.action != .create {
+                                        Text(e.action == .delete ? lang.tr("삭제") : lang.tr("수정"))
+                                            .font(.caption2).bold().foregroundStyle(.white)
+                                            .padding(.horizontal, 6).padding(.vertical, 1)
+                                            .background(e.action == .delete ? Color.red : Color.orange, in: Capsule())
+                                    }
+                                    if e.recurrence != .none {
+                                        Text(repeatLabel(e))
+                                            .font(.caption2).bold().foregroundStyle(.white)
+                                            .padding(.horizontal, 6).padding(.vertical, 1)
+                                            .background(Color.appAccent, in: Capsule())
+                                    }
                                 }
-                                if e.recurrence != .none {
-                                    Text(repeatLabel(e))
-                                        .font(.caption2).bold().foregroundStyle(.white)
-                                        .padding(.horizontal, 6).padding(.vertical, 1)
-                                        .background(Color.appAccent, in: Capsule())
+                                if e.action == .delete && e.targetID == nil {
+                                    Text(String(format: lang.tr("제목이 같은 일정 %d개 삭제"), bulkDeleteCount(e.title)))
+                                        .font(.caption2).foregroundStyle(.red)
+                                } else {
+                                    Text("\(timeText(e.start)) – \(timeText(e.end))" +
+                                         (e.location.isEmpty ? "" : " · \(e.location)"))
+                                        .font(.caption2).foregroundStyle(.secondary)
+                                }
+                                if e.inferredPM {   // 확률 기반 기본값 적용 → 해석 근거 표시(즉시 정정 가능)
+                                    Text(String(format: lang.tr("오후 %d시로 해석했어요 — 아니면 눌러서 고쳐 주세요"), hour12(e.start)))
+                                        .font(.caption2).foregroundStyle(.orange)
+                                }
+                                if e.deleteSeries {   // 반복 전체 삭제 예고
+                                    Text(lang.tr("이후 일정 모두 삭제")).font(.caption2).foregroundStyle(.red)
                                 }
                             }
-                            if e.action == .delete && e.targetID == nil {
-                                Text(String(format: lang.tr("제목이 같은 일정 %d개 삭제"), bulkDeleteCount(e.title)))
-                                    .font(.caption2).foregroundStyle(.red)
-                            } else {
-                                Text("\(timeText(e.start)) – \(timeText(e.end))" +
-                                     (e.location.isEmpty ? "" : " · \(e.location)"))
-                                    .font(.caption2).foregroundStyle(.secondary)
-                            }
-                            if e.inferredPM {   // 확률 기반 기본값 적용 → 해석 근거 표시(즉시 정정 가능)
-                                Text(String(format: lang.tr("오후 %d시로 해석했어요 — 아니면 눌러서 고쳐 주세요"), hour12(e.start)))
-                                    .font(.caption2).foregroundStyle(.orange)
-                            }
-                            if e.deleteSeries {   // 반복 전체 삭제 예고
-                                Text(lang.tr("이후 일정 모두 삭제")).font(.caption2).foregroundStyle(.red)
+                            Spacer()
+                            if e.action != .delete {
+                                Image(systemName: "pencil").font(.caption).foregroundStyle(.secondary)
                             }
                         }
-                        Spacer()
-                        if e.action != .delete {
-                            Image(systemName: "pencil").font(.caption).foregroundStyle(.secondary)
-                        }
+                        .padding(12)
+                        .frame(maxWidth: .infinity)
+                        .glassCard(cornerRadius: 22)
+                        .contentShape(Rectangle())
                     }
-                    .padding(12)
-                    .glassCard(cornerRadius: 22)
-                    .contentShape(Rectangle())
+                    .buttonStyle(.plain)
+
+                    Button {
+                        guard results.indices.contains(idx) else { return }
+                        results.remove(at: idx)
+                        Haptics.impact(.light)
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 44, height: 44)
+                            .background(.primary.opacity(0.06), in: Circle())
+                            .contentShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(lang.tr("결과에서 제외"))
                 }
-                .buttonStyle(.plain)
             }
 
             Button(lang.tr("적용하기"), action: addAll)

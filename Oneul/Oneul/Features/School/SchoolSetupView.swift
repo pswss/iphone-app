@@ -87,10 +87,16 @@ struct SchoolSetupView: View {
                     .onSubmit { Task { await search() } }
                     .padding(.horizontal, 12).padding(.vertical, 10)
                     .glassCard(cornerRadius: 14)
-                Button(lang.tr("검색")) { Task { await search() } }
+                Button { Task { await search() } } label: {
+                    Group {
+                        if searching { ProgressView().tint(Color.appOnAccent) }
+                        else { Text(lang.tr("검색")) }
+                    }
+                }
                     .buttonStyle(AccentButtonStyle())
                     .frame(maxWidth: 80)
                     .disabled(query.trimmingCharacters(in: .whitespaces).isEmpty || searching)
+                    .accessibilityLabel(lang.tr(searching ? "학교 검색 중…" : "검색"))
             }
         }
         .padding(14)
@@ -244,6 +250,7 @@ struct SchoolSetupView: View {
 
     // MARK: 동작
     private func search() async {
+        guard !searching else { return }
         focused = false
         message = ""
         results = []

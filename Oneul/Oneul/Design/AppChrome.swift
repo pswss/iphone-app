@@ -265,6 +265,7 @@ final class AppLanguage {
         "학교 검색": "Search school",
         "학교 이름 (예: 서울고등학교)": "School name (e.g. Seoul High)",
         "검색": "Search",
+        "학교 검색 중…": "Searching schools…",
         "검색 결과": "Results",
         "변경": "Change",
         "학년": "Grade",
@@ -306,6 +307,7 @@ final class AppLanguage {
             "Register your school first in\nSettings → Student → School",
         // AI
         "수정": "Edit",
+        "결과에서 제외": "Exclude from results",
         "Apple Intelligence · 온디바이스 (키 불필요)": "Apple Intelligence · on-device (no key)",
         "AI 비서": "AI Assistant",
         "실행": "Run",
