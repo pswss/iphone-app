@@ -39,6 +39,7 @@ Avoid copying any competitor's trade dress, long encyclopedia-style feature page
 ## Design Principles
 
 - Show the real timeline before explaining it.
+- Use white as the primary canvas; reserve dark backgrounds for short contrast sections.
 - Adapt the primary CTA, never replace or redirect the whole page based on device.
 - Keep one dominant promise and three supporting product stories.
 - Use privacy specifics as product proof, not vague trust language.

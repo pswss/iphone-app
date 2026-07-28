@@ -1,8 +1,8 @@
 :root {
-  color-scheme: light dark;
-  --bg: oklch(97.2% 0.012 258);
-  --surface: oklch(99.5% 0.004 258);
-  --surface-strong: oklch(94.5% 0.022 258);
+  color-scheme: light;
+  --bg: #fff;
+  --surface: #fff;
+  --surface-strong: oklch(96% 0.018 258);
   --ink: oklch(21% 0.035 262);
   --ink-soft: oklch(43% 0.035 262);
   --line: oklch(84% 0.025 262);
@@ -20,6 +20,8 @@
   --header-height: 72px;
   --section-gap: clamp(6rem, 11vw, 10rem);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-enter: 460ms;
+  --motion-distance: 12px;
 }
 
 * {
@@ -85,6 +87,28 @@ a {
 .section-shell {
   width: min(calc(100% - clamp(2rem, 7vw, 7rem)), 1220px);
   margin-inline: auto;
+}
+
+html.motion-ready [data-reveal="product"] {
+  opacity: 0.86;
+  transform: translate3d(0, var(--motion-distance), 0) scale(0.992);
+  transition:
+    opacity var(--motion-enter) var(--ease-out),
+    transform var(--motion-enter) var(--ease-out);
+}
+
+html.motion-ready [data-reveal="product"].is-visible {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
+html.motion-ready [data-reveal="emphasis"] {
+  opacity: 0.68;
+  transition: opacity 260ms ease-out;
+}
+
+html.motion-ready [data-reveal="emphasis"].is-visible {
+  opacity: 1;
 }
 
 .site-header {
@@ -1067,6 +1091,8 @@ a {
 @media (max-width: 760px) {
   :root {
     --header-height: 64px;
+    --motion-enter: 400ms;
+    --motion-distance: 10px;
   }
 
   .nav-links {
@@ -1230,45 +1256,6 @@ a {
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: oklch(15% 0.027 264);
-    --surface: oklch(20% 0.032 264);
-    --surface-strong: oklch(25% 0.038 264);
-    --ink: oklch(96% 0.012 258);
-    --ink-soft: oklch(76% 0.025 258);
-    --line: oklch(34% 0.035 264);
-    --accent: oklch(70% 0.16 266);
-    --accent-hover: oklch(76% 0.15 266);
-    --on-accent: oklch(14% 0.03 264);
-  }
-
-  .hero::before {
-    opacity: 0.48;
-  }
-
-  .phone-frame {
-    border-color: oklch(8% 0.015 264);
-  }
-
-  .statement {
-    background: oklch(9% 0.02 264);
-    color: var(--ink);
-  }
-
-  .devices {
-    background: oklch(9% 0.02 264);
-  }
-
-  .site-footer {
-    background: oklch(7% 0.015 264);
-  }
-
-  .final-cta p {
-    color: var(--on-accent);
-  }
-}
-
 @media (prefers-reduced-transparency: reduce) {
   .site-header {
     background: var(--bg);
@@ -1312,6 +1299,12 @@ a {
   .button:active {
     transform: none;
   }
+
+  html.motion-ready [data-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
 }
 
 @media print {
@@ -1325,5 +1318,10 @@ a {
   body {
     background: white;
     color: black;
+  }
+
+  html.motion-ready [data-reveal] {
+    opacity: 1;
+    transform: none;
   }
 }

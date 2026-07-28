@@ -50,3 +50,21 @@ for (const cta of ctas) {
     cta.setAttribute("download", "");
   }
 }
+
+const revealTargets = document.querySelectorAll("[data-reveal]");
+const reducedMotion = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+
+if (revealTargets.length && !reducedMotion && "IntersectionObserver" in globalThis) {
+  document.documentElement?.classList.add("motion-ready");
+  const revealObserver = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (entry.isIntersecting && entry.intersectionRatio >= 0.18) {
+        entry.target.classList.add("is-visible");
+      } else if (!entry.isIntersecting) {
+        entry.target.classList.remove("is-visible");
+      }
+    }
+  }, { threshold: [0, 0.18], rootMargin: "0px 0px -8% 0px" });
+
+  for (const target of revealTargets) revealObserver.observe(target);
+}
