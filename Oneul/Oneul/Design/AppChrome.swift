@@ -297,6 +297,8 @@ final class AppLanguage {
         "(없음)": "(None)",
         // 그리드/급식
         "종일": "All day",
+        "%d개 일정 더 보기": "Show %d more events",
+        "열어서 일정을 선택하고 수정": "Open to choose and edit an event",
         "놓으면 삭제": "Release to delete",
         "여기로 끌어 삭제": "Drag here to delete",
         "급식 정보가 없어요": "No meal info",

@@ -35,6 +35,9 @@ struct DayGridView: View {
     private let hourHeight: CGFloat = 70      // 세로로 늘림(일정이 덜 빽빽하게)
     private var leftInset: CGFloat { showHourLabels ? 52 : 6 }
     private let colGap: CGFloat = 2           // 겹치는 일정 간 가로 간격(틈새 축소)
+    private let minimumEventTarget: CGFloat = 44
+    // ponytail: 직접 열은 3개까지만; 더 넓은 화면에서 실제 필요가 확인되면 상한을 늘린다.
+    private let maxVisibleColumns = 3
 
     @State private var dragID: UUID?
     @State private var dragDY: CGFloat = 0
@@ -128,6 +131,7 @@ struct DayGridView: View {
 
     /// 시간 격자 본체(시각 행 + 구분선 + 빈 곳 제스처 + 현재선 + 일정 블록). 스크롤 유무와 무관하게 재사용.
     @ViewBuilder private func gridContent(width: CGFloat, gridW: CGFloat) -> some View {
+        let layout = makeEventLayout(gridW: gridW)
         ZStack(alignment: .topLeading) {
             VStack(spacing: 0) {
                 ForEach(firstHour..<lastHour, id: \.self) { h in
@@ -152,7 +156,8 @@ struct DayGridView: View {
                     nowLine(width: width, at: timeline.date)
                 }
             }
-            ForEach(laidOut, id: \.event.id) { eventBlock($0, gridW: gridW) }
+            ForEach(layout.visible, id: \.event.id) { eventBlock($0, gridW: gridW) }
+            ForEach(layout.overflows) { overflowBlock($0, gridW: gridW) }
             if let ps = previewStart { previewBlock(ps, gridW: gridW) }
         }
         .frame(height: gridHeight, alignment: .topLeading)
@@ -179,6 +184,8 @@ struct DayGridView: View {
                     .frame(maxWidth: .infinity)
                     .background(.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
                     .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.primary.opacity(0.15)))
+                    .frame(minHeight: minimumEventTarget)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .contextMenu {
@@ -245,7 +252,7 @@ struct DayGridView: View {
         return VStack(alignment: .leading, spacing: 1) {
             Text(lang.tr("새 일정")).font(.caption).bold().foregroundStyle(blockText(Color.appAccent)).lineLimit(1)
             Text(timeText(start) + " – " + timeText(end))
-                .font(.system(size: 10)).foregroundStyle(blockSubText(Color.appAccent)).lineLimit(1)
+                .font(.caption2).foregroundStyle(blockSubText(Color.appAccent)).lineLimit(1)
         }
         .padding(.horizontal, 9).padding(.vertical, 5)
         .frame(width: gridW, height: h, alignment: .topLeading)
@@ -330,6 +337,36 @@ struct DayGridView: View {
             .accessibilityAction(named: lang.tr("복사")) { copy(e) }
             .accessibilityAction(named: lang.tr("복제")) { duplicate(e) }
             .accessibilityAction(named: lang.tr("삭제")) { deleteEvent(e) }
+    }
+
+    private func overflowBlock(_ item: DenseOverflow, gridW: CGFloat) -> some View {
+        let top = yOffset(for: clamp(item.start))
+        let colW = (gridW - CGFloat(item.cols - 1) * colGap) / CGFloat(item.cols)
+        let shape = RoundedRectangle(cornerRadius: 11, style: .continuous)
+        return Menu {
+            ForEach(item.events) { e in
+                Button {
+                    onEdit(e)
+                } label: {
+                    Text("\(e.title.isEmpty ? lang.tr("제목 없음") : e.title) · \(timeText(e.start))–\(timeText(e.end))")
+                }
+            }
+        } label: {
+            Text("+\(item.events.count)")
+                .font(.caption.bold())
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 9).padding(.vertical, 5)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .background(.primary.opacity(0.08), in: shape)
+                .overlay(shape.strokeBorder(.primary.opacity(0.18)))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .frame(width: colW, height: minimumEventTarget)
+        .offset(x: leftInset + CGFloat(item.col) * (colW + colGap), y: top)
+        .zIndex(Double(item.order))
+        .accessibilityLabel(String(format: lang.tr("%d개 일정 더 보기"), item.events.count))
+        .accessibilityHint(lang.tr("열어서 일정을 선택하고 수정"))
     }
 
     /// 선택 시 좌하단 코너에만 보이는 순수 흰색 곡선.
@@ -695,13 +732,28 @@ struct DayGridView: View {
     // 이전 방식(시작 위치 인접만 분할)은 10:00–12:00와 10:30–11:30처럼 시작이 떨어진 겹침을
     // 풀폭으로 포개 그려 아래 일정이 가려지고 탭도 가로채였음.
     private struct Laid { let event: ScheduleEvent; let col: Int; let cols: Int; let order: Int }
-    private var laidOut: [Laid] {
-        let evs = plan.singleDayEvents.sorted { $0.start < $1.start }
-        // 최소 표시 높이(26pt)만큼은 시간상 안 겹쳐도 시각적으로 겹침 → 유효 종료로 보정
-        let minVisualSec = Double(26) / Double(hourHeight) * 3600
-        func effEnd(_ e: ScheduleEvent) -> Date { max(e.end, e.start.addingTimeInterval(minVisualSec)) }
+    private struct DenseOverflow: Identifiable {
+        let id: UUID
+        let events: [ScheduleEvent]
+        let start: Date
+        let col: Int
+        let cols: Int
+        let order: Int
+    }
 
-        var result: [Laid] = []
+    private func makeEventLayout(gridW: CGFloat) -> (visible: [Laid], overflows: [DenseOverflow]) {
+        let evs = plan.singleDayEvents.sorted {
+            if $0.start != $1.start { return $0.start < $1.start }
+            return $0.id.uuidString < $1.id.uuidString
+        }
+        // 44pt 조작 영역이 시간상 안 겹쳐도 포개지지 않게 유효 종료로 보정.
+        let minTargetSec = Double(minimumEventTarget) / Double(hourHeight) * 3600
+        func effEnd(_ e: ScheduleEvent) -> Date { max(e.end, e.start.addingTimeInterval(minTargetSec)) }
+        let visibleColumns = max(1, min(maxVisibleColumns,
+            Int((gridW + colGap) / (minimumEventTarget + colGap))))
+
+        var visible: [Laid] = []
+        var overflows: [DenseOverflow] = []
         var i = 0
         while i < evs.count {
             // 서로 연결돼 겹치는 클러스터 수집
@@ -722,10 +774,25 @@ struct DayGridView: View {
                 assigned.append((e, c))
             }
             let cols = colEnds.count
-            for (e, c) in assigned { result.append(Laid(event: e, col: c, cols: cols, order: result.count)) }
+            if cols <= visibleColumns {
+                for (e, c) in assigned {
+                    visible.append(Laid(event: e, col: c, cols: cols, order: visible.count))
+                }
+            } else {
+                let directColumns = visibleColumns - 1
+                for (e, c) in assigned where c < directColumns {
+                    visible.append(Laid(event: e, col: c, cols: visibleColumns, order: visible.count))
+                }
+                let hidden = assigned.filter { $0.col >= directColumns }
+                if let first = hidden.first {
+                    overflows.append(DenseOverflow(
+                        id: first.e.id, events: hidden.map { $0.e }, start: first.e.start,
+                        col: directColumns, cols: visibleColumns, order: visible.count + overflows.count))
+                }
+            }
             i = j
         }
-        return result
+        return (visible, overflows)
     }
 
     // MARK: 헬퍼

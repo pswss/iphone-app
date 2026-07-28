@@ -269,14 +269,25 @@ struct TodayView: View {
     // 주 이동 컨트롤(맥·아이패드 regular) — ‹ / 오늘 / › + Left/Right 화살표 단축키(주 그리드라 한 주씩 이동).
     private var macDayNav: some View {
         HStack(spacing: 12) {
-            Button { shiftWeek(-1) } label: { Image(systemName: "chevron.left") }
+            Button { shiftWeek(-1) } label: {
+                Image(systemName: "chevron.left")
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
                 .keyboardShortcut(.leftArrow, modifiers: [])
                 .accessibilityLabel(lang.tr("이전 주"))
             Spacer()
-            Button(lang.tr("오늘")) { selectedDay = .now }
-                .font(.subheadline).bold()
+            Button { selectedDay = .now } label: {
+                Text(lang.tr("오늘")).font(.subheadline).bold()
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
+            }
             Spacer()
-            Button { shiftWeek(1) } label: { Image(systemName: "chevron.right") }
+            Button { shiftWeek(1) } label: {
+                Image(systemName: "chevron.right")
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
                 .keyboardShortcut(.rightArrow, modifiers: [])
                 .accessibilityLabel(lang.tr("다음 주"))
         }
@@ -863,7 +874,7 @@ struct MacWeekGrid: View {
     private var anchorHour: Int { max(0, min(23, cal.component(.hour, from: Date()) - 1)) }   // 첫 진입 위치(현재 시각 한 시간 위)
 
     // 모든 지원 regular 폭에서 7일을 유지하되, 각 날짜 열은 최소 탭 크기까지 축소 가능.
-    private let minColW: CGFloat = 44
+    private let minColW: CGFloat = 52
     private let gutterW: CGFloat = 52          // 시각축 전용 거터(열과 분리 → 7열 폭 완전 균등)
     private let hourH: CGFloat = 70            // DayGridView hourHeight와 동일
 
@@ -966,6 +977,14 @@ struct MacWeekGrid: View {
     // MARK: 종일 밴드(연속 스팬 바)
     private let barH: CGFloat = 22
     private let barVGap: CGFloat = 4
+    private var barTargetH: CGFloat {
+        #if os(iOS)
+        return 44
+        #else
+        return barH
+        #endif
+    }
+    private var barRowStride: CGFloat { barTargetH + barVGap }
 
     /// 이번 주에 걸치는 종일/멀티데이 일정을 연속 바로 배치(겹치면 아래 행으로 패킹).
     private var allDayBars: [PackedBar] {
@@ -1000,12 +1019,12 @@ struct MacWeekGrid: View {
                     let x0 = gutterW + colW * CGFloat(bar.startCol)
                     let x1 = gutterW + colW * CGFloat(bar.endCol + 1)
                     allDayPill(bar)
-                        .frame(width: max(x1 - x0 - 6, 24), height: barH)
-                        .offset(x: x0 + 3, y: CGFloat(bar.row) * (barH + barVGap))
+                        .frame(width: max(x1 - x0 - 6, 24), height: barTargetH)
+                        .offset(x: x0 + 3, y: CGFloat(bar.row) * barRowStride)
                 }
             }
             .frame(width: gutterW + colW * 7,
-                   height: CGFloat(rows) * (barH + barVGap) - barVGap,
+                   height: CGFloat(rows - 1) * barRowStride + barTargetH,
                    alignment: .topLeading)
             .padding(.top, 2).padding(.bottom, 8)
         }
@@ -1027,9 +1046,12 @@ struct MacWeekGrid: View {
                 if bar.openRight { Image(systemName: "chevron.compact.right").font(.caption2).foregroundStyle(.secondary) }
             }
             .padding(.horizontal, 12)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .frame(height: barH)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .background(.primary.opacity(0.06), in: shape)
             .overlay(shape.strokeBorder(.primary.opacity(0.15)))
+            .frame(maxWidth: .infinity, minHeight: barTargetH, maxHeight: barTargetH)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .contextMenu {
