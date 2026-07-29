@@ -1,132 +1,159 @@
 <!doctype html>
-<html lang="ko">
+<html lang="ko-KR">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#ffffff">
   <meta name="description" content="말과 글을 일정으로 바꾸고, 오늘 하루를 한눈에 보여주는 비공개 Apple 기기용 타임라인 앱 Oneul.">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="ko_KR">
   <meta property="og:title" content="Oneul — 말하면, 오늘이 정리됩니다">
   <meta property="og:description" content="자연어 일정 입력, 하루 타임라인, iPhone·iPad·Mac·Apple Watch 연동.">
-  <meta property="og:image" content="/assets/iphone-timeline.jpg">
+  <meta property="og:image" content="/assets/mac-week.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Oneul — 말하면, 오늘이 정리됩니다">
+  <meta name="twitter:description" content="말과 글이 오늘의 타임라인이 됩니다.">
+  <meta name="twitter:image" content="/assets/mac-week.jpg">
   <title>Oneul — 말하면, 오늘이 정리됩니다</title>
   <link rel="icon" type="image/png" href="/assets/oneul-icon.png">
   <link rel="apple-touch-icon" href="/assets/oneul-icon.png">
+  <link rel="preload" as="image" href="/assets/iphone-timeline.jpg" fetchpriority="high">
   <link rel="stylesheet" href="/styles.css">
+  <script src="/content/oneul-home.js" defer></script>
   <script src="/app.js" defer></script>
 </head>
-<body>
+<body class="home-page">
   <a class="skip-link" href="#main">본문으로 건너뛰기</a>
 
-  <header class="site-header">
+  <header class="site-header" data-site-header>
+    <div class="nav-progress" aria-hidden="true"><span></span></div>
     <div class="nav-shell">
       <a class="brand" href="/" aria-label="Oneul 홈">
         <img src="/assets/oneul-icon.png" width="40" height="40" alt="">
         <span>Oneul</span>
       </a>
       <nav class="nav-links" aria-label="주요 메뉴">
-        <a href="#features">기능</a>
-        <a href="#devices">기기</a>
-        <a href="#privacy">개인정보</a>
-        <a href="/support">지원</a>
+        <a href="#features" data-copy="nav.features">기능</a>
+        <a href="#school" data-copy="nav.school">학생</a>
+        <a href="#devices" data-copy="nav.devices">기기</a>
+        <a href="#privacy" data-copy="nav.privacy">개인정보</a>
+        <a href="/support" data-copy="nav.support">지원</a>
       </nav>
+      <div class="locale-switch" role="group" aria-label="언어 선택">
+        <button type="button" data-locale="ko" aria-pressed="true">KO</button>
+        <button type="button" data-locale="en" aria-pressed="false">EN</button>
+      </div>
       <details class="mobile-menu">
-        <summary>메뉴</summary>
+        <summary data-copy="nav.menu">메뉴</summary>
         <nav aria-label="모바일 메뉴">
-          <a href="#features">기능</a>
-          <a href="#devices">기기</a>
-          <a href="#privacy">개인정보</a>
-          <a href="/support">지원</a>
+          <a href="#features" data-copy="nav.features">기능</a>
+          <a href="#school" data-copy="nav.school">학생</a>
+          <a href="#devices" data-copy="nav.devices">기기</a>
+          <a href="#privacy" data-copy="nav.privacy">개인정보</a>
+          <a href="/support" data-copy="nav.support">지원</a>
+          <div class="mobile-locale" role="group" aria-label="언어 선택">
+            <button type="button" data-locale="ko" aria-pressed="true">KO</button>
+            <button type="button" data-locale="en" aria-pressed="false">EN</button>
+          </div>
         </nav>
       </details>
-      <a class="button button-small button-primary platform-cta" href="#devices" data-platform-cta>
+      <a class="button button-small button-primary platform-cta" href="#devices" data-platform-cta data-copy="hero.primary">
         지원 기기 보기
       </a>
     </div>
   </header>
 
   <main id="main">
-    <section class="hero section-shell" aria-labelledby="hero-title">
-      <div class="hero-copy">
-        <p class="hero-kicker">당신의 하루를 가장 빠르게 보는 법</p>
-        <h1 id="hero-title">말하면,<br>오늘이<br>정리됩니다.</h1>
-        <p class="hero-lede">“내일 3시 치과”처럼 쓰거나 말하세요. Oneul이 일정을 만들고, 하루 전체를 시간 위에 또렷하게 놓아 줍니다.</p>
-        <div class="hero-actions">
-          <a class="button button-primary platform-cta" href="#devices" data-platform-cta>지원 기기 보기</a>
-          <a class="button button-secondary" href="#features">기능 둘러보기</a>
+    <section class="hero" aria-labelledby="hero-title" data-hero-scene data-flow-section="hero" data-major-scene="brand-reveal">
+      <div class="hero-sticky section-shell">
+        <div class="hero-copy">
+          <p class="hero-kicker" data-copy="hero.kicker">당신의 하루를 가장 빠르게 보는 법</p>
+          <h1 id="hero-title" data-copy-html="hero.title">말하면,<br>오늘이<br>정리됩니다.</h1>
+          <p class="hero-lede" data-copy="hero.lede">“내일 3시 치과”처럼 쓰거나 말하세요. Oneul이 일정을 만들고, 하루 전체를 시간 위에 또렷하게 놓아 줍니다.</p>
+          <div class="hero-actions">
+            <a class="button button-primary platform-cta" href="#devices" data-platform-cta data-copy="hero.primary">지원 기기 보기</a>
+            <a class="button button-secondary" href="#features" data-copy="hero.secondary">작동 방식 보기</a>
+          </div>
+          <p class="availability" data-platform-note data-copy="hero.availability">iPhone · iPad · Mac · Apple Watch</p>
+          <ul class="trust-list" aria-label="Oneul 핵심 원칙">
+            <li data-copy="hero.trust.account">계정 없음</li>
+            <li data-copy="hero.trust.ads">광고 없음</li>
+            <li data-copy="hero.trust.device">문장 해석은 기기 안에서</li>
+          </ul>
         </div>
-        <p class="availability" data-platform-note>iPhone · iPad · Mac · Apple Watch</p>
-        <ul class="trust-list" aria-label="Oneul 핵심 원칙">
-          <li>계정 없음</li>
-          <li>광고 없음</li>
-          <li>문장 해석은 기기 안에서</li>
-        </ul>
-      </div>
 
-      <div class="hero-product" aria-label="Oneul iPhone과 Apple Watch 화면" data-reveal="product">
-        <div class="color-rail" aria-hidden="true">
-          <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+        <div class="hero-product" aria-label="Oneul iPhone과 Apple Watch 화면">
+          <div class="hero-atmosphere" aria-hidden="true"></div>
+          <div class="color-rail" aria-hidden="true">
+            <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+          </div>
+          <figure class="phone-frame">
+            <img src="/assets/iphone-timeline.jpg" width="520" height="1130" alt="시간대별 일정이 무지개 색 블록으로 배치된 Oneul iPhone 타임라인" fetchpriority="high">
+          </figure>
+          <figure class="watch-frame">
+            <img src="/assets/watch-timeline.jpg" width="328" height="402" alt="다음 일정과 남은 시간을 보여주는 Oneul Apple Watch 화면">
+          </figure>
+          <div class="now-pulse" aria-hidden="true"><span></span></div>
         </div>
-        <figure class="phone-frame">
-          <img src="/assets/iphone-timeline.jpg" width="520" height="1130" alt="시간대별 일정이 무지개 색 블록으로 배치된 Oneul iPhone 타임라인" fetchpriority="high">
-        </figure>
-        <figure class="watch-frame">
-          <img src="/assets/watch-timeline.jpg" width="328" height="402" alt="다음 일정과 남은 시간을 보여주는 Oneul Apple Watch 화면">
-        </figure>
+
+        <a class="scroll-cue" href="#features">
+          <span data-copy="hero.scroll">스크롤해 오늘을 펼쳐보세요</span>
+          <i aria-hidden="true"></i>
+        </a>
       </div>
     </section>
 
     <section class="story-scroll" id="features" aria-labelledby="story-title" data-scroll-story>
-      <h2 class="visually-hidden" id="story-title">Oneul이 하루를 정리하는 방식</h2>
+      <h2 class="visually-hidden" id="story-title" data-copy="story.label">Oneul이 하루를 정리하는 방식</h2>
       <div class="story-shell">
         <div class="story-copy-sequence">
-          <article class="story-copy-step" data-story-step aria-labelledby="story-step-1-title">
+          <article class="story-copy-step" data-story-step data-major-scene="natural-language" aria-labelledby="story-step-1-title">
             <div class="story-copy">
-              <p class="story-kicker">말하거나 붙여넣기</p>
-              <h3 id="story-step-1-title">평소 말투가<br>일정이 됩니다.</h3>
-              <p>“내일 3시 치과”처럼 입력하세요. Oneul이 문장을 기기 안에서 해석하고, 저장 전에 결과를 보여줍니다.</p>
+              <p class="story-kicker" data-copy="story.1.kicker">말하거나 붙여넣기</p>
+              <h3 id="story-step-1-title" data-copy-html="story.1.title">평소 말투가<br>일정이 됩니다.</h3>
+              <p data-copy="story.1.body">“내일 3시 치과”처럼 입력하세요. Oneul이 문장을 기기 안에서 해석하고, 저장 전에 결과를 보여줍니다.</p>
             </div>
-            <figure class="story-product story-product-phone story-inline-product" data-inline-product>
+            <figure class="story-product story-product-phone story-inline-product">
               <img src="/assets/iphone-ai.jpg" width="520" height="1130" loading="lazy" decoding="async" alt="말로 일정을 입력하고 저장 전에 확인하는 Oneul iPhone 화면">
             </figure>
           </article>
 
-          <article class="story-copy-step" data-story-step aria-labelledby="story-step-2-title">
+          <article class="story-copy-step" data-story-step data-major-scene="timeline-reveal" aria-labelledby="story-step-2-title">
             <div class="story-copy">
-              <p class="story-kicker">한눈에 보는 오늘</p>
-              <h3 id="story-step-2-title">하루가<br>시간 위에 놓입니다.</h3>
-              <p>일정의 길이와 겹침, 지금 시각과 빈 시간을 한 화면에서 봅니다.</p>
+              <p class="story-kicker" data-copy="story.2.kicker">한눈에 보는 오늘</p>
+              <h3 id="story-step-2-title" data-copy-html="story.2.title">하루가<br>시간 위에 놓입니다.</h3>
+              <p data-copy="story.2.body">일정의 길이와 겹침, 지금 시각과 빈 시간을 한 화면에서 봅니다.</p>
             </div>
-            <figure class="story-product story-product-phone story-inline-product" data-inline-product>
+            <figure class="story-product story-product-phone story-inline-product">
               <img src="/assets/iphone-timeline.jpg" width="520" height="1130" loading="lazy" decoding="async" alt="일정 길이와 겹침을 시간 위에 보여주는 Oneul iPhone 타임라인">
             </figure>
           </article>
 
-          <article class="story-copy-step" data-story-step aria-labelledby="story-step-3-title">
+          <article class="story-copy-step" data-story-step data-major-scene="wide-day" aria-labelledby="story-step-3-title">
             <div class="story-copy">
-              <p class="story-kicker">넓은 화면에서</p>
-              <h3 id="story-step-3-title">시간 사이의 여유까지<br>더 또렷하게.</h3>
-              <p>iPad에서는 하루를 넓게 펼치고, 주간 보기에서는 일곱 날을 나란히 확인합니다.</p>
+              <p class="story-kicker" data-copy="story.3.kicker">넓은 화면에서</p>
+              <h3 id="story-step-3-title" data-copy-html="story.3.title">시간 사이의 여유까지<br>더 또렷하게.</h3>
+              <p data-copy="story.3.body">iPad에서는 하루를 넓게 펼치고, Mac에서는 일곱 날을 나란히 확인합니다.</p>
             </div>
-            <figure class="story-product story-product-tablet story-inline-product" data-inline-product>
+            <figure class="story-product story-product-tablet story-inline-product">
               <img src="/assets/ipad-timeline.jpg" width="960" height="1280" loading="lazy" decoding="async" alt="넓은 화면에 하루 일정을 펼친 Oneul iPad 타임라인">
             </figure>
           </article>
 
-          <article class="story-copy-step" data-story-step aria-labelledby="story-step-4-title">
+          <article class="story-copy-step" data-story-step data-major-scene="next-moment" aria-labelledby="story-step-4-title">
             <div class="story-copy">
-              <p class="story-kicker">손목과 앱 밖에서</p>
-              <h3 id="story-step-4-title">필요한 순간,<br>다음만 또렷하게.</h3>
-              <p>Apple Watch에서는 다음 일정과 남은 시간을 봅니다. 잠금화면과 위젯에서도 현재와 다음 일정을 확인할 수 있습니다.</p>
+              <p class="story-kicker" data-copy="story.4.kicker">손목과 앱 밖에서</p>
+              <h3 id="story-step-4-title" data-copy-html="story.4.title">필요한 순간,<br>다음만 또렷하게.</h3>
+              <p data-copy="story.4.body">Apple Watch에서는 다음 일정과 남은 시간을 봅니다. 잠금화면과 위젯에서도 현재와 다음 일정을 확인할 수 있습니다.</p>
             </div>
-            <figure class="story-product story-product-watch story-inline-product" data-inline-product>
+            <figure class="story-product story-product-watch story-inline-product">
               <img src="/assets/watch-timeline.jpg" width="328" height="402" loading="lazy" decoding="async" alt="다음 일정과 남은 시간을 보여주는 Oneul Apple Watch 화면">
             </figure>
           </article>
         </div>
 
         <div class="story-visual-sticky" aria-hidden="true">
+          <div class="story-aura"></div>
           <div class="story-product-stack">
             <figure class="story-product story-product-phone" data-story-product>
               <img src="/assets/iphone-ai.jpg" width="520" height="1130" loading="lazy" decoding="async" alt="">
@@ -141,144 +168,214 @@
               <img src="/assets/watch-timeline.jpg" width="328" height="402" loading="lazy" decoding="async" alt="">
             </figure>
           </div>
-          <div class="story-meter" aria-hidden="true"><span></span></div>
+          <div class="story-meter"><span></span></div>
         </div>
       </div>
     </section>
 
-    <section class="statement">
+    <section class="statement" data-flow-section="section" data-major-scene="flow-line">
+      <div class="statement-ribbon" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
       <div class="section-shell statement-inner">
-        <p>할 일 목록보다 <strong data-reveal="emphasis">지금의 흐름</strong>이 먼저 보입니다.</p>
+        <p data-copy-html="statement">할 일 목록보다 <strong>지금의 흐름</strong>이 먼저 보입니다.</p>
       </div>
     </section>
 
-    <section class="features section-shell" aria-labelledby="features-title">
-      <div class="section-heading">
-        <h2 id="features-title">학생의 하루까지,<br>한곳에서.</h2>
-        <p>학교를 고르면 수업과 학사일정, 급식을 오늘의 흐름 안에서 함께 확인합니다.</p>
+    <section class="school-story" id="school" aria-labelledby="school-title" data-school-story>
+      <div class="section-shell school-intro" data-flow-section="section">
+        <div class="section-heading">
+          <h2 id="school-title" data-copy-html="school.heading">학생의 하루도,<br>오늘 안에서 이어집니다.</h2>
+          <p data-copy="school.lede">학교·학년·반을 고르면 공개 NEIS 데이터를 불러와 수업, 학사일정, 급식을 같은 흐름에 놓습니다.</p>
+        </div>
       </div>
-
-      <article class="feature-row feature-row-wide">
-        <div class="feature-copy">
-          <p class="feature-index">학생 기능</p>
-          <h3>시간표와 급식도<br>오늘 안에서 이어집니다.</h3>
-          <p>학교·학년·반을 고르면 공개 NEIS 데이터를 불러옵니다. 선택과목을 골라 담고 학사일정은 함께 가져오며, 급식도 같은 앱에서 확인합니다.</p>
-        </div>
-        <div class="school-flow" aria-label="학생 기능 흐름">
-          <div><span>학교 선택</span><strong>학년 · 반</strong></div>
-          <b aria-hidden="true">›</b>
-          <div><span>자동 가져오기</span><strong>시간표 · 학사</strong></div>
-          <b aria-hidden="true">›</b>
-          <div><span>매일 확인</span><strong>오늘 · 급식</strong></div>
-        </div>
-      </article>
-    </section>
-
-    <section class="devices" id="devices" aria-labelledby="devices-title">
-      <div class="section-shell">
-        <div class="section-heading section-heading-light">
-          <h2 id="devices-title">같은 오늘,<br>기기마다 알맞게.</h2>
-          <p>작은 화면에는 다음 일정, 넓은 화면에는 한 주. Oneul은 화면을 늘리는 대신 기기에 맞는 정보를 보여줍니다.</p>
-        </div>
-
-        <figure class="mac-stage" data-reveal="product">
-          <img src="/assets/mac-week.jpg" width="1200" height="838" loading="lazy" alt="사이드바와 한 주 타임라인을 갖춘 Oneul Mac 앱 화면">
-        </figure>
-
-        <div class="device-options">
-          <article class="device-option device-option-primary">
-            <div>
-              <p>macOS 26 이상</p>
-              <h3>한 주를 넓게, 키보드로 빠르게.</h3>
+      <div class="school-shell section-shell">
+        <div class="school-copy-sequence">
+          <article class="school-copy-step" data-school-step data-major-scene="school-select">
+            <div class="school-copy">
+              <p class="story-kicker" data-copy="school.1.kicker">학교 선택</p>
+              <h3 data-copy-html="school.1.title">내 학교와<br>반만 고르세요.</h3>
+              <p data-copy="school.1.body">학교·학년·반을 찾고, 선택과목이 있다면 내 수업만 골라 담습니다.</p>
             </div>
-            <span class="status" data-mac-status>공개 배포 준비 중</span>
           </article>
-          <article class="device-option">
-            <p>iPhone · iPad · iOS/iPadOS 26 이상</p>
-            <h3>하루 입력과 편집</h3>
-            <span>세로 하루 보기와 넓은 주간 보기</span>
+          <article class="school-copy-step" data-school-step data-major-scene="school-timetable">
+            <div class="school-copy">
+              <p class="story-kicker" data-copy="school.2.kicker">시간표 자동 구성</p>
+              <h3 data-copy-html="school.2.title">수업과 학사가<br>일정이 됩니다.</h3>
+              <p data-copy="school.2.body">시간표와 주요 학사일정을 가져와 오늘의 타임라인에 맞게 정리합니다.</p>
+            </div>
           </article>
-          <article class="device-option">
-            <p>Apple Watch · watchOS 11 이상</p>
-            <h3>다음 일정 확인</h3>
-            <span>손목에서 남은 시간과 흐름 확인</span>
-          </article>
-          <article class="device-option">
-            <p>잠금화면 · 위젯</p>
-            <h3>앱을 열기 전에도</h3>
-            <span>라이브 액티비티와 홈 화면 위젯</span>
+          <article class="school-copy-step" data-school-step data-major-scene="school-meal">
+            <div class="school-copy">
+              <p class="story-kicker" data-copy="school.3.kicker">매일의 맥락</p>
+              <h3 data-copy-html="school.3.title">수업 다음엔<br>급식까지.</h3>
+              <p data-copy="school.3.body">오늘의 수업과 급식을 한 앱에서 확인하고, 새 학기 정보는 자동 갱신합니다.</p>
+            </div>
           </article>
         </div>
-        <p class="download-note">서명된 Mac 설치 파일이 공개되면 Mac 방문자의 버튼이 직접 다운로드 링크로 바뀝니다.</p>
+
+        <div class="school-visual-sticky" aria-hidden="true">
+          <div class="school-device">
+            <div class="school-chrome">
+              <span>Oneul</span>
+              <i></i><i></i><i></i>
+            </div>
+            <div class="school-screen">
+              <section class="school-panel school-selector-panel">
+                <p data-copy="school.visual.selector">학교 · 학년 · 반</p>
+                <strong data-copy="school.visual.school">서울한빛고등학교</strong>
+                <span data-copy="school.visual.class">2학년 3반</span>
+                <b data-copy="school.visual.import">시간표 가져오기</b>
+              </section>
+              <section class="school-panel school-timetable-panel">
+                <p data-copy="school.visual.timetable">오늘 수업</p>
+                <div class="class-grid">
+                  <span data-copy-html="school.visual.class1"><b>1교시</b>국어</span>
+                  <span data-copy-html="school.visual.class2"><b>2교시</b>수학</span>
+                  <span data-copy-html="school.visual.class3"><b>3교시</b>영어</span>
+                  <span data-copy-html="school.visual.class4"><b>4교시</b>물리</span>
+                  <span data-copy-html="school.visual.class5"><b>5교시</b>미술</span>
+                  <span data-copy-html="school.visual.class6"><b>6교시</b>동아리</span>
+                </div>
+              </section>
+              <section class="school-panel school-meal-panel">
+                <span class="meal-orbit"></span>
+                <p data-copy="school.visual.meal">오늘 급식</p>
+                <strong data-copy="school.visual.mealBody">현미밥 · 된장국 · 닭갈비</strong>
+                <div class="academic-strip"><i></i><span>중간고사 D-7</span></div>
+              </section>
+            </div>
+          </div>
+          <div class="school-meter"><span></span></div>
+        </div>
       </div>
     </section>
 
-    <section class="privacy-section section-shell" id="privacy" aria-labelledby="privacy-title">
-      <div class="privacy-mark" aria-hidden="true">
-        <span></span><span></span><span></span>
+    <section class="devices" id="devices" aria-labelledby="devices-title" data-device-story>
+      <div class="section-shell devices-intro" data-flow-section="section">
+        <div class="section-heading section-heading-light">
+          <h2 id="devices-title" data-copy-html="devices.heading">같은 오늘,<br>기기마다 알맞게.</h2>
+          <p data-copy="devices.lede">작은 화면에는 다음 일정, 넓은 화면에는 한 주. Oneul은 화면을 늘리는 대신 기기에 맞는 정보를 보여줍니다.</p>
+        </div>
+      </div>
+
+      <div class="device-story-shell section-shell">
+        <div class="device-copy-sequence">
+          <article class="device-copy-step" data-device-step data-major-scene="phone-tablet">
+            <div class="device-copy">
+              <p class="story-kicker" data-copy="devices.1.kicker">iPhone · iPad</p>
+              <h3 data-copy-html="devices.1.title">하루를 만들고<br>넓게 펼칩니다.</h3>
+              <p data-copy="devices.1.body">iPhone의 세로 타임라인과 iPad의 넓은 하루 보기가 같은 일정에서 이어집니다.</p>
+            </div>
+          </article>
+          <article class="device-copy-step" data-device-step data-major-scene="watch-widget">
+            <div class="device-copy">
+              <p class="story-kicker" data-copy="devices.2.kicker">Apple Watch · 위젯</p>
+              <h3 data-copy-html="devices.2.title">앱을 열기 전에<br>다음을 봅니다.</h3>
+              <p data-copy="devices.2.body">손목, 잠금화면, 홈 화면에서 현재와 다음 일정에 필요한 정보만 남깁니다.</p>
+            </div>
+          </article>
+          <article class="device-copy-step" data-device-step data-major-scene="mac-week">
+            <div class="device-copy">
+              <p class="story-kicker" data-copy="devices.3.kicker">Mac</p>
+              <h3 data-copy-html="devices.3.title">한 주를 넓게,<br>키보드로 빠르게.</h3>
+              <p data-copy="devices.3.body">Mac에서는 사이드바와 주간 타임라인, 메뉴바와 단축키로 하루를 다룹니다.</p>
+            </div>
+          </article>
+        </div>
+
+        <div class="device-visual-sticky" aria-hidden="true">
+          <div class="device-aura"></div>
+          <figure class="ecosystem-mac">
+            <img src="/assets/mac-week.jpg" width="1200" height="838" loading="lazy" decoding="async" alt="">
+          </figure>
+          <figure class="ecosystem-phone">
+            <img src="/assets/iphone-timeline.jpg" width="520" height="1130" loading="lazy" decoding="async" alt="">
+          </figure>
+          <figure class="ecosystem-watch">
+            <img src="/assets/watch-timeline.jpg" width="328" height="402" loading="lazy" decoding="async" alt="">
+          </figure>
+          <div class="device-meter"><span></span></div>
+        </div>
+      </div>
+
+      <div class="section-shell device-release" data-flow-section="section">
+        <div>
+          <p>macOS 26+</p>
+          <strong data-copy="devices.mac.status" data-mac-status>공개 배포 준비 중</strong>
+        </div>
+        <p data-copy="devices.note">서명·공증된 Mac 설치 파일이 공개되면 Mac 방문자의 버튼이 직접 다운로드 링크로 바뀝니다.</p>
+      </div>
+    </section>
+
+    <section class="privacy-section section-shell" id="privacy" aria-labelledby="privacy-title" data-flow-section="section" data-major-scene="privacy-boundary">
+      <div class="privacy-visual" aria-hidden="true">
+        <div class="privacy-boundary">
+          <span></span><span></span><span></span>
+          <i></i>
+        </div>
+        <p>Private iCloud</p>
       </div>
       <div class="privacy-copy">
-        <h2 id="privacy-title">당신의 일정은<br>당신의 것입니다.</h2>
-        <p>일정 원본은 기기와 개인 iCloud의 비공개 데이터베이스에 저장되어 개발자가 CloudKit에서 열람할 수 없습니다. 라이브 액티비티를 켜면 임의 기기 식별자, 푸시 토큰, 당일 표시용 일정 제목·시각이 Cloudflare에 임시 저장되고 최대 3일 안에 삭제됩니다.</p>
+        <h2 id="privacy-title" data-copy-html="privacy.title">당신의 일정은<br>당신의 것입니다.</h2>
+        <p data-copy="privacy.body">일정 원본은 기기와 개인 iCloud의 비공개 데이터베이스에 저장됩니다. 라이브 액티비티를 켜면 당일 표시에 필요한 데이터만 Cloudflare에 임시 저장되고 최대 3일 안에 삭제됩니다.</p>
         <div class="privacy-points">
-          <p><strong>추적하지 않음</strong><span>광고 SDK와 이용 분석 없음</span></p>
-          <p><strong>기기 안에서 해석</strong><span>문장 해석은 온디바이스 처리</span></p>
-          <p><strong>필요한 만큼만</strong><span>라이브 액티비티 임시 데이터는 최대 3일 안에 삭제</span></p>
+          <p><strong data-copy="privacy.noTracking">추적하지 않음</strong><span data-copy="privacy.noTrackingBody">광고 SDK와 이용 분석 없음</span></p>
+          <p><strong data-copy="privacy.onDevice">기기 안에서 해석</strong><span data-copy="privacy.onDeviceBody">문장 해석은 온디바이스 처리</span></p>
+          <p><strong data-copy="privacy.minimum">필요한 만큼만</strong><span data-copy="privacy.minimumBody">라이브 액티비티 임시 데이터는 최대 3일</span></p>
         </div>
-        <a class="text-link" href="/privacy">개인정보 처리방침 전문 보기 <span aria-hidden="true">↗</span></a>
+        <a class="text-link" href="/privacy"><span data-copy="privacy.link">개인정보 처리방침 전문 보기</span> <span aria-hidden="true">↗</span></a>
       </div>
     </section>
 
-    <section class="faq section-shell" aria-labelledby="faq-title">
+    <section class="faq section-shell" aria-labelledby="faq-title" data-flow-section="section">
       <div class="section-heading">
-        <h2 id="faq-title">궁금한 점.</h2>
+        <h2 id="faq-title" data-copy="faq.title">궁금한 점.</h2>
       </div>
       <div class="faq-list">
         <details>
-          <summary>Oneul은 무료인가요?</summary>
-          <p>현재 앱은 무료로 준비되고 있습니다. 공개 배포 채널과 정확한 지원 버전은 출시 시 이 페이지에 표시합니다.</p>
+          <summary data-copy="faq.1.q">Oneul은 무료인가요?</summary>
+          <p data-copy="faq.1.a">현재 앱은 무료로 준비되고 있습니다. 공개 배포 채널과 정확한 지원 버전은 출시 시 이 페이지에 표시합니다.</p>
         </details>
         <details>
-          <summary>Android와 Windows에서도 쓸 수 있나요?</summary>
-          <p>현재 Oneul은 iPhone, iPad, Mac, Apple Watch용 네이티브 앱입니다. 지원하지 않는 기기에서도 이 홈페이지와 지원 문서는 정상적으로 볼 수 있습니다.</p>
+          <summary data-copy="faq.2.q">Android와 Windows에서도 쓸 수 있나요?</summary>
+          <p data-copy="faq.2.a">현재 Oneul은 iPhone, iPad, Mac, Apple Watch용 네이티브 앱입니다. 지원하지 않는 기기에서도 홈페이지와 지원 문서는 볼 수 있습니다.</p>
         </details>
         <details>
-          <summary>Apple Intelligence가 없는 기기에서도 입력할 수 있나요?</summary>
-          <p>네. 기본 날짜·시간 표현은 Oneul의 기기 내 규칙 파서가 처리합니다. 더 복잡한 표현의 Apple Intelligence 해석은 Apple Intelligence 지원 기기에서만 사용할 수 있습니다. 음성 받아쓰기는 Apple 음성 인식 정책이 적용됩니다.</p>
+          <summary data-copy="faq.3.q">Apple Intelligence가 없는 기기에서도 입력할 수 있나요?</summary>
+          <p data-copy="faq.3.a">네. 기본 날짜·시간 표현은 Oneul의 기기 내 규칙 파서가 처리합니다. 더 복잡한 표현은 Apple Intelligence 지원 기기에서 해석합니다.</p>
         </details>
         <details>
-          <summary>일정이 개발자 서버에 저장되나요?</summary>
-          <p>일정 원본은 기기와 개인 iCloud에 저장됩니다. 다만 라이브 액티비티를 사용하면 임의 기기 식별자·푸시 토큰과 표시용 일정 제목·시각이 Cloudflare에 최대 3일간 임시 저장됩니다.</p>
-        </details>
-        <details>
-          <summary>Mac 다운로드 버튼이 왜 준비 중인가요?</summary>
-          <p>공개 배포용으로 서명·공증된 Mac 설치 파일이 아직 없기 때문입니다. 안전한 배포 파일이 준비되면 Mac 방문자에게 직접 다운로드 버튼이 표시됩니다.</p>
+          <summary data-copy="faq.4.q">일정이 개발자 서버에 저장되나요?</summary>
+          <p data-copy="faq.4.a">일정 원본은 기기와 개인 iCloud에 저장됩니다. 라이브 액티비티 사용 시 임의 기기 식별자·푸시 토큰과 당일 표시용 일정이 최대 3일간 임시 저장됩니다.</p>
         </details>
       </div>
     </section>
 
-    <section class="final-cta">
+    <section class="final-cta" data-final-scene data-flow-section="terminal" data-major-scene="product-reassembly">
+      <div class="final-atmosphere" aria-hidden="true"></div>
       <div class="section-shell final-cta-inner">
-        <img src="/assets/oneul-icon.png" width="88" height="88" alt="">
-        <div>
-          <h2>오늘을 놓치지 마세요.</h2>
-          <p>말 한마디로 시작하고, 지원되는 Apple 기기에서 이어서 봅니다.</p>
+        <div class="reassembly" aria-hidden="true">
+          <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+          <img src="/assets/oneul-icon.png" width="112" height="112" alt="">
         </div>
-        <a class="button button-primary platform-cta" href="#devices" data-platform-cta>지원 기기 보기</a>
+        <div>
+          <h2 data-copy-html="final.title">오늘을<br>당신의 시간으로.</h2>
+          <p data-copy="final.body">말 한마디로 시작하고, 지원되는 Apple 기기에서 이어서 보세요.</p>
+        </div>
+        <a class="button button-primary platform-cta" href="#devices" data-platform-cta data-copy="final.action">지원 기기 보기</a>
       </div>
     </section>
   </main>
 
-  <footer class="site-footer">
+  <footer class="site-footer" data-flow-section="terminal">
     <div class="section-shell footer-inner">
       <div class="brand brand-footer">
         <img src="/assets/oneul-icon.png" width="32" height="32" alt="">
         <span>Oneul</span>
       </div>
       <nav aria-label="하단 메뉴">
-        <a href="/privacy">개인정보 처리방침</a>
-        <a href="/support">지원</a>
-        <a href="mailto:edsok5588@gmail.com">문의</a>
+        <a href="/privacy" data-copy="footer.privacy">개인정보 처리방침</a>
+        <a href="/support" data-copy="footer.support">지원</a>
+        <a href="mailto:edsok5588@gmail.com" data-copy="footer.contact">문의</a>
       </nav>
       <p>© 2026 Oneul</p>
       <p class="trademark">Apple, Apple Intelligence, Apple Watch, iCloud, iPad, iPhone, and Mac are trademarks of Apple Inc.</p>
