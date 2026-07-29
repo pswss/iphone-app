@@ -27,7 +27,7 @@ The recurring motif is the rainbow time line from the real app icon and schedule
 
 The page uses the existing dependency-free JavaScript scroll engine. It batches all scroll work into one `requestAnimationFrame`, measures only on load, resize, orientation change, font readiness, `pageshow`, or observed layout resize, and writes compositor-friendly CSS custom properties. There is no smooth-scroll dependency, scroll hijacking, Canvas, WebGL, video, or frame sequence.
 
-Three desktop scenes are pinned: hero handoff, the four-step product story, and the student/device stories. The same semantic copy and real screenshots remain in normal document flow when JavaScript is unavailable. Mobile removes the heavy pinned compositions and presents the screenshots and feature UI inline. Reduced motion never initializes the scrubbed scene engine.
+Four desktop scenes are pinned: hero handoff, the four-step product story, the student story, and the device story. The same semantic copy and real screenshots remain in normal document flow when JavaScript is unavailable. Mobile removes the heavy pinned compositions and presents the screenshots and feature UI inline. Reduced motion never initializes the scrubbed scene engine.
 
 ### Motion Tokens
 
