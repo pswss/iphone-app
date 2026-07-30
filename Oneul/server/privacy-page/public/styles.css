@@ -50,6 +50,11 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+:lang(ko) :where(h1, h2, h3, p, li, dt, dd) {
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
 a {
   color: inherit;
   text-decoration: none;
@@ -210,12 +215,12 @@ button {
 }
 
 .nav-links a:hover,
-.nav-links a[aria-current="true"] {
+.nav-links a[aria-current] {
   color: var(--ink);
 }
 
 .nav-links a:hover::after,
-.nav-links a[aria-current="true"]::after {
+.nav-links a[aria-current]::after {
   transform: scaleX(1);
   transform-origin: left;
 }
@@ -1930,7 +1935,8 @@ html.motion-ready .hero.is-active .scroll-cue i {
   .story-shell { width: min(calc(100% - 2rem), 1220px); }
   .brand span { display: none; }
   .nav-shell > .platform-cta { min-width: 0; max-width: none; padding-inline: 0.75rem; flex: 0 1 auto; font-size: 0.78rem; }
-  .hero-copy, .hero h1, .hero-lede, .availability { max-width: 100%; overflow-wrap: anywhere; }
+  .hero-copy, .hero-lede, .availability { max-width: 100%; overflow-wrap: anywhere; }
+  .hero h1 { max-width: 100%; overflow-wrap: break-word; }
   .hero h1 { font-size: clamp(2.75rem, 12vw, 3.15rem); }
   .hero-actions { align-items: stretch; flex-direction: column; }
   .hero-actions .button { width: 100%; }
@@ -3512,4 +3518,858 @@ html.motion-ready .hero.is-active .scroll-cue i {
   .site-footer { display: none; }
   body { background: white; color: black; }
   .devices { background: white; color: black; }
+}
+
+/* Download gateway */
+.download-page {
+  background: #f5f7fb;
+  color: #111622;
+}
+
+.download-page .site-header {
+  background: rgb(248 250 253 / 78%);
+}
+
+.download-eyebrow {
+  margin: 0 0 1rem;
+  color: #4341c8;
+  font-size: 0.84rem;
+  font-weight: 780;
+  letter-spacing: 0.02em;
+}
+
+.download-hero {
+  position: relative;
+  overflow: clip;
+  background:
+    radial-gradient(circle at 75% 18%, rgb(10 132 255 / 10%), transparent 30%),
+    radial-gradient(circle at 66% 76%, rgb(48 209 88 / 9%), transparent 32%),
+    #f5f7fb;
+}
+
+.download-hero-sticky {
+  min-height: calc(100svh - var(--header-height));
+  padding-block: clamp(4rem, 8vw, 7rem);
+  display: grid;
+  grid-template-columns: minmax(0, 0.78fr) minmax(500px, 1.22fr);
+  align-items: center;
+  gap: clamp(3rem, 7vw, 7rem);
+}
+
+.download-hero-copy {
+  position: relative;
+  z-index: 3;
+  max-width: 600px;
+}
+
+.download-hero h1 {
+  margin: 0;
+  max-width: 10ch;
+  font-size: clamp(4.25rem, 7.4vw, 7.8rem);
+  font-weight: 720;
+  line-height: 0.94;
+  letter-spacing: -0.055em;
+  text-wrap: balance;
+  word-break: keep-all;
+}
+
+.download-hero-lede {
+  max-width: 42rem;
+  margin: 1.8rem 0 0;
+  color: #576176;
+  font-size: clamp(1.05rem, 1.55vw, 1.25rem);
+  line-height: 1.72;
+  text-wrap: pretty;
+}
+
+.download-hero-actions {
+  margin-top: 2rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.download-detected {
+  min-height: 1.6em;
+  margin: 1.1rem 0 0;
+  color: #596276;
+  font-size: 0.88rem;
+}
+
+.download-proof {
+  margin: 2rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+  color: #596276;
+  font-size: 0.83rem;
+  list-style: none;
+}
+
+.download-proof li {
+  position: relative;
+  padding-left: 14px;
+}
+
+.download-proof li::before {
+  content: "";
+  position: absolute;
+  top: 0.58em;
+  left: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #30d158;
+}
+
+.download-hero-stage {
+  position: relative;
+  min-height: 710px;
+  perspective: 1500px;
+  isolation: isolate;
+}
+
+.download-hero-light {
+  position: absolute;
+  z-index: -3;
+  top: 50%;
+  left: 50%;
+  width: min(56vw, 760px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 28% 32%, rgb(255 69 58 / 17%), transparent 42%),
+    radial-gradient(circle at 75% 28%, rgb(10 132 255 / 19%), transparent 44%),
+    radial-gradient(circle at 48% 78%, rgb(48 209 88 / 16%), transparent 46%);
+  filter: blur(34px);
+  transform: translate(-50%, -50%);
+}
+
+.download-rainbow-orbit {
+  position: absolute;
+  z-index: -1;
+  top: 50%;
+  left: 50%;
+  width: min(52vw, 700px);
+  aspect-ratio: 1;
+  border: 1px solid rgb(75 83 102 / 12%);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) rotate(-18deg);
+}
+
+.download-rainbow-orbit i {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 78px;
+  border-radius: 999px;
+  background: #ff453a;
+  transform: rotate(0deg) translateY(-310px);
+  transform-origin: 10px 310px;
+}
+
+.download-rainbow-orbit i:nth-child(2) { background: #ff9f0a; transform: rotate(51deg) translateY(-310px); }
+.download-rainbow-orbit i:nth-child(3) { background: #ffd60a; transform: rotate(102deg) translateY(-310px); }
+.download-rainbow-orbit i:nth-child(4) { background: #30d158; transform: rotate(153deg) translateY(-310px); }
+.download-rainbow-orbit i:nth-child(5) { background: #0a84ff; transform: rotate(204deg) translateY(-310px); }
+.download-rainbow-orbit i:nth-child(6) { background: #5e5ce6; transform: rotate(255deg) translateY(-310px); }
+.download-rainbow-orbit i:nth-child(7) { background: #bf5af2; transform: rotate(306deg) translateY(-310px); }
+
+.download-hero-stage figure {
+  position: absolute;
+  margin: 0;
+  overflow: hidden;
+  background: #050609;
+  box-shadow: 0 9px 22px rgb(15 23 45 / 22%);
+  transition: filter 260ms var(--ease-out), opacity 260ms var(--ease-out);
+  transform-origin: center;
+}
+
+.download-hero-mac {
+  z-index: 1;
+  top: 18%;
+  left: 7%;
+  width: min(88%, 680px);
+  aspect-ratio: 1200 / 838;
+  border: 8px solid #08090c;
+  border-radius: 22px;
+  transform: rotate(2deg);
+}
+
+.download-hero-mac img,
+.download-hero-phone img,
+.download-hero-tablet img,
+.download-hero-watch img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.download-hero-phone {
+  z-index: 4;
+  bottom: 3%;
+  left: 2%;
+  width: 156px;
+  aspect-ratio: 520 / 1130;
+  border: 6px solid #08090c;
+  border-radius: 30px;
+  transform: rotate(-7deg);
+}
+
+.download-hero-tablet {
+  z-index: 2;
+  right: 0;
+  bottom: 4%;
+  width: 205px;
+  aspect-ratio: 3 / 4;
+  border: 6px solid #08090c;
+  border-radius: 22px;
+  transform: rotate(6deg);
+}
+
+.download-hero-watch {
+  z-index: 5;
+  right: 2%;
+  top: 4%;
+  width: 118px;
+  aspect-ratio: 328 / 402;
+  border: 5px solid #08090c;
+  border-radius: 28px;
+  transform: rotate(7deg);
+}
+
+.download-mac-event {
+  position: absolute;
+  z-index: 2;
+  min-height: 13%;
+  padding: 5px;
+  overflow: hidden;
+  border-radius: 5px;
+  color: #29252a;
+  font-size: 7px;
+  font-weight: 730;
+}
+
+.download-mac-event.event-a { top: 51%; left: 22%; width: 12%; background: rgb(255 69 58 / 72%); }
+.download-mac-event.event-b { top: 58%; left: 36%; width: 12%; height: 23%; background: rgb(255 159 10 / 70%); }
+.download-mac-event.event-c { top: 66%; left: 50%; width: 12%; background: rgb(255 214 10 / 72%); }
+.download-mac-event.event-d { top: 72%; left: 64%; width: 12%; height: 20%; background: rgb(10 132 255 / 68%); }
+
+.download-device-chip {
+  position: absolute;
+  z-index: 7;
+  min-height: 42px;
+  padding: 0 15px;
+  display: flex;
+  align-items: center;
+  border: 1px solid rgb(255 255 255 / 72%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 78%);
+  box-shadow: 0 8px 20px rgb(28 38 62 / 10%);
+  color: #31384a;
+  font-size: 0.75rem;
+  font-weight: 700;
+  backdrop-filter: blur(18px) saturate(150%);
+}
+
+.chip-store { top: 8%; left: 2%; }
+.chip-native { right: 10%; bottom: 2%; }
+
+body[data-selected-device="iphone"] .download-hero-phone,
+body[data-selected-device="ipad"] .download-hero-tablet,
+body[data-selected-device="watch"] .download-hero-watch,
+body[data-selected-device="mac"] .download-hero-mac {
+  z-index: 8;
+  filter: saturate(1.08) contrast(1.02);
+}
+
+body[data-selected-device="iphone"] .download-hero-stage figure:not(.download-hero-phone),
+body[data-selected-device="ipad"] .download-hero-stage figure:not(.download-hero-tablet),
+body[data-selected-device="watch"] .download-hero-stage figure:not(.download-hero-watch),
+body[data-selected-device="mac"] .download-hero-stage figure:not(.download-hero-mac) {
+  opacity: 0.46;
+  filter: saturate(0.68);
+}
+
+.download-devices {
+  padding-block: clamp(7rem, 12vw, 12rem);
+}
+
+.download-section-heading {
+  max-width: 850px;
+}
+
+.download-section-heading h2,
+.download-build-status h2,
+.download-final h2 {
+  margin: 0;
+  font-size: clamp(3rem, 6.5vw, 6.8rem);
+  line-height: 0.98;
+  letter-spacing: -0.05em;
+  text-wrap: balance;
+  word-break: keep-all;
+}
+
+.download-section-heading > p:last-child {
+  max-width: 44rem;
+  margin: 1.5rem 0 0;
+  color: #5e687b;
+  font-size: 1.04rem;
+  line-height: 1.7;
+}
+
+.download-device-tabs {
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 3rem;
+  padding: 5px;
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  border: 1px solid rgb(31 39 57 / 9%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 72%);
+  box-shadow: 0 8px 24px rgb(35 45 68 / 7%);
+  scrollbar-width: none;
+}
+
+.download-device-tabs::-webkit-scrollbar { display: none; }
+
+.download-device-tabs button {
+  min-width: max-content;
+  min-height: 44px;
+  padding: 0 17px;
+  border-radius: 999px;
+  background: transparent;
+  color: #596276;
+  cursor: pointer;
+  font-size: 0.86rem;
+  font-weight: 700;
+  transition: color 180ms ease-out, background-color 180ms ease-out, transform 100ms ease-out;
+}
+
+.download-device-tabs button[aria-pressed="true"] {
+  background: #151922;
+  color: white;
+}
+
+.download-device-tabs button:active { transform: scale(0.97); }
+
+.download-selection-status {
+  min-height: 1.5em;
+  margin: 1rem 0 0;
+  color: #596276;
+  font-size: 0.83rem;
+}
+
+.download-device-grid {
+  margin-top: 3rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.download-device-card {
+  position: relative;
+  min-width: 0;
+  padding: clamp(1.5rem, 3vw, 2.4rem);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgb(28 36 52 / 9%);
+  border-radius: 30px;
+  background: rgb(255 255 255 / 80%);
+  box-shadow: 0 8px 28px rgb(31 42 67 / 7%);
+  overflow: hidden;
+  transition: transform 280ms var(--ease-out), border-color 220ms ease-out, box-shadow 280ms var(--ease-out);
+}
+
+.download-device-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: linear-gradient(90deg, #ff453a, #ff9f0a, #ffd60a, #30d158, #0a84ff, #5e5ce6, #bf5af2);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 420ms var(--ease-out);
+}
+
+.download-device-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 16px 42px rgb(31 42 67 / 11%);
+}
+
+.download-device-card.is-recommended {
+  border-color: rgb(94 92 230 / 44%);
+  box-shadow: 0 18px 48px rgb(73 74 185 / 14%);
+}
+
+.download-device-card.is-recommended::before { transform: scaleX(1); }
+
+.download-card-top {
+  min-height: 60px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.download-recommended {
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgb(94 92 230 / 10%);
+  color: #4e4cc6;
+  font-size: 0.7rem;
+  font-weight: 760;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 180ms ease-out, transform 240ms var(--ease-out);
+}
+
+.download-device-card.is-recommended .download-recommended { opacity: 1; transform: none; }
+
+.download-device-symbol {
+  position: relative;
+  width: 42px;
+  height: 52px;
+  display: block;
+  border: 3px solid #161b26;
+  border-radius: 10px;
+}
+
+.symbol-phone::before,
+.symbol-tablet::before,
+.symbol-mac::before {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border-radius: 5px;
+  background: linear-gradient(145deg, rgb(255 69 58 / 22%), rgb(10 132 255 / 22%));
+}
+
+.symbol-tablet { width: 52px; border-radius: 8px; }
+.symbol-watch { width: 44px; height: 44px; margin-top: 4px; border-radius: 13px; }
+.symbol-watch::before { content: ""; position: absolute; inset: 7px; border-radius: 7px; background: #0f1219; }
+.symbol-mac { width: 62px; height: 42px; border-radius: 7px; }
+.symbol-mac::after { content: ""; position: absolute; top: 100%; left: 50%; width: 28px; height: 7px; border-bottom: 3px solid #161b26; transform: translateX(-50%); }
+
+.download-card-kicker {
+  margin: 1rem 0 0.5rem;
+  color: #4c4ac6;
+  font-size: 0.82rem;
+  font-weight: 780;
+}
+
+.download-device-card h3 {
+  margin: 0;
+  max-width: 18ch;
+  font-size: clamp(1.65rem, 3vw, 2.55rem);
+  line-height: 1.06;
+  letter-spacing: -0.035em;
+  word-break: keep-all;
+}
+
+.download-device-card > p:not(.download-card-kicker, .download-release-state) {
+  max-width: 38rem;
+  margin: 1rem 0 0;
+  color: #5e687b;
+  line-height: 1.68;
+}
+
+.download-device-card dl {
+  margin: 1.8rem 0;
+  padding: 1rem 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid rgb(35 43 60 / 10%);
+  border-bottom: 1px solid rgb(35 43 60 / 10%);
+}
+
+.download-device-card dl div + div { padding-left: 1rem; border-left: 1px solid rgb(35 43 60 / 10%); }
+.download-device-card dt { color: #626c7e; font-size: 0.68rem; font-weight: 700; }
+.download-device-card dd { margin: 4px 0 0; font-size: 0.9rem; font-weight: 730; }
+.download-device-card > .button { width: 100%; margin-top: auto; }
+
+.download-device-card-mac {
+  background:
+    radial-gradient(circle at 88% 12%, rgb(10 132 255 / 12%), transparent 38%),
+    rgb(255 255 255 / 84%);
+}
+
+.download-release-state {
+  margin: 1rem 0 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #6c7484;
+  font-size: 0.78rem;
+  font-weight: 680;
+}
+
+.download-release-state i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff9f0a;
+  box-shadow: 0 0 0 5px rgb(255 159 10 / 12%);
+}
+
+.download-mac-story {
+  position: relative;
+  padding-block: clamp(7rem, 12vw, 11rem);
+  overflow: clip;
+  background: #070a12;
+  color: #f7f8fb;
+}
+
+.download-mac-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 0.72fr) minmax(500px, 1.28fr);
+  gap: clamp(3rem, 7vw, 7rem);
+}
+
+.download-mac-copy-step {
+  min-height: 74svh;
+  padding-block: clamp(4rem, 8vw, 7rem);
+  display: flex;
+  align-items: center;
+}
+
+.download-mac-copy { max-width: 570px; }
+.download-mac-copy .download-eyebrow { color: #7eb5ff; }
+
+.download-mac-copy h3 {
+  margin: 0;
+  font-size: clamp(3rem, 5.7vw, 5.9rem);
+  line-height: 0.99;
+  letter-spacing: -0.05em;
+  text-wrap: balance;
+  word-break: keep-all;
+}
+
+.download-mac-copy > p:last-child {
+  margin: 1.4rem 0 0;
+  color: #aeb8ca;
+  font-size: 1.04rem;
+  line-height: 1.72;
+}
+
+.download-mac-visual {
+  position: relative;
+  min-height: 720px;
+  display: grid;
+  place-items: center;
+  perspective: 1500px;
+}
+
+.download-mac-aura {
+  position: absolute;
+  width: min(50vw, 680px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 28% 32%, rgb(255 69 58 / 22%), transparent 42%),
+    radial-gradient(circle at 74% 30%, rgb(10 132 255 / 25%), transparent 46%),
+    radial-gradient(circle at 48% 76%, rgb(94 92 230 / 22%), transparent 48%);
+  filter: blur(46px);
+  opacity: 0.56;
+}
+
+.download-mac-device {
+  position: relative;
+  z-index: 2;
+  width: min(100%, 720px);
+  transform-style: preserve-3d;
+}
+
+.download-mac-device figure {
+  margin: 0;
+  overflow: hidden;
+  border: 9px solid #020305;
+  border-radius: 22px;
+  background: black;
+  box-shadow: 0 18px 54px rgb(0 0 0 / 52%);
+}
+
+.download-mac-device figure img { width: 100%; }
+
+.download-mac-overlay {
+  position: absolute;
+  z-index: 3;
+  inset: 18% 5% 8% 22%;
+  opacity: 0.9;
+}
+
+.download-mac-overlay i {
+  position: absolute;
+  width: 12%;
+  min-height: 16%;
+  border-radius: 5px;
+  background: rgb(255 69 58 / 74%);
+}
+
+.download-mac-overlay i:nth-child(1) { top: 22%; left: 0; }
+.download-mac-overlay i:nth-child(2) { top: 41%; left: 15%; height: 28%; background: rgb(255 159 10 / 72%); }
+.download-mac-overlay i:nth-child(3) { top: 51%; left: 44%; background: rgb(255 214 10 / 72%); }
+.download-mac-overlay i:nth-child(4) { top: 66%; left: 59%; height: 24%; background: rgb(10 132 255 / 68%); }
+.download-mac-overlay i:nth-child(5) { top: 30%; left: 87%; background: rgb(94 92 230 / 70%); }
+
+.download-menu-bar-card {
+  position: absolute;
+  z-index: 5;
+  top: 9%;
+  right: -4%;
+  width: 270px;
+  min-height: 114px;
+  padding: 16px;
+  display: grid;
+  gap: 7px;
+  border: 1px solid rgb(255 255 255 / 13%);
+  border-radius: 18px;
+  background: rgb(18 22 32 / 92%);
+  box-shadow: 0 16px 36px rgb(0 0 0 / 38%);
+  backdrop-filter: blur(18px);
+}
+
+.download-menu-bar-card span { color: #929daf; font-size: 0.68rem; }
+.download-menu-bar-card b { font-size: 0.95rem; }
+.download-menu-bar-card small { color: #aeb7c7; }
+
+.download-mac-meter {
+  position: absolute;
+  right: 0;
+  bottom: 2rem;
+  width: min(210px, 28vw);
+  height: 2px;
+  background: rgb(255 255 255 / 18%);
+}
+
+.download-mac-meter span {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: #0a84ff;
+  transform: scaleX(var(--download-mac-progress, 0));
+  transform-origin: left;
+}
+
+.download-build-status {
+  padding-block: clamp(7rem, 12vw, 12rem);
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(360px, 0.72fr);
+  align-items: center;
+  gap: clamp(3rem, 8vw, 8rem);
+}
+
+.download-status-list {
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgb(33 42 61 / 9%);
+  border-radius: 26px;
+  background: rgb(255 255 255 / 76%);
+  box-shadow: 0 12px 38px rgb(35 46 70 / 8%);
+}
+
+.download-status-list p {
+  margin: 0;
+  min-height: 92px;
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border-radius: 18px;
+  background: rgb(246 248 252 / 88%);
+}
+
+.download-status-list > p > i {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #30d158;
+  box-shadow: 0 0 0 7px rgb(48 209 88 / 12%);
+}
+
+.download-status-list > p > i.is-pending { background: #ff9f0a; box-shadow: 0 0 0 7px rgb(255 159 10 / 12%); }
+.download-status-list span { display: grid; gap: 5px; }
+.download-status-list strong { font-size: 0.95rem; }
+.download-status-list small { color: #697285; font-size: 0.82rem; line-height: 1.5; }
+
+.download-final {
+  position: relative;
+  overflow: clip;
+  background: #4f4dc6;
+  color: white;
+}
+
+.download-final-light {
+  position: absolute;
+  inset: -80% -10%;
+  background:
+    radial-gradient(circle at 20% 45%, rgb(255 69 58 / 34%), transparent 28%),
+    radial-gradient(circle at 76% 32%, rgb(10 132 255 / 38%), transparent 30%),
+    radial-gradient(circle at 55% 76%, rgb(48 209 88 / 26%), transparent 28%);
+  filter: blur(60px);
+}
+
+.download-final-inner {
+  position: relative;
+  min-height: 72svh;
+  padding-block: clamp(5rem, 9vw, 8rem);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: clamp(2rem, 5vw, 4rem);
+}
+
+.download-final-inner > img {
+  border-radius: 23%;
+  box-shadow: 0 16px 36px rgb(22 21 80 / 32%);
+}
+
+.download-final .download-eyebrow { color: rgb(255 255 255 / 88%); }
+.download-final h2 { max-width: 13ch; }
+.download-final-inner > div > p:last-child { max-width: 40rem; color: rgb(255 255 255 / 76%); line-height: 1.7; }
+.download-final-actions { display: grid; gap: 16px; justify-items: center; }
+.download-final .button-primary { background: white; color: #171a25; }
+.download-final .text-link { color: white; }
+
+.legal-header .legal-shell { display: flex; align-items: center; }
+.legal-nav { margin-left: auto; display: flex; align-items: center; gap: 20px; font-size: 0.86rem; font-weight: 680; }
+.legal-nav a { min-height: 44px; display: inline-flex; align-items: center; }
+.not-found-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+
+@media screen and (min-width: 1101px) and (min-height: 700px) and (prefers-reduced-motion: no-preference) {
+  html.download-hero-ready .download-hero { min-height: 280svh; }
+  html.download-hero-ready .download-hero-sticky { position: sticky; top: var(--header-height); height: calc(100svh - var(--header-height)); min-height: 620px; padding-block: clamp(2rem, 5vh, 4rem); }
+  html.download-hero-ready .download-hero-copy { opacity: var(--download-copy-opacity, 1); transform: translate3d(0, var(--download-copy-y, 0), 0) scale(var(--download-copy-scale, 1)); }
+  html.download-hero-ready .download-hero-stage { transform: translate3d(var(--download-stage-x, 0), var(--download-stage-y, 0), 0) scale(var(--download-stage-scale, 1)); }
+  html.download-hero-ready .download-hero-mac { transform: translate3d(var(--download-mac-x, 0), var(--download-mac-y, 0), 0) rotate(var(--download-mac-rotate, 2deg)) scale(var(--download-mac-scale, 1)); }
+  html.download-hero-ready .download-hero-phone { transform: translate3d(var(--download-phone-x, 0), var(--download-phone-y, 0), 0) rotate(var(--download-phone-rotate, -7deg)) scale(var(--download-phone-scale, 1)); }
+  html.download-hero-ready .download-hero-tablet { transform: translate3d(var(--download-tablet-x, 0), var(--download-tablet-y, 0), 0) rotate(var(--download-tablet-rotate, 6deg)) scale(var(--download-tablet-scale, 1)); }
+  html.download-hero-ready .download-hero-watch { transform: translate3d(var(--download-watch-x, 0), var(--download-watch-y, 0), 0) rotate(var(--download-watch-rotate, 7deg)) scale(var(--download-watch-scale, 1)); }
+  html.download-hero-ready .download-rainbow-orbit { transform: translate(-50%, -50%) rotate(var(--download-orbit-rotate, -18deg)) scale(var(--download-orbit-scale, 1)); }
+  html.download-hero-ready .download-device-chip { opacity: var(--download-chip-opacity, 0); transform: translate3d(0, var(--download-chip-y, 12px), 0); }
+
+  html.download-mac-ready .download-mac-story { padding-block: 0; }
+  html.download-mac-ready .download-mac-copy-step { min-height: 200svh; padding-block: 0; display: block; }
+  html.download-mac-ready .download-mac-copy { position: sticky; top: 50%; opacity: var(--step-opacity, 0); transform: translate3d(0, calc(-50% + var(--copy-y, 0px)), 0); }
+  html.download-mac-ready .download-mac-visual { position: sticky; top: var(--header-height); height: calc(100svh - var(--header-height)); min-height: 620px; overflow: clip; contain: layout paint; }
+  html.download-mac-ready .download-mac-device { transform: translate3d(var(--download-mac-device-x, 0), var(--download-mac-device-y, 0), 0) rotateX(var(--download-mac-device-rx, 0deg)) rotateY(var(--download-mac-device-ry, 0deg)) scale(var(--download-mac-device-scale, 1)); }
+  html.download-mac-ready .download-mac-overlay { opacity: var(--download-mac-overlay-opacity, 0); transform: translate3d(0, var(--download-mac-overlay-y, 12px), 0); }
+  html.download-mac-ready .download-menu-bar-card { opacity: var(--download-menu-opacity, 0); transform: translate3d(var(--download-menu-x, 40px), var(--download-menu-y, 0), 30px) scale(var(--download-menu-scale, 0.92)); }
+  html.download-mac-ready .download-mac-aura { opacity: var(--download-mac-aura-opacity, 0.46); transform: scale(var(--download-mac-aura-scale, 1)); }
+}
+
+@media screen and (min-height: 640px) and (prefers-reduced-motion: no-preference) {
+  html.flow-ready .download-section-heading,
+  html.flow-ready .download-device-tabs,
+  html.flow-ready .download-selection-status,
+  html.flow-ready .download-build-status > div,
+  html.flow-ready .download-status-list,
+  html.flow-ready .download-final-inner {
+    opacity: var(--flow-opacity, 1);
+    transform: translate3d(0, var(--flow-y, 0), 0);
+  }
+}
+
+@media (max-width: 1100px) {
+  .download-hero-sticky { grid-template-columns: 1fr; text-align: center; }
+  .download-hero-copy { margin-inline: auto; }
+  .download-hero h1, .download-hero-lede { margin-inline: auto; }
+  .download-hero-actions, .download-proof { justify-content: center; }
+  .download-hero-stage { width: min(100%, 760px); margin-inline: auto; }
+  .download-mac-shell { grid-template-columns: 1fr; }
+  .download-mac-visual { order: -1; min-height: 650px; }
+  .download-mac-copy { max-width: 760px; }
+  .download-mac-copy-step { min-height: 0; }
+  .download-build-status { grid-template-columns: 1fr; }
+  .download-final-inner { grid-template-columns: auto 1fr; }
+  .download-final-actions { grid-column: 1 / -1; justify-self: start; }
+}
+
+@media (max-width: 760px) {
+  .download-hero-sticky { padding-top: 4rem; }
+  .download-hero h1 { max-width: 100%; font-size: clamp(3.2rem, 15vw, 5rem); }
+  .download-hero-actions { align-items: stretch; flex-direction: column; }
+  .download-hero-actions .button { width: 100%; }
+  .download-hero-stage { min-height: 520px; }
+  .download-hero-mac { top: 19%; left: 10%; width: 80%; border-width: 5px; border-radius: 15px; }
+  .download-hero-phone { left: 1%; width: 110px; border-width: 4px; border-radius: 22px; }
+  .download-hero-tablet { right: 1%; width: 135px; border-width: 4px; border-radius: 16px; }
+  .download-hero-watch { right: 2%; width: 84px; border-width: 4px; border-radius: 20px; }
+  .download-rainbow-orbit { width: min(110vw, 500px); }
+  .download-rainbow-orbit i { height: 50px; transform: rotate(0deg) translateY(-220px); transform-origin: 10px 220px; }
+  .download-rainbow-orbit i:nth-child(2) { transform: rotate(51deg) translateY(-220px); }
+  .download-rainbow-orbit i:nth-child(3) { transform: rotate(102deg) translateY(-220px); }
+  .download-rainbow-orbit i:nth-child(4) { transform: rotate(153deg) translateY(-220px); }
+  .download-rainbow-orbit i:nth-child(5) { transform: rotate(204deg) translateY(-220px); }
+  .download-rainbow-orbit i:nth-child(6) { transform: rotate(255deg) translateY(-220px); }
+  .download-rainbow-orbit i:nth-child(7) { transform: rotate(306deg) translateY(-220px); }
+  .download-device-chip { display: none; }
+  .download-device-grid { grid-template-columns: 1fr; }
+  .download-device-card { border-radius: 24px; }
+  .download-device-card:hover { transform: none; }
+  .download-mac-story { padding-block: 6rem; }
+  .download-mac-visual { min-height: 440px; }
+  .download-mac-device figure { border-width: 5px; border-radius: 14px; }
+  .download-menu-bar-card { top: 4%; right: 1%; width: 220px; min-height: 96px; padding: 13px; }
+  .download-mac-copy-step { padding-block: 3.5rem; }
+  .download-mac-copy h3 { font-size: clamp(2.6rem, 11vw, 4rem); }
+  .download-section-heading h2, .download-build-status h2, .download-final h2 { font-size: clamp(2.8rem, 12vw, 4.5rem); }
+  .download-final-inner { grid-template-columns: 1fr; text-align: center; }
+  .download-final-inner > img, .download-final-actions { justify-self: center; }
+  .download-final h2, .download-final-inner > div > p:last-child { margin-inline: auto; }
+  .download-final-actions { width: 100%; }
+  .download-final-actions .button { width: 100%; }
+}
+
+@media (max-width: 430px) {
+  .download-page .nav-shell > .platform-cta { font-size: 0.73rem; }
+  .download-hero-stage { min-height: 460px; margin-inline: -0.5rem; width: calc(100% + 1rem); }
+  .download-hero-phone { width: 94px; }
+  .download-hero-tablet { width: 116px; }
+  .download-hero-watch { width: 74px; }
+  .download-device-tabs { width: 100%; border-radius: 18px; }
+  .download-device-tabs button { padding-inline: 13px; }
+  .download-device-card dl { grid-template-columns: 1fr; gap: 12px; }
+  .download-device-card dl div + div { padding: 12px 0 0; border-top: 1px solid rgb(35 43 60 / 10%); border-left: 0; }
+  .download-mac-visual { min-height: 360px; margin-inline: -0.5rem; }
+  .download-menu-bar-card { width: 190px; }
+  .legal-nav { gap: 12px; font-size: 0.78rem; }
+}
+
+@media (prefers-color-scheme: dark) {
+  .download-page { background: #090c13; color: #f5f7fb; }
+  .download-page .site-header { background: rgb(10 13 20 / 82%); }
+  .download-hero { background: radial-gradient(circle at 75% 18%, rgb(10 132 255 / 15%), transparent 30%), radial-gradient(circle at 66% 76%, rgb(48 209 88 / 10%), transparent 32%), #090c13; }
+  .download-hero-lede, .download-proof, .download-detected, .download-section-heading > p:last-child, .download-selection-status, .download-device-card > p:not(.download-card-kicker, .download-release-state), .download-release-state, .download-status-list small { color: #aeb8ca; }
+  .download-device-tabs, .download-device-card, .download-device-card-mac, .download-status-list { border-color: rgb(255 255 255 / 10%); background: rgb(23 28 39 / 88%); }
+  .download-device-tabs button { color: #b8c1d1; }
+  .download-device-tabs button[aria-pressed="true"] { background: white; color: #151922; }
+  .download-device-symbol { border-color: #f1f3f8; }
+  .symbol-mac::after { border-color: #f1f3f8; }
+  .download-device-card dl, .download-device-card dl div + div { border-color: rgb(255 255 255 / 10%); }
+  .download-status-list p { background: rgb(15 19 28 / 78%); }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .download-device-chip, .download-device-tabs, .download-device-card, .download-status-list, .download-menu-bar-card { backdrop-filter: none; background: var(--surface); }
+  .download-menu-bar-card { background: #121620; color: #f7f8fb; }
+  .download-hero-light, .download-mac-aura, .download-final-light { display: none; }
+}
+
+@media (prefers-contrast: more) {
+  .download-device-tabs, .download-device-card, .download-status-list, .download-menu-bar-card { border-color: currentColor; }
+  .download-recommended { color: currentColor; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .download-rainbow-orbit { transform: translate(-50%, -50%); }
+  .download-hero-stage, .download-hero-stage figure, .download-device-chip, .download-mac-device, .download-mac-overlay, .download-menu-bar-card, .download-mac-aura, .download-mac-copy { transform: none !important; }
+  .download-mac-copy { opacity: 1 !important; }
+  .download-device-card:hover { transform: none; }
 }

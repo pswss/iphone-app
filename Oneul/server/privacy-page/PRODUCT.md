@@ -28,10 +28,11 @@ Ten-second memory: “Say it. See your day.”
 
 ## Conversion and proof
 
-- **Primary CTA**: Download Oneul for Mac when a signed public build exists
-- **Current Mac CTA**: Open truthful device and release information while the public build URL is unavailable
-- **Secondary CTA**: Explore the product flow and supported devices
-- **Product proof**: Approved iPhone, iPad, Mac, and Watch screenshots; native application targets; on-device rule parsing; supported Apple Intelligence processing; private CloudKit storage; a maximum three-day Live Activity relay retention; no ads; no usage analytics
+- **Primary CTA**: Open `/download` with a recommendation for the visitor's current device
+- **Published mobile action**: Open the localized official App Store listing (`/kr/app/oneul-calendar/id6788308943` in Korean, `/us/app/oneul-calendar/id6788308943` in English) for iPhone, iPad, and the included Apple Watch app
+- **Current Mac action**: Open the native Mac product story and release status; do not offer a direct installer until it is signed, notarized, and public
+- **Secondary CTA**: Explore the product flow and all supported devices
+- **Product proof**: Approved iPhone, iPad, Mac, and Watch screenshots; native application targets; the live App Store listing; on-device rule parsing; supported Apple Intelligence processing; private CloudKit storage; a maximum three-day Live Activity relay retention; no ads; no usage analytics
 
 No testimonial, user count, rating, award, ranking, partnership, price, certification, or unsupported integration may be added.
 
@@ -52,6 +53,17 @@ The implementation contains 36 named major scenes across nine narrative groups:
 On a qualifying desktop, six product chapters use pinned visual stages. The hero and final CTA add two more pinned regions. Chrome quality assurance measured 155,400 px, or 172.7 viewport heights, at 1440 by 900.
 
 The long document is a product explanation, not empty scroll distance. Each major range must change interface state, camera hierarchy, shared-object position, or product meaning. Browser scrolling remains native.
+
+## Download journey
+
+`/download` is the single release gateway linked from the top navigation, homepage CTAs, and Mac release links. It shows four explicit choices:
+
+- iPhone: Oneul 1.1 on the official App Store; requires iOS 26.0 or later
+- iPad: the same universal App Store app; requires iPadOS 26.0 or later
+- Apple Watch: included with the iPhone app; requires watchOS 11.0 or later and a compatible iPhone running iOS 26.0 or later
+- Mac: a real native `OneulMac` target requiring macOS 26.0 or later; the signed and notarized public installer is still pending
+
+User-agent and platform detection only recommends and highlights a card. It never installs software, hides the other choices, or redirects the visitor without an explicit action. A valid `?device=iphone|ipad|watch|mac` query overrides the initial recommendation.
 
 ## Visual identity
 
@@ -84,12 +96,13 @@ DOM-native presentation is explanatory and decorative. It must not be described 
 - Preserve native wheel, trackpad, touch, keyboard, Home, End, and anchor behavior
 - Do not add hard scroll hijacking or input suppression
 - Keep privacy language specific to the implemented data flow
-- Adapt the CTA by platform without redirecting the whole page
+- Route homepage platform CTAs through `/download` and adapt the recommendation without redirecting the whole page
+- Keep the official App Store URL shared by iPhone, iPad, and Apple Watch actions
 - Do not publish a Mac download URL until the build is signed, notarized, and public
 
 ## Responsive and accessible behavior
 
-The full cinematic layout activates at 901 px wide and 700 px tall when reduced motion is not requested. Portrait tablet and mobile layouts use a shorter normal-flow composition. Mobile must not retain non-header sticky stages.
+The homepage cinematic layout activates at 901 px wide and 700 px tall when reduced motion is not requested. The download page uses its wider 1101 px threshold so 1024 px tablet layouts stay in normal flow. Portrait tablet and mobile layouts use a shorter normal-flow composition. Mobile must not retain non-header sticky stages.
 
 Reduced-motion mode must keep every heading, description, screenshot, privacy statement, and action. It disables the motion engine, persistent spine, scrubbed pins, ambient loops, and large spatial transitions.
 
@@ -111,9 +124,11 @@ Target Web Content Accessibility Guidelines (WCAG) 2.2 AA. Keep keyboard focus v
 ## Editing locations
 
 - Homepage copy and platform strings: `public/content/oneul-home.js`
+- Download-page copy and platform strings: `public/content/oneul-home.js`
 - Semantic structure and scene data: `public/index.html`
+- Download structure and Korean no-JavaScript fallback: `public/download.html`
 - Visual and responsive behavior: `public/styles.css`
-- Motion calculations and CTA URL: `public/app.js`
+- Motion calculations and centralized links: `APP_STORE_URL`, `MAC_DOWNLOAD_URL`, and `DOWNLOAD_PAGE_URL` at the top of `public/app.js`
 - Product screenshots, logo, and icon: `public/assets/`
 - Browser long-scroll QA: `qa-long-scroll.mjs`
 - Full motion reference: `../../docs/oneul-homepage-motion-spec.md`
@@ -121,5 +136,6 @@ Target Web Content Accessibility Guidelines (WCAG) 2.2 AA. Keep keyboard focus v
 ## Current release limits
 
 - `MAC_DOWNLOAD_URL` is empty
-- No App Store or direct-download URL is published
+- Oneul 1.1 is live for iPhone and iPad at the localized Korean and US App Store URLs above; the Apple Watch app is delivered with the compatible iPhone app
+- The native `OneulMac` target exists, but no signed and notarized public Mac installer URL is published
 - Chrome browser QA is recorded; Safari, Firefox, Edge, and physical-device validation remain separate release checks

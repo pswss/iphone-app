@@ -29,6 +29,7 @@ Optional:
 }
 
 const baseUrl = new URL(rawUrl).href;
+const appStoreUrl = "https://apps.apple.com/kr/app/oneul-calendar/id6788308943";
 const outputDirectory = path.resolve(process.env.ONEUL_QA_OUT || "/private/tmp/oneul-home-long-qa");
 const browserChannel = process.env.ONEUL_QA_CHANNEL || "chrome";
 const viewports = [
@@ -111,6 +112,46 @@ async function captureCheckpoints(page, viewport, maxScroll) {
     await jumpTo(page, maxScroll * progress);
     await capture(page, `${viewport.name}-${name}`);
   }
+}
+
+async function assertDownloadPage(page, label, decodeImages = true) {
+  if (decodeImages) {
+    await forceImageDecode(page);
+    await settle(page);
+  } else {
+    await page.waitForTimeout(100);
+  }
+  const report = await inspectPage(page);
+  const scenes = await page.locator("[data-download-major-scene]").evaluateAll((elements) =>
+    elements.map((element) => element.dataset.downloadMajorScene));
+  assert.equal(await page.getAttribute("body", "data-page"), "download", `${label}: wrong page`);
+  assert(report.horizontalOverflow <= 1, `${label}: ${report.horizontalOverflow}px horizontal overflow`);
+  assert.deepEqual(report.brokenImages, [], `${label}: broken images`);
+  assert(scenes.length >= 7, `${label}: expected at least 7 download scenes, found ${scenes.length}`);
+  assert.equal(new Set(scenes).size, scenes.length, `${label}: duplicate download scene names`);
+  await assertVisibleContent(page, label);
+  return report;
+}
+
+async function assertDownloadSelection(page, device, label) {
+  assert.equal(await page.getAttribute("body", "data-selected-device"), device, `${label}: wrong selected device`);
+  assert.equal(
+    await page.locator(`[data-device-choice="${device}"]`).getAttribute("aria-pressed"),
+    "true",
+    `${label}: device button is not pressed`,
+  );
+  assert.equal(
+    await page.locator(`[data-download-device="${device}"]`).evaluate((element) => element.classList.contains("is-recommended")),
+    true,
+    `${label}: device card is not recommended`,
+  );
+}
+
+async function assertNoMacInstaller(page, label) {
+  const fakeInstallers = await page.locator('[data-platform-cta], [data-download-device="mac"] a').evaluateAll((links) =>
+    links.filter((link) => link.hasAttribute("download") || /\.(?:dmg|pkg|zip)(?:$|[?#])/i.test(link.href))
+      .map((link) => link.getAttribute("href")));
+  assert.deepEqual(fakeInstallers, [], `${label}: unpublished Mac installer is linked`);
 }
 
 async function motionSignature(page) {
@@ -328,7 +369,7 @@ async function runInteractionCheck(browser) {
     await page.locator('.mobile-menu a[href="#school"]').click();
     assert.equal(await page.locator(".mobile-menu").getAttribute("open"), null, "mobile menu did not close after navigation");
 
-    for (const route of ["privacy", "support"]) {
+    for (const route of ["privacy", "support", "download"]) {
       const response = await context.request.get(new URL(route, baseUrl).href);
       assert(response.ok(), `route: /${route} returned ${response.status()}`);
     }
@@ -337,6 +378,125 @@ async function runInteractionCheck(browser) {
     assert.deepEqual(issues, [], "interactions: browser diagnostics failed");
   } finally {
     await context.close();
+  }
+}
+
+async function runDownloadChecks(browser) {
+  const cases = [
+    {
+      name: "download-mac",
+      context: {
+        viewport: { width: 1440, height: 900 },
+        userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/140 Safari/537.36",
+      },
+      device: "mac",
+      target: "#mac-story",
+    },
+    {
+      name: "download-iphone",
+      context: {
+        viewport: { width: 390, height: 844 },
+        hasTouch: true,
+        userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1",
+      },
+      device: "iphone",
+      target: "#devices",
+    },
+    {
+      name: "download-ipad-query",
+      context: {
+        viewport: { width: 1024, height: 768 },
+        userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140 Safari/537.36",
+      },
+      device: "ipad",
+      query: "?device=ipad",
+    },
+    {
+      name: "download-reduced-motion",
+      context: {
+        viewport: { width: 1440, height: 900 },
+        reducedMotion: "reduce",
+        userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/140 Safari/537.36",
+      },
+      device: "mac",
+      query: "?device=mac",
+      reducedMotion: true,
+      target: "#mac-story",
+    },
+    {
+      name: "download-no-script",
+      context: { viewport: { width: 1440, height: 900 }, javaScriptEnabled: false },
+      noScript: true,
+    },
+  ];
+
+  for (const item of cases) {
+    console.log(`[qa] ${item.name}`);
+    const context = await browser.newContext(item.context);
+    const page = await context.newPage();
+    const issues = collectDiagnostics(page, item.name);
+    try {
+      const response = await page.goto(new URL(`download${item.query || ""}`, baseUrl).href, {
+        waitUntil: "networkidle",
+        timeout: 60_000,
+      });
+      assert(response?.ok(), `${item.name}: navigation returned ${response?.status() ?? "no response"}`);
+      await assertDownloadPage(page, item.name, !item.noScript);
+
+      if (item.noScript) {
+        assert.equal(await page.locator("[data-download-device]").count(), 4, `${item.name}: device cards missing`);
+        assert.equal(await page.locator("[data-app-store-link]").first().getAttribute("href"), appStoreUrl);
+        await assertVisibleContent(page, item.name, true);
+        await assertNoHeavySticky(page, item.name);
+        await assertNoMacInstaller(page, item.name);
+      } else {
+        await assertDownloadSelection(page, item.device, item.name);
+        if (item.name === "download-mac") {
+          await page.locator('[data-device-choice="iphone"]').click();
+          await assertDownloadSelection(page, "iphone", `${item.name} selector`);
+          await page.locator('[data-device-choice="mac"]').click();
+          await assertDownloadSelection(page, "mac", `${item.name} selector restore`);
+        }
+        if (item.device === "mac") {
+          const ctaHrefs = await page.locator("[data-platform-cta]").evaluateAll((links) => links.map((link) => link.getAttribute("href")));
+          assert(ctaHrefs.every((href) => href === "#mac-story"), `${item.name}: Mac CTA must show release details`);
+          assert.match(await page.locator("[data-platform-note]").textContent(), /준비/);
+          await assertNoMacInstaller(page, item.name);
+        } else {
+          const ctaHrefs = await page.locator("[data-platform-cta]").evaluateAll((links) => links.map((link) => link.href));
+          assert(ctaHrefs.every((href) => href === appStoreUrl), `${item.name}: App Store CTA is not canonical`);
+        }
+        if (item.device === "ipad") {
+          assert.equal(await page.evaluate(() => new URL(location.href).searchParams.get("device")), "ipad");
+        }
+      }
+
+      if (item.device === "iphone") await assertNoHeavySticky(page, item.name);
+      if (item.reducedMotion) {
+        for (const className of ["motion-ready", "download-hero-ready", "download-mac-ready", "flow-ready"]) {
+          assert.equal(
+            await page.evaluate((name) => document.documentElement.classList.contains(name), className),
+            false,
+            `${item.name}: ${className} must be disabled`,
+          );
+        }
+        await assertNoHeavySticky(page, item.name);
+        await assertVisibleContent(page, item.name, true);
+      }
+
+      if (item.noScript) {
+        await page.screenshot({ path: path.join(outputDirectory, `${item.name}-top.png`), fullPage: false });
+      } else {
+        await capture(page, `${item.name}-top`);
+      }
+      if (item.target) {
+        await page.locator(item.target).scrollIntoViewIfNeeded();
+        await capture(page, `${item.name}-${item.target.slice(1)}`);
+      }
+      assert.deepEqual(issues, [], `${item.name}: browser diagnostics failed`);
+    } finally {
+      await context.close();
+    }
   }
 }
 
@@ -370,11 +530,19 @@ const browser = await chromium.launch(launchOptions);
 
 try {
   const reports = [];
-  for (const viewport of viewports) reports.push(await runViewport(browser, viewport));
+  for (const viewport of viewports) {
+    console.log(`[qa] ${viewport.name}`);
+    reports.push(await runViewport(browser, viewport));
+  }
+  console.log("[qa] resize");
   await runResizeCheck(browser);
+  console.log("[qa] reduced-motion");
   await runReducedMotionCheck(browser);
+  console.log("[qa] interactions");
   await runInteractionCheck(browser);
+  console.log("[qa] no-script");
   await runNoScriptCheck(browser);
+  await runDownloadChecks(browser);
   console.log(JSON.stringify({ baseUrl, browserChannel, outputDirectory, reports }, null, 2));
   console.log("Oneul long-scroll browser QA passed");
 } finally {

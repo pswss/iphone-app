@@ -1,6 +1,6 @@
-# Oneul homepage motion specification
+# Oneul homepage and download motion specification
 
-This reference describes the implemented homepage narrative, motion engine, responsive behavior, assets, accessibility fallbacks, performance constraints, and browser quality assurance. It documents the current code rather than a future design proposal.
+This reference describes the implemented homepage and `/download` narratives, motion engine, responsive behavior, assets, accessibility fallbacks, performance constraints, and browser quality assurance. It documents the current code rather than a future design proposal.
 
 ## Purpose and audience
 
@@ -8,9 +8,10 @@ Use this document when you change the Oneul homepage structure, copy, assets, an
 
 The implementation lives in these files:
 
-- `server/privacy-page/public/index.html`: semantic structure and Korean no-JavaScript fallback
+- `server/privacy-page/public/index.html`: homepage structure and Korean no-JavaScript fallback
+- `server/privacy-page/public/download.html`: adaptive download structure and Korean no-JavaScript fallback
 - `server/privacy-page/public/styles.css`: visual system, responsive layouts, and motion bindings
-- `server/privacy-page/public/app.js`: locale, platform CTA, and scroll frame calculations
+- `server/privacy-page/public/app.js`: locale, centralized release links, device recommendation, and scroll frame calculations
 - `server/privacy-page/public/content/oneul-home.js`: Korean and English copy
 - `server/privacy-page/test-platform-cta.mjs`: deterministic content and frame checks
 - `server/privacy-page/qa-long-scroll.mjs`: browser, long-scroll, responsive, resize, and reduced-motion checks
@@ -33,6 +34,16 @@ The page contains 36 named major scenes:
 | Privacy | 4 | Distinguishes on-device processing, private storage, relay data, and expiry |
 | Final reassembly | 1 | Returns the phone, Watch, color fragments, and icon to one final state |
 | **Total** | **36** | |
+
+## Download story and release truth
+
+`/download` is the release gateway linked from the homepage navigation, top CTA, final CTA, and Mac release detail link. It contains seven named scenes: a four-device product reveal, explicit device selection, three native Mac chapters, release status, and a final action.
+
+The page recommends a device from the browser platform or a valid `?device=iphone|ipad|watch|mac` query. Detection only highlights a card and adjusts the CTA; it does not automatically redirect or install anything. All four choices remain visible.
+
+- iPhone and iPad use the official App Store listing: Korean `https://apps.apple.com/kr/app/oneul-calendar/id6788308943`, English `https://apps.apple.com/us/app/oneul-calendar/id6788308943`
+- Apple Watch is delivered with the iPhone app and uses the same listing
+- The real native `OneulMac` target is shown with verified Mac product UI, while `MAC_DOWNLOAD_URL` remains empty until a signed and notarized public installer exists
 
 ## Persistent visual motif
 
@@ -65,6 +76,8 @@ The frame calculators have separate responsibilities:
 - `deviceFrame()`: phone, tablet, Live Activity, Dynamic Island, Watch, and Mac depth
 - `privacyFrame()`: device, private cloud, relay, expiry, path, and shield states
 - `finalFrame()`: product orbit, color fragments, and icon reassembly
+- `downloadHeroFrame()`: four-device settle, focus, orbit, and handoff on `/download`
+- `downloadMacFrame()`: native Mac alignment, populated week, menu-bar card, and chapter exit
 - `timeSpineFrame()`: persistent page-level timeline state
 
 The implementation does not use smooth scrolling, scroll suppression, Canvas, WebGL, video, or a frame sequence. Browser wheel, trackpad, touch, keyboard, anchor, Home, and End behavior remain native.
@@ -94,6 +107,7 @@ Chrome browser QA measured a 155,400 px document at 1440 by 900, equal to 172.7 
 - Primary easing: `cubic-bezier(0.16, 1, 0.3, 1)`
 - Scroll interpolation: clamped smoothstep ranges
 - Desktop cinematic threshold: 901 px wide and 700 px tall
+- Download-page pin threshold: 1101 px wide and 700 px tall
 - Tablet timeline threshold: 761 px wide and 640 px tall
 - Scroll writes: transforms, opacity, and bounded CSS custom properties
 - Heavy stage containment: `contain: layout paint`
@@ -141,21 +155,36 @@ Each range is local to its pinned chapter unless the trigger names viewport entr
 | 35 | `privacy-expiry` | Privacy | 75 to 100% | Expiry ring, paths, shield, details | Show the verified maximum three-day expiry | Expiry ring completes the quieter chapter | Static expiry diagram and policy link | Static expiry diagram and policy link | Rotation is limited to one small ring |
 | 36 | `product-reassembly` | Final CTA | Final 0 to 100% | Phone, Watch, seven color fragments, icon, CTA | Conclude the product story at the brand mark | `700svh` pinned reassembly and settle | Static product, icon, copy, and CTA | Static product, icon, copy, and CTA | Product orbit and fragments use transforms only |
 
+### Download-page animation inventory
+
+| Scene | Trigger and range | Product purpose and assets | Desktop | Mobile | Reduced motion |
+|---|---|---|---|---|---|
+| `device-match` | Download hero, 0 to 100% | Recommend without hiding choices; `mac-week.jpg`, responsive iPhone, iPad, and Watch captures | `280svh` pinned reveal; four devices settle, separate, and hand off around the seven-color orbit | Normal-flow product cluster with reduced scale and no pin | Static cluster; no scrub, rotation, or spatial handoff |
+| `device-selector` | Device section viewport entry and explicit tab choice | Show requirements and current release action for all four platforms | Two-column cards; the recommended card gains focus while user-selected tabs update the query | One-column cards and touch-safe horizontal tabs | All cards and controls remain available; hover lift is removed |
+| `mac-native` | Mac story, 0 to 33.3% | Establish the separate native macOS target using `mac-week.jpg` | First `200svh` pinned step aligns the Mac window in depth | Screenshot precedes readable normal-flow copy | Static screenshot and copy |
+| `mac-week-download` | Mac story, 33.3 to 66.7% | Explain the seven-day timeline with bounded DOM schedule overlays | Second `200svh` step populates the week while preserving the same window | Static populated-week composition | Static populated-week composition |
+| `mac-menu-download` | Mac story, 66.7 to 100% | Show the menu-bar now-and-next surface | Third `200svh` step brings in the menu-bar card and settles the device | Compact menu card over a reduced Mac stage | Static Mac and menu card with all copy visible |
+| `release-truth` | Release-status viewport progress | Separate the live App Store release from the pending Mac installer | Short section-level transform and opacity settle; no pin | Normal-flow status list | Static ready and pending states |
+| `download-conclusion` | Final section viewport progress | Return to the selected valid action with `oneul-icon.png` | Bounded section reveal and light response; no scroll trap | Stacked icon, copy, and full-width CTA | Static icon, copy, App Store or Mac-status action |
+
 ## DOM-native product presentation
 
 The command, school, rhythm, Live Activity, Dynamic Island, and privacy visuals are DOM-native presentation layers. They reproduce verified Oneul structures from the app source, including the AI input, review card, ambiguity choice, timeline, school search, grade and class selection, elective rows, timetable blocks, meal card, day-grid controls, and glance surfaces.
 
 These layers are not a live web version of the app. They are decorative product explanations hidden from assistive technology. Equivalent headings, descriptions, and real screenshots remain in semantic document order.
 
-The Mac scene uses the real application screenshot as its base and adds bounded schedule blocks in the presentation layer. This prevents the empty base capture from contradicting the populated-week narrative without claiming that the overlay is an interactive Mac app.
+The homepage and download Mac scenes use the real application screenshot as their base and add bounded schedule blocks and a menu-bar card in the presentation layer. This prevents the base capture from contradicting the populated-week narrative without claiming that the overlays are an interactive Mac app.
 
 ## Responsive behavior
 
 - **Large desktop and laptop**: Viewports at least 901 by 700 use all six pinned product chapters, the pinned hero, the pinned final CTA, the persistent time spine, and full device depth
-- **1024 by 768 tablet landscape**: This viewport meets the desktop cinematic query and receives the full long layout
+- **1024 by 768 tablet landscape**: The homepage meets its desktop cinematic query and receives the full long layout; `/download` stays in its one-column, non-pinned tablet composition
 - **768 by 1024 tablet portrait**: Only the timeline chapter uses the tablet pin; the other chapters use normal flow
 - **Mobile**: All heavy non-header sticky stages are removed. Product visuals precede readable chapter copy, large overlays are reduced, and Dynamic Island and tablet layers are omitted where they would crowd the viewport
 - **Short viewports**: The desktop cinematic query does not activate below 700 px in height
+- **Download desktop**: At least 1101 by 700, the hero pins for `280svh`; the three-step Mac story uses `200svh` per step. Device selection, release truth, and the conclusion stay in normal document flow
+- **Download mobile**: The hero, selector, Mac story, status, and conclusion form a single-column normal-flow page; no non-header product stage pins
+- **Download reduced motion**: `supportsScrollMotion` is false, all copy and actions remain visible, spatial transforms are reset, and the orbit, hover lift, and scrubbed Mac handoff are removed
 - **No JavaScript**: Semantic Korean copy, screenshots, links, and CTAs remain visible in normal flow
 
 The browser QA measurements show this deliberate split. Qualifying cinematic layouts measure about 172 viewport heights. Portrait tablet and mobile layouts measure about 23 to 26 viewport heights.
@@ -186,7 +215,7 @@ Approved assets live in `server/privacy-page/public/assets/`:
 - `ipad-timeline-2x.webp`: 1440 by 1920 responsive WebP, generated from the approved App Store source
 - `watch-timeline-2x.webp`: 410 by 502 responsive WebP, generated from the approved App Store source
 
-The hero and real-screen scenes use `<picture>` with the high-resolution WebP first and the existing JPEG as fallback. The WebP files are delivery assets, not temporary placeholders. There are no downloaded stock images or copied product renders.
+The download hero reuses `mac-week.jpg`, `iphone-timeline-2x.webp`, `ipad-timeline-2x.webp`, `watch-timeline-2x.webp`, their JPEG fallbacks, and `oneul-icon.png`. It introduces no stock imagery or temporary download-only asset. Real-screen scenes use `<picture>` with the high-resolution WebP first and the existing JPEG as fallback.
 
 ## Performance considerations
 
@@ -196,6 +225,7 @@ The hero and real-screen scenes use `<picture>` with the high-resolution WebP fi
 - Scene tasks check their media query before applying cinematic state
 - Pinned visual stages use `contain: layout paint`
 - Motion uses transforms and opacity for primary movement
+- The download page reuses already decoded product assets and adds only two frame calculators; no additional runtime dependency is loaded
 - High-resolution WebP files are smaller delivery derivatives of the approved source captures
 - Noncritical images use lazy loading, asynchronous decode, and intrinsic dimensions
 - Mobile and reduced-motion modes remove the long pinned layout
@@ -209,11 +239,14 @@ The 172-viewport desktop height is intentional product behavior. Do not shorten 
 ## Content and CTA editing
 
 - Korean and English copy: `server/privacy-page/public/content/oneul-home.js`
-- Korean progressive-enhancement fallback: `server/privacy-page/public/index.html`
-- Feature and scene structure: `server/privacy-page/public/index.html`
+- Homepage Korean progressive-enhancement fallback: `server/privacy-page/public/index.html`
+- Download Korean progressive-enhancement fallback: `server/privacy-page/public/download.html`
+- Homepage and download scene structure: `server/privacy-page/public/index.html` and `server/privacy-page/public/download.html`
 - Motion frame functions: `server/privacy-page/public/app.js`
 - Visual and responsive tokens: `server/privacy-page/public/styles.css`
-- Mac download URL and platform behavior: `MAC_DOWNLOAD_URL` at the top of `server/privacy-page/public/app.js`
+- Official App Store URL: `APP_STORE_URL` at the top of `server/privacy-page/public/app.js`
+- Mac installer URL: `MAC_DOWNLOAD_URL` at the top of `server/privacy-page/public/app.js`; keep empty until the installer is signed, notarized, and public
+- Download route: `DOWNLOAD_PAGE_URL` at the top of `server/privacy-page/public/app.js`
 - Screenshots, logo, icon, and responsive WebP files: `server/privacy-page/public/assets/`
 - Verified claims and editing constraints: `server/privacy-page/PRODUCT.md`
 
@@ -263,10 +296,13 @@ wrangler deploy --dry-run --outdir /private/tmp/oneul-home-dist
 wrangler dev --port 8789 --ip 127.0.0.1
 ```
 
+`test-platform-cta.mjs` covers the official App Store URL, homepage-to-download routing, Mac pending behavior, explicit device-query overrides, download frame endpoints, seven unique download scenes, four device cards, localized copy keys, and referenced asset existence. Browser release QA should additionally open `/download` on desktop, mobile, and reduced-motion profiles and verify the tab selection, recommendation-only behavior, App Store actions, Mac status anchor, reverse scroll, resize, and no horizontal overflow.
+
 ## Known limitations
 
 - `MAC_DOWNLOAD_URL` remains empty until a signed and notarized public Mac build exists
-- No App Store or direct-download URL is published, so the CTA links to truthful device and release information
+- The official iPhone and iPad listing is live at the localized Korean and US URLs above; Apple Watch is delivered with the iPhone app and also requires a compatible iPhone
+- The native `OneulMac` target exists, but no public Mac installer is linked yet
 - The production marketing origin is `https://oneul-privacy.pswss.workers.dev/`; canonical, Open Graph URL, and absolute social-image metadata use this origin
 - DOM-native presentation layers explain verified product behavior but are not interactive versions of the native apps
 - The deterministic 30s result applies to the tested wheel profile, not every physical wheel or trackpad

@@ -1,6 +1,13 @@
 // ponytail: Keep one empty URL until a signed, notarized public build exists; replace it when distribution is ready.
 const MAC_DOWNLOAD_URL = "";
+const APP_STORE_URL = {
+  ko: "https://apps.apple.com/kr/app/oneul-calendar/id6788308943",
+  en: "https://apps.apple.com/us/app/oneul-calendar/id6788308943",
+};
+const DOWNLOAD_PAGE_URL = "/download";
 const contentStore = globalThis.ONEUL_HOME_CONTENT;
+const pageName = document.body?.dataset?.page || "home";
+const downloadDevices = new Set(["iphone", "ipad", "watch", "mac"]);
 
 function clamp(value) {
   return Math.min(Math.max(value, 0), 1);
@@ -41,8 +48,27 @@ function resolveLocale() {
 let activeLocale = resolveLocale();
 const platform = visitorPlatform();
 
+function requestedDownloadDevice() {
+  try {
+    const requested = new URLSearchParams(globalThis.location?.search || "").get("device");
+    return downloadDevices.has(requested) ? requested : null;
+  } catch {
+    return null;
+  }
+}
+
+function platformDownloadDevice() {
+  return downloadDevices.has(platform) ? platform : "all";
+}
+
+let selectedDownloadDevice = requestedDownloadDevice() || platformDownloadDevice();
+
 function localeContent(locale = activeLocale) {
   return contentStore?.locales?.[locale] || contentStore?.locales?.ko;
+}
+
+function appStoreUrl(locale = activeLocale) {
+  return APP_STORE_URL[locale] || APP_STORE_URL.ko;
 }
 
 function setMeta(selector, value) {
@@ -57,50 +83,114 @@ function applyPlatformCopy(locale = activeLocale) {
   const ctas = document.querySelectorAll?.("[data-platform-cta]") || [];
   const platformNote = document.querySelector?.("[data-platform-note]");
   const macStatus = document.querySelector?.("[data-mac-status]");
-  let label = strings.apple;
-  let href = "#devices";
-  let unavailable = false;
+  const device = pageName === "download" ? selectedDownloadDevice : platformDownloadDevice();
+  let label = strings.download;
+  let href = DOWNLOAD_PAGE_URL;
+  let directDownload = false;
 
-  if (platform === "mac") {
-    if (MAC_DOWNLOAD_URL) {
-      label = strings.macDownload;
-      href = MAC_DOWNLOAD_URL;
-      if (platformNote) platformNote.textContent = strings.macRequirements;
-      if (macStatus) macStatus.textContent = strings.macReady;
+  if (pageName === "download") {
+    if (device === "iphone" || device === "ipad" || device === "watch") {
+      label = strings.apple;
+      href = appStoreUrl(locale);
+      if (platformNote) platformNote.textContent = strings[device + "Ready"];
+    } else if (device === "mac") {
+      if (MAC_DOWNLOAD_URL) {
+        label = strings.macDownload;
+        href = MAC_DOWNLOAD_URL;
+        directDownload = true;
+        if (platformNote) platformNote.textContent = strings.macRequirements;
+        if (macStatus) macStatus.textContent = strings.macReady;
+      } else {
+        label = strings.macRelease;
+        href = "#mac-story";
+        if (platformNote) platformNote.textContent = strings.macPending;
+        if (macStatus) macStatus.textContent = strings.macPending;
+      }
     } else {
-      label = strings.macRelease;
-      unavailable = true;
-      if (platformNote) platformNote.textContent = strings.macPending;
+      label = strings.macVersion;
+      href = "#devices";
+      if (platformNote) platformNote.textContent = strings.otherReady;
     }
-  } else if (platform === "iphone" || platform === "ipad") {
-    if (platformNote) platformNote.textContent = strings.appleDevices;
   } else {
-    label = strings.macVersion;
-    if (platformNote) platformNote.textContent = strings.appleOnly;
+    if (device === "iphone") {
+      label = strings.iphoneDownload;
+      href = `${DOWNLOAD_PAGE_URL}?device=iphone`;
+      if (platformNote) platformNote.textContent = strings.iphoneReady;
+    } else if (device === "ipad") {
+      label = strings.ipadDownload;
+      href = `${DOWNLOAD_PAGE_URL}?device=ipad`;
+      if (platformNote) platformNote.textContent = strings.ipadReady;
+    } else if (device === "mac") {
+      label = strings.macRelease;
+      href = `${DOWNLOAD_PAGE_URL}?device=mac`;
+      if (platformNote) platformNote.textContent = strings.macPending;
+      if (macStatus) macStatus.textContent = MAC_DOWNLOAD_URL ? strings.macReady : strings.macPending;
+    } else {
+      if (platformNote) platformNote.textContent = strings.appleOnly;
+    }
   }
 
   for (const cta of ctas) {
     cta.textContent = label;
     cta.href = href;
-    cta.classList.toggle("is-unavailable", unavailable);
-    if (MAC_DOWNLOAD_URL && platform === "mac") cta.setAttribute("download", "");
+    cta.classList.toggle("is-unavailable", false);
+    if (directDownload) cta.setAttribute("download", "");
     else cta.removeAttribute?.("download");
   }
+}
+
+function renderDownloadSelection(locale = activeLocale) {
+  if (pageName !== "download") return;
+  const strings = localeContent(locale)?.platform;
+  const root = document.querySelector?.("[data-download-hero]");
+  const status = document.querySelector?.("[data-device-detected]");
+  if (document.body?.dataset) document.body.dataset.selectedDevice = selectedDownloadDevice;
+  if (root?.dataset) root.dataset.selectedDevice = selectedDownloadDevice;
+
+  for (const button of document.querySelectorAll?.("[data-device-choice]") || []) {
+    button.setAttribute("aria-pressed", String(button.dataset.deviceChoice === selectedDownloadDevice));
+  }
+  for (const card of document.querySelectorAll?.("[data-download-device]") || []) {
+    const recommended = card.dataset.downloadDevice === selectedDownloadDevice;
+    card.classList.toggle("is-recommended", recommended);
+    const badge = card.querySelector?.(".download-recommended");
+    if (badge) badge.hidden = !recommended;
+  }
+  if (status && strings) {
+    if (selectedDownloadDevice === "mac") status.textContent = MAC_DOWNLOAD_URL ? strings.macRequirements : strings.macPending;
+    else {
+      const key = selectedDownloadDevice === "all" ? "otherReady" : selectedDownloadDevice + "Ready";
+      status.textContent = strings[key] || strings.otherReady;
+    }
+  }
+}
+
+function selectDownloadDevice(device, updateUrl = false) {
+  if (!downloadDevices.has(device)) return;
+  selectedDownloadDevice = device;
+  if (updateUrl && globalThis.history?.replaceState && globalThis.location) {
+    const url = new URL(globalThis.location.href);
+    url.searchParams.set("device", device);
+    globalThis.history.replaceState(null, "", url);
+  }
+  renderDownloadSelection();
+  applyPlatformCopy();
 }
 
 function applyLocale(locale, persist = false) {
   const content = localeContent(locale);
   if (!content) return;
   activeLocale = locale;
+  const meta = pageName === "download" ? content.downloadMeta : content.meta;
 
   if (document.documentElement) document.documentElement.lang = locale === "ko" ? "ko-KR" : "en";
-  if (content.meta?.title) document.title = content.meta.title;
-  setMeta('meta[name="description"]', content.meta?.description);
-  setMeta('meta[property="og:title"]', content.meta?.title);
-  setMeta('meta[property="og:description"]', content.meta?.description);
+  if (meta?.title) document.title = meta.title;
+  setMeta('meta[name="description"]', meta?.description);
+  setMeta('meta[property="og:title"]', meta?.title);
+  setMeta('meta[property="og:description"]', meta?.description);
   setMeta('meta[property="og:locale"]', locale === "ko" ? "ko_KR" : "en_US");
-  setMeta('meta[name="twitter:title"]', content.meta?.title);
-  setMeta('meta[name="twitter:description"]', content.meta?.description);
+  setMeta('meta[name="twitter:title"]', meta?.title);
+  setMeta('meta[name="twitter:description"]', meta?.description);
 
   for (const element of document.querySelectorAll?.("[data-copy]") || []) {
     const value = content.copy?.[element.dataset.copy];
@@ -110,11 +200,17 @@ function applyLocale(locale, persist = false) {
     const value = content.copy?.[element.dataset.copyHtml];
     if (value !== undefined) element.innerHTML = value;
   }
+  for (const element of document.querySelectorAll?.("[data-copy-aria]") || []) {
+    const value = content.copy?.[element.dataset.copyAria];
+    if (value !== undefined) element.setAttribute("aria-label", value);
+  }
+  for (const link of document.querySelectorAll?.("[data-app-store-link]") || []) link.href = appStoreUrl(locale);
   for (const button of document.querySelectorAll?.("[data-locale]") || []) {
     button.setAttribute("aria-pressed", String(button.dataset.locale === locale));
   }
 
   applyPlatformCopy(locale);
+  renderDownloadSelection(locale);
   if (persist) {
     try {
       globalThis.localStorage?.setItem("oneul-locale", locale);
@@ -125,6 +221,10 @@ function applyLocale(locale, persist = false) {
 }
 
 applyLocale(activeLocale);
+
+for (const button of document.querySelectorAll?.("[data-device-choice]") || []) {
+  button.addEventListener("click", () => selectDownloadDevice(button.dataset.deviceChoice, true));
+}
 
 for (const button of document.querySelectorAll?.("[data-locale]") || []) {
   button.addEventListener("click", () => {
@@ -473,6 +573,67 @@ function finalFrame(progress) {
   };
 }
 
+function downloadHeroFrame(progress) {
+  const value = clamp(progress);
+  const settle = range(value, 0.02, 0.22);
+  const focus = range(value, 0.26, 0.68);
+  const handoff = range(value, 0.72, 0.98);
+  return {
+    progress: value,
+    copyOpacity: 1 - 0.92 * handoff,
+    copyY: -34 * handoff,
+    copyScale: 1 - 0.035 * handoff,
+    stageX: 34 * focus - 48 * handoff,
+    stageY: -18 * settle - 36 * handoff,
+    stageScale: 0.94 + 0.06 * settle + 0.1 * focus - 0.06 * handoff,
+    macX: 38 * (1 - settle) - 38 * focus,
+    macY: 24 * (1 - settle) - 28 * focus,
+    macRotate: 5 * (1 - settle) - 3 * focus,
+    macScale: 0.9 + 0.1 * settle + 0.14 * focus,
+    phoneX: -34 * settle - 78 * focus,
+    phoneY: 58 * (1 - settle) + 18 * focus,
+    phoneRotate: -9 + 5 * settle - 3 * focus,
+    phoneScale: 0.86 + 0.14 * settle - 0.08 * focus,
+    tabletX: 54 * settle + 92 * focus,
+    tabletY: 42 * (1 - settle) + 22 * focus,
+    tabletRotate: 8 - 5 * settle + 2 * focus,
+    tabletScale: 0.82 + 0.18 * settle - 0.1 * focus,
+    watchX: 48 * (1 - settle) + 72 * focus,
+    watchY: 64 * (1 - settle) + 28 * focus,
+    watchRotate: 10 - 6 * settle,
+    watchScale: 0.84 + 0.16 * settle - 0.06 * focus,
+    orbitRotate: -18 + value * 142,
+    orbitScale: 0.82 + 0.2 * settle + 0.16 * focus,
+    chipOpacity: settle * (1 - handoff),
+    chipY: 18 * (1 - settle) - 20 * handoff,
+  };
+}
+
+function downloadMacFrame(progress, stepCount = 3) {
+  const frame = storyFrame(progress, stepCount);
+  const value = frame.progress;
+  const align = range(value, 0.04, 0.3);
+  const populate = range(value, 0.28, 0.62);
+  const menu = range(value, 0.62, 0.86);
+  const tail = range(value, 0.94, 1);
+  return {
+    ...frame,
+    deviceX: 30 * (1 - align) - 22 * tail,
+    deviceY: 34 * (1 - align) - 18 * tail,
+    deviceRotateX: 7 * (1 - align),
+    deviceRotateY: -9 + 9 * align,
+    deviceScale: 0.88 + 0.12 * align + 0.08 * populate - 0.04 * tail,
+    overlayOpacity: populate,
+    overlayY: 12 * (1 - populate),
+    menuOpacity: menu * (1 - tail),
+    menuX: 54 * (1 - menu),
+    menuY: -22 * menu,
+    menuScale: 0.92 + 0.08 * menu,
+    auraOpacity: 0.28 + 0.34 * Math.sin(value * Math.PI),
+    auraScale: 0.88 + 0.2 * Math.sin(value * Math.PI),
+  };
+}
+
 function timeSpineFrame(progress) {
   const value = clamp(progress);
   const settle = range(value, 0.002, 0.032);
@@ -489,6 +650,7 @@ function timeSpineFrame(progress) {
 
 const reducedMotionMedia = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)");
 const desktopCinematicMedia = globalThis.matchMedia?.("(min-width: 901px) and (min-height: 700px)");
+const downloadDesktopMedia = globalThis.matchMedia?.("(min-width: 1101px) and (min-height: 700px)");
 const tabletStoryMedia = globalThis.matchMedia?.("(min-width: 761px) and (min-height: 640px)");
 const supportsScrollMotion = !(reducedMotionMedia?.matches ?? false) && "requestAnimationFrame" in globalThis;
 const scrollPosition = () => globalThis.scrollY || document.documentElement?.scrollTop || 0;
@@ -818,6 +980,72 @@ if (privacy && privacySteps.length && supportsScrollMotion) {
     },
   });
   document.documentElement?.classList.add("privacy-ready");
+}
+
+const downloadHero = document.querySelector?.("[data-download-hero]");
+const downloadHeroSticky = downloadHero?.querySelector?.(".download-hero-sticky");
+if (downloadHero && downloadHeroSticky && supportsScrollMotion) {
+  addPinnedScene({
+    root: downloadHero,
+    sticky: downloadHeroSticky,
+    count: 1,
+    frame: downloadHeroFrame,
+    media: downloadDesktopMedia,
+    apply(frame) {
+      setNumber(downloadHero, "--download-hero-progress", frame.progress);
+      setNumber(downloadHero, "--download-copy-opacity", frame.copyOpacity);
+      setNumber(downloadHero, "--download-copy-y", frame.copyY, "px");
+      setNumber(downloadHero, "--download-copy-scale", frame.copyScale);
+      setNumber(downloadHero, "--download-stage-x", frame.stageX, "px");
+      setNumber(downloadHero, "--download-stage-y", frame.stageY, "px");
+      setNumber(downloadHero, "--download-stage-scale", frame.stageScale);
+      for (const name of ["mac", "phone", "tablet", "watch"]) {
+        setNumber(downloadHero, `--download-${name}-x`, frame[name + "X"], "px");
+        setNumber(downloadHero, `--download-${name}-y`, frame[name + "Y"], "px");
+        setNumber(downloadHero, `--download-${name}-rotate`, frame[name + "Rotate"], "deg");
+        setNumber(downloadHero, `--download-${name}-scale`, frame[name + "Scale"]);
+      }
+      setNumber(downloadHero, "--download-orbit-rotate", frame.orbitRotate, "deg");
+      setNumber(downloadHero, "--download-orbit-scale", frame.orbitScale);
+      setNumber(downloadHero, "--download-chip-opacity", frame.chipOpacity);
+      setNumber(downloadHero, "--download-chip-y", frame.chipY, "px");
+    },
+  });
+  document.documentElement?.classList.add("download-hero-ready");
+}
+
+const downloadMacStory = document.querySelector?.("[data-download-mac-story]");
+const downloadMacSteps = downloadMacStory?.querySelectorAll?.("[data-download-mac-step]") || [];
+if (downloadMacStory && downloadMacSteps.length && supportsScrollMotion) {
+  addPinnedScene({
+    root: downloadMacStory,
+    sticky: downloadMacStory.querySelector(".download-mac-visual"),
+    count: downloadMacSteps.length,
+    frame: downloadMacFrame,
+    media: downloadDesktopMedia,
+    apply(frame) {
+      setNumber(downloadMacStory, "--download-mac-progress", frame.progress);
+      for (let index = 0; index < downloadMacSteps.length; index += 1) {
+        const state = frame.steps[index];
+        setNumber(downloadMacSteps[index], "--step-opacity", state.copyOpacity);
+        setNumber(downloadMacSteps[index], "--copy-y", state.copyY, "px");
+      }
+      setNumber(downloadMacStory, "--download-mac-device-x", frame.deviceX, "px");
+      setNumber(downloadMacStory, "--download-mac-device-y", frame.deviceY, "px");
+      setNumber(downloadMacStory, "--download-mac-device-rx", frame.deviceRotateX, "deg");
+      setNumber(downloadMacStory, "--download-mac-device-ry", frame.deviceRotateY, "deg");
+      setNumber(downloadMacStory, "--download-mac-device-scale", frame.deviceScale);
+      setNumber(downloadMacStory, "--download-mac-overlay-opacity", frame.overlayOpacity);
+      setNumber(downloadMacStory, "--download-mac-overlay-y", frame.overlayY, "px");
+      setNumber(downloadMacStory, "--download-menu-opacity", frame.menuOpacity);
+      setNumber(downloadMacStory, "--download-menu-x", frame.menuX, "px");
+      setNumber(downloadMacStory, "--download-menu-y", frame.menuY, "px");
+      setNumber(downloadMacStory, "--download-menu-scale", frame.menuScale);
+      setNumber(downloadMacStory, "--download-mac-aura-opacity", frame.auraOpacity);
+      setNumber(downloadMacStory, "--download-mac-aura-scale", frame.auraScale);
+    },
+  });
+  document.documentElement?.classList.add("download-mac-ready");
 }
 
 const flowSections = supportsScrollMotion
