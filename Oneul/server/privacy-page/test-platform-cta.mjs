@@ -45,10 +45,14 @@ function render(navigator, prefersReducedMotion = false) {
     content: sandbox.ONEUL_HOME_CONTENT,
     heroFrame: sandbox.heroFrame,
     storyFrame: sandbox.storyFrame,
+    commandFrame: sandbox.commandFrame,
     schoolFrame: sandbox.schoolFrame,
+    rhythmFrame: sandbox.rhythmFrame,
     deviceFrame: sandbox.deviceFrame,
+    privacyFrame: sandbox.privacyFrame,
     finalFrame: sandbox.finalFrame,
     flowFrame: sandbox.flowFrame,
+    timeSpineFrame: sandbox.timeSpineFrame,
   };
 }
 
@@ -73,12 +77,15 @@ assert.equal(storyStart.steps[0].opacity, 1);
 assert.equal(storyStart.steps[1].opacity, 0);
 
 const storyMiddle = mac.storyFrame(0.5, 4);
-assert(Math.abs(storyMiddle.steps[1].opacity - 0.5) < 0.0001);
-assert(Math.abs(storyMiddle.steps[2].opacity - 0.5) < 0.0001);
-assert.equal(storyMiddle.steps[1].copyOpacity, 0);
-assert.equal(storyMiddle.steps[2].copyOpacity, 0);
-assert(Math.abs(storyMiddle.steps[1].productY + 11) < 0.0001);
-assert(Math.abs(storyMiddle.steps[2].productY - 14) < 0.0001);
+assert.equal(storyMiddle.current, 2);
+assert.equal(storyMiddle.steps[1].opacity, 0);
+assert.equal(storyMiddle.steps[2].opacity, 1);
+assert.equal(storyMiddle.steps[2].copyOpacity, 1);
+
+const storyTransition = mac.storyFrame(0.225, 4);
+assert(storyTransition.steps[0].opacity > 0);
+assert(storyTransition.steps[1].opacity > 0);
+assert(Math.abs(storyTransition.steps[0].opacity + storyTransition.steps[1].opacity - 1) < 0.0001);
 
 const storyEnd = mac.storyFrame(1, 4);
 assert.equal(storyEnd.steps[3].opacity, 1);
@@ -97,22 +104,42 @@ assert.equal(heroEnd.copyOpacity, 0);
 assert.equal(heroStart.watchOpacity, 1);
 assert.equal(heroEnd.watchOpacity, 0);
 
-const schoolStart = mac.schoolFrame(0, 3);
-const schoolEnd = mac.schoolFrame(1, 3);
-assert.equal(schoolStart.selector.opacity, 1);
+const commandStart = mac.commandFrame(0);
+const commandEnd = mac.commandFrame(1);
+assert.equal(commandStart.inputOpacity, 1);
+assert.equal(commandEnd.timelineOpacity, 1);
+
+const schoolStart = mac.schoolFrame(0);
+const schoolEnd = mac.schoolFrame(1);
+assert.equal(schoolStart.search.opacity, 1);
 assert.equal(schoolStart.meal.opacity, 0);
-assert.equal(schoolEnd.selector.opacity, 0);
+assert.equal(schoolEnd.search.opacity, 0);
 assert.equal(schoolEnd.meal.opacity, 1);
 
-const deviceStart = mac.deviceFrame(0, 3);
-const deviceEnd = mac.deviceFrame(1, 3);
+const rhythmStart = mac.rhythmFrame(0);
+const rhythmEnd = mac.rhythmFrame(1);
+assert.equal(rhythmStart.chromeOpacity, 1);
+assert.equal(rhythmEnd.eveningOpacity, 1);
+
+const deviceStart = mac.deviceFrame(0);
+const deviceEnd = mac.deviceFrame(1);
 assert.equal(deviceStart.phoneOpacity, 1);
 assert.equal(deviceEnd.macOpacity, 1);
+
+const privacyStart = mac.privacyFrame(0);
+const privacyEnd = mac.privacyFrame(1);
+assert.equal(privacyStart.pathA, 0);
+assert.equal(privacyEnd.pathB, 1);
 
 const finalStart = mac.finalFrame(0);
 const finalEnd = mac.finalFrame(1);
 assert.equal(finalStart.spread, 1);
 assert.equal(finalEnd.spread, 0);
+
+const spineStart = mac.timeSpineFrame(0);
+const spineMiddle = mac.timeSpineFrame(0.5);
+assert.equal(spineStart.opacity, 0.2);
+assert(spineMiddle.opacity > spineStart.opacity);
 
 const flowBefore = mac.flowFrame(0);
 assert.equal(flowBefore.opacity, 0.38);
@@ -138,15 +165,18 @@ for (const locale of ["ko", "en"]) {
 }
 
 const majorScenes = html.match(/data-major-scene=/g)?.length ?? 0;
-assert(majorScenes >= 10, `expected at least 10 major scenes, found ${majorScenes}`);
+assert(majorScenes >= 30, `expected at least 30 major scenes, found ${majorScenes}`);
 assert(html.includes("data-hero-scene"));
+assert(html.includes("data-command-story"));
 assert(html.includes("data-scroll-story"));
 assert(html.includes("data-school-story"));
+assert(html.includes("data-rhythm-story"));
 assert(html.includes("data-device-story"));
+assert(html.includes("data-privacy-story"));
 
 const publicRoot = new URL("./public/", import.meta.url);
-for (const [, asset] of html.matchAll(/(?:src|href)="(\/(?:assets|content)[^"]+|\/(?:app\.js|styles\.css))"/g)) {
+for (const [, asset] of html.matchAll(/(?:src|srcset|href)="(\/(?:assets|content)[^"]+|\/(?:app\.js|styles\.css))"/g)) {
   assert(fs.existsSync(new URL(`.${asset}`, publicRoot)), `missing asset: ${asset}`);
 }
 
-console.log("platform CTA, localized content, assets, and 14-scene motion checks passed");
+console.log(`platform CTA, localized content, assets, and ${majorScenes}-scene motion checks passed`);

@@ -140,29 +140,37 @@ for (const link of mobileMenu?.querySelectorAll?.("a") || []) {
 
 function heroFrame(progress) {
   const value = clamp(progress);
-  const handoff = range(value, 0.28, 0.96);
-  const watchExit = range(value, 0.16, 0.62);
-  const cueExit = range(value, 0.04, 0.28);
+  const productReveal = range(value, 0.06, 0.34);
+  const pillReveal = range(value, 0.08, 0.24);
+  const pillHandoff = range(value, 0.28, 0.7);
+  const handoff = range(value, 0.46, 0.94);
+  const watchExit = range(value, 0.34, 0.66);
+  const cueExit = range(value, 0.02, 0.16);
 
   return {
     progress: value,
     copyOpacity: 1 - handoff,
-    copyX: -44 * handoff,
-    copyY: -18 * handoff,
-    copyScale: 1 - 0.025 * handoff,
-    productX: -38 * handoff,
-    productY: -34 * handoff,
-    productScale: 1 + 0.14 * handoff,
-    phoneRotate: 2 * (1 - handoff),
-    phoneScale: 1 + 0.035 * handoff,
+    copyX: -64 * handoff,
+    copyY: -28 * handoff,
+    copyScale: 1 - 0.04 * handoff,
+    productX: -52 * handoff,
+    productY: -52 * handoff - 12 * productReveal,
+    productScale: 0.94 + 0.1 * productReveal + 0.28 * handoff,
+    phoneRotate: 5 * (1 - productReveal) - 3 * handoff,
+    phoneScale: 0.96 + 0.08 * productReveal + 0.16 * handoff,
     watchOpacity: 1 - watchExit,
-    watchX: 56 * watchExit,
-    watchY: 30 * watchExit,
-    watchScale: 1 - 0.12 * watchExit,
-    railOpacity: 1 - 0.68 * handoff,
-    railRotate: -7 + 7 * handoff,
-    railScale: 1 + 1.35 * handoff,
+    watchX: 82 * watchExit,
+    watchY: 46 * watchExit,
+    watchScale: 1 - 0.18 * watchExit,
+    railOpacity: 1 - 0.78 * handoff,
+    railRotate: -10 + 10 * productReveal,
+    railScale: 0.72 + 0.38 * productReveal + 1.7 * handoff,
     cueOpacity: 1 - cueExit,
+    pillOpacity: pillReveal * (1 - range(value, 0.64, 0.8)),
+    pillX: -42 + 128 * pillReveal + 150 * pillHandoff,
+    pillY: 40 - 82 * pillReveal + 180 * pillHandoff,
+    pillScale: 0.88 + 0.12 * pillReveal - 0.2 * pillHandoff,
+    atmosphereOpacity: 0.5 + 0.28 * productReveal - 0.18 * handoff,
   };
 }
 
@@ -185,111 +193,303 @@ function flowFrame(progress) {
 function storyFrame(progress, stepCount) {
   const count = Math.max(1, stepCount);
   const value = clamp(progress);
-  const phase = value * (count - 1);
+  const phase = value * count;
   const current = Math.min(count - 1, Math.floor(phase));
-  const local = phase - current;
-  const blend = current === count - 1 ? 0 : range(local, 0.2, 0.8);
-  const copyOut = 1 - range(local, 0.12, 0.34);
-  const copyIn = range(local, 0.68, 0.9);
-  const tail = range(value, 0.95, 1);
+  const local = Math.min(phase - current, 1);
+  const blend = current === count - 1 ? 0 : range(local, 0.58, 0.92);
+  const tail = range(value, 0.975, 1);
   const steps = Array.from({ length: count }, () => ({
     opacity: 0,
     copyOpacity: 0,
-    copyY: 16,
-    productY: 18,
-    productScale: 0.985,
+    copyY: 22,
+    productY: 24,
+    productScale: 0.975,
     productRotate: 0,
   }));
 
   steps[current] = {
     opacity: 1 - blend,
-    copyOpacity: (current === count - 1 ? 1 : copyOut) * (1 - tail),
-    copyY: -12 * (1 - copyOut),
-    productY: -22 * blend,
-    productScale: 1 - 0.025 * blend,
-    productRotate: -1.5 * blend,
+    copyOpacity: 1 - tail,
+    copyY: -10 * blend,
+    productY: -34 * blend,
+    productScale: 1 - 0.035 * blend,
+    productRotate: -2.2 * blend,
   };
 
   if (current < count - 1) {
     steps[current + 1] = {
       opacity: blend,
-      copyOpacity: copyIn,
-      copyY: 14 * (1 - copyIn),
-      productY: 28 * (1 - blend),
-      productScale: 0.975 + 0.025 * blend,
-      productRotate: 1.5 * (1 - blend),
+      copyOpacity: blend,
+      copyY: 22 * (1 - blend),
+      productY: 36 * (1 - blend),
+      productScale: 0.965 + 0.035 * blend,
+      productRotate: 2.2 * (1 - blend),
     };
   }
 
   return {
     progress: value,
+    current,
+    local,
+    blend,
     stageOpacity: 1 - tail,
-    stageY: -24 * tail,
-    stageScale: 1 - 0.02 * tail,
-    auraScale: 0.92 + 0.12 * Math.sin(value * Math.PI),
+    stageY: -36 * tail,
+    stageScale: 1 - 0.035 * tail,
+    auraScale: 0.9 + 0.16 * Math.sin(value * Math.PI),
     steps,
   };
 }
 
-function schoolFrame(progress, stepCount = 3) {
+function commandFrame(progress, stepCount = 8) {
   const frame = storyFrame(progress, stepCount);
   const value = frame.progress;
-  const timetableBuild = range(value, 0.28, 0.58);
+  const type = range(value, 0.025, 0.145);
+  const tokensIn = range(value, 0.11, 0.2);
+  const tokensOut = range(value, 0.25, 0.34);
+  const inputOut = range(value, 0.25, 0.36);
+  const reviewIn = range(value, 0.25, 0.36);
+  const reviewOut = range(value, 0.54, 0.64);
+  const timelineIn = range(value, 0.55, 0.67);
+  const flight = range(value, 0.51, 0.65);
+  const ambiguity = range(value, 0.36, 0.48) * (1 - range(value, 0.49, 0.55));
+  const tail = range(value, 0.94, 1);
 
   return {
     ...frame,
-    stageY: -16 * range(value, 0.9, 1),
-    stageRotate: 5 * (1 - range(value, 0, 0.24)),
-    stageScale: 0.97 + 0.03 * range(value, 0, 0.24),
-    selector: frame.steps[0],
-    timetable: frame.steps[1],
-    meal: frame.steps[2],
+    stageOpacity: 1 - 0.85 * tail,
+    stageX: 26 * range(value, 0.78, 0.96),
+    stageY: -32 * tail,
+    stageScale: 1 - 0.06 * tail,
+    phoneX: -34 * range(value, 0.7, 0.9),
+    phoneY: -18 * range(value, 0.62, 0.92),
+    phoneZ: 90 * range(value, 0.72, 0.9),
+    phoneRotateY: -8 + 8 * range(value, 0.08, 0.32) - 4 * range(value, 0.78, 0.94),
+    phoneRotateZ: 2.5 - 2.5 * range(value, 0.08, 0.32),
+    phoneScale: 0.9 + 0.1 * range(value, 0.06, 0.2) + 0.18 * range(value, 0.72, 0.9),
+    inputOpacity: 1 - inputOut,
+    inputY: -18 * inputOut,
+    inputScale: 1 - 0.025 * inputOut,
+    reviewOpacity: reviewIn * (1 - reviewOut),
+    reviewY: 22 * (1 - reviewIn) - 16 * reviewOut,
+    reviewScale: 0.975 + 0.025 * reviewIn - 0.02 * reviewOut,
+    timelineOpacity: timelineIn,
+    timelineY: 28 * (1 - timelineIn),
+    timelineScale: 0.96 + 0.04 * timelineIn + 0.12 * range(value, 0.78, 0.92),
+    typeProgress: type,
+    typeComplete: range(value, 0.145, 0.18),
+    tokenOpacity: tokensIn * (1 - tokensOut),
+    tokenY: 14 * (1 - tokensIn) - 10 * tokensOut,
+    tokenScale: 0.94 + 0.06 * tokensIn,
+    resultY: 18 * (1 - reviewIn),
+    resultScale: 0.96 + 0.04 * reviewIn,
+    ambiguityOpacity: ambiguity,
+    ambiguityY: 12 * (1 - ambiguity),
+    applyOpacity: 0.4 + 0.6 * range(value, 0.43, 0.53),
+    voiceOpacity: range(value, 0.01, 0.08) * (1 - range(value, 0.14, 0.22)),
+    voiceX: -54 + 74 * range(value, 0.01, 0.12),
+    voiceY: 32 - 46 * range(value, 0.01, 0.12),
+    voiceScale: 0.88 + 0.12 * range(value, 0.01, 0.12),
+    flightOpacity: range(value, 0.49, 0.54) * (1 - range(value, 0.63, 0.68)),
+    flightX: -118 + 154 * flight,
+    flightY: 142 - 240 * flight,
+    flightRotate: -9 + 9 * flight,
+    flightScale: 0.78 + 0.22 * flight,
+    orbitOpacity: 0.16 + 0.3 * Math.sin(value * Math.PI),
+    orbitRotate: value * 185,
+    orbitScale: 0.82 + 0.23 * range(value, 0.08, 0.72),
+    redOpacity: 0.2 + 0.22 * (1 - value),
+    redX: -32 * value,
+    redScale: 0.9 + 0.18 * Math.sin(value * Math.PI),
+    blueOpacity: 0.16 + 0.22 * value,
+    blueX: 28 * value,
+    blueScale: 0.92 + 0.16 * Math.sin(value * Math.PI),
+    nowY: 45 + 35 * range(value, 0.69, 0.92),
+  };
+}
+
+function schoolFrame(progress, stepCount = 5) {
+  const frame = storyFrame(progress, stepCount);
+  const value = frame.progress;
+  const timetableBuild = range(value, 0.58, 0.82);
+
+  return {
+    ...frame,
+    stageX: 24 * range(value, 0.84, 1),
+    stageY: -22 * range(value, 0.9, 1),
+    stageRotate: 5 * (1 - range(value, 0, 0.18)),
+    stageRotateY: -7 + 7 * range(value, 0.02, 0.2),
+    stageScale: 0.94 + 0.06 * range(value, 0, 0.2),
+    auraOpacity: 0.28 + 0.26 * Math.sin(value * Math.PI),
+    auraScale: 0.9 + 0.2 * range(value, 0.1, 0.85),
+    search: frame.steps[0],
+    class: frame.steps[1],
+    elective: frame.steps[2],
+    timetable: frame.steps[3],
+    meal: frame.steps[4],
     classOpacity: 0.35 + 0.65 * timetableBuild,
   };
 }
 
-function deviceFrame(progress, stepCount = 3) {
+function rhythmFrame(progress, stepCount = 5) {
   const frame = storyFrame(progress, stepCount);
   const value = frame.progress;
-  const phoneState = frame.steps[0].opacity;
-  const watchState = frame.steps[1].opacity;
-  const macState = frame.steps[2].opacity;
+  const collapse = range(value, 0.19, 0.39);
+  const manipulate = range(value, 0.38, 0.56);
+  const live = range(value, 0.58, 0.72) * (1 - range(value, 0.82, 0.94));
+  const evening = range(value, 0.78, 1);
 
   return {
     ...frame,
-    macOpacity: 0.42 + 0.58 * macState + 0.14 * frame.steps[0].opacity,
-    macX: 16 * (1 - macState),
-    macY: 30 * (1 - macState),
-    macScale: 0.78 + 0.22 * macState + 0.05 * phoneState,
-    macRotate: 8 * (1 - macState),
-    phoneOpacity: 0.18 + 0.82 * phoneState + 0.22 * watchState,
-    phoneX: 46 * phoneState - 18 * macState,
-    phoneY: -12 * phoneState + 36 * macState,
-    phoneScale: 0.78 + 0.34 * phoneState,
-    phoneRotate: -8 + 5 * value,
-    watchOpacity: 0.18 + 0.82 * watchState + 0.14 * macState,
-    watchX: -32 * watchState + 16 * macState,
-    watchY: 26 * phoneState - 18 * watchState,
-    watchScale: 0.76 + 0.38 * watchState,
-    watchRotate: 7 - 5 * value,
-    auraOpacity: 0.42 + 0.28 * Math.sin(value * Math.PI),
-    auraScale: 0.88 + 0.18 * range(value, 0.1, 0.9),
+    phoneX: -30 * live + 16 * evening,
+    phoneY: -18 * collapse + 24 * evening,
+    phoneScale: 0.92 + 0.12 * collapse - 0.08 * live - 0.05 * evening,
+    phoneRotateY: -6 + 6 * collapse - 4 * evening,
+    phoneRotateZ: 2 - 2 * collapse,
+    chromeOpacity: 1 - 0.92 * collapse,
+    chromeY: -42 * collapse,
+    chromeScale: 1 - 0.22 * collapse,
+    gridTop: 252 - 128 * collapse,
+    gridY: -26 * collapse + 18 * evening,
+    gridScale: 1 + 0.035 * manipulate,
+    eventOpacity: 1 - 0.55 * evening,
+    eventX: 38 * manipulate,
+    eventY: 34 * manipulate,
+    eventScaleY: 1 + 0.4 * range(value, 0.46, 0.56),
+    handleOpacity: range(value, 0.4, 0.48) * (1 - range(value, 0.56, 0.62)),
+    nowY: 30 + 56 * value,
+    liveOpacity: live,
+    liveX: 70 * (1 - live),
+    liveY: 34 * (1 - live),
+    liveScale: 0.9 + 0.1 * live,
+    morningOpacity: 1 - range(value, 0.28, 0.5),
+    dayOpacity: 0.35 + 0.65 * range(value, 0.18, 0.48) - 0.5 * evening,
+    eveningOpacity: evening,
+    clockOpacity: 0.1 + 0.12 * Math.sin(value * Math.PI),
+    clockY: -32 * value,
+  };
+}
+
+function deviceFrame(progress, stepCount = 5) {
+  const frame = storyFrame(progress, stepCount);
+  const value = frame.progress;
+  const phoneState = frame.steps[0].opacity;
+  const tabletState = frame.steps[1].opacity;
+  const liveState = frame.steps[2].opacity;
+  const watchState = frame.steps[3].opacity;
+  const macState = frame.steps[4].opacity;
+
+  return {
+    ...frame,
+    macOpacity: 0.12 + 0.88 * macState,
+    macX: 24 * (1 - macState),
+    macY: 42 * (1 - macState),
+    macScale: 0.72 + 0.28 * macState,
+    macRotate: 9 * (1 - macState),
+    macEventOpacity: range(value, 0.84, 0.96),
+    macEventY: 12 * (1 - range(value, 0.84, 0.96)),
+    phoneOpacity: 0.08 + 0.92 * phoneState + 0.18 * liveState,
+    phoneX: 58 * phoneState - 26 * liveState,
+    phoneY: -14 * phoneState + 30 * (1 - phoneState),
+    phoneScale: 0.72 + 0.42 * phoneState,
+    phoneRotate: -9 + 7 * value,
+    tabletOpacity: tabletState,
+    tabletX: 34 * (1 - tabletState),
+    tabletY: 28 * (1 - tabletState),
+    tabletScale: 0.78 + 0.22 * tabletState,
+    tabletRotate: 5 * (1 - tabletState),
+    liveOpacity: liveState,
+    liveX: 48 * (1 - liveState),
+    liveY: 26 * (1 - liveState),
+    liveScale: 0.84 + 0.16 * liveState,
+    islandOpacity: liveState,
+    islandX: -26 * liveState,
+    islandY: -52 + 52 * liveState,
+    islandScale: 0.72 + 0.28 * liveState,
+    watchOpacity: 0.08 + 0.92 * watchState,
+    watchX: -42 * watchState + 18 * macState,
+    watchY: 28 * (1 - watchState) - 16 * watchState,
+    watchScale: 0.72 + 0.44 * watchState,
+    watchRotate: 7 - 6 * value,
+    auraOpacity: 0.3 + 0.34 * Math.sin(value * Math.PI),
+    auraScale: 0.84 + 0.23 * range(value, 0.08, 0.92),
+  };
+}
+
+function privacyFrame(progress, stepCount = 4) {
+  const frame = storyFrame(progress, stepCount);
+  const value = frame.progress;
+  const cloud = range(value, 0.14, 0.3);
+  const relay = range(value, 0.38, 0.53);
+  const expiry = range(value, 0.63, 0.78);
+
+  return {
+    ...frame,
+    deviceOpacity: 1 - 0.45 * range(value, 0.72, 0.94),
+    deviceX: -22 * range(value, 0.12, 0.32),
+    deviceY: -14 * range(value, 0.12, 0.32),
+    deviceScale: 1 - 0.08 * range(value, 0.72, 0.94),
+    cloudOpacity: 0.18 + 0.82 * cloud,
+    cloudX: 24 * (1 - cloud),
+    cloudY: 12 * (1 - cloud),
+    cloudScale: 0.9 + 0.1 * cloud,
+    relayOpacity: 0.12 + 0.88 * relay,
+    relayX: 30 * (1 - relay),
+    relayY: 18 * (1 - relay),
+    relayScale: 0.88 + 0.12 * relay,
+    expiryOpacity: 0.12 + 0.88 * expiry,
+    expiryX: -28 * (1 - expiry),
+    expiryY: 16 * (1 - expiry),
+    expiryScale: 0.86 + 0.14 * expiry,
+    expiryRotate: -90 + 240 * expiry,
+    pathA: cloud,
+    pathB: relay,
+    shieldScale: 0.86 + 0.14 * range(value, 0.04, 0.22),
+    shieldOpacity: 0.42 + 0.58 * range(value, 0.04, 0.22),
   };
 }
 
 function finalFrame(progress) {
   const value = clamp(progress);
-  const assemble = range(value, 0.08, 0.72);
+  const productsSettle = range(value, 0.04, 0.38);
+  const assemble = range(value, 0.34, 0.78);
+  const resolve = range(value, 0.76, 0.94);
   return {
     progress: value,
     spread: 1 - assemble,
     pieceOpacity: 1 - 0.9 * assemble,
     iconScale: 0.78 + 0.22 * assemble,
     atmosphereScale: 0.92 + 0.12 * assemble,
+    productsOpacity: 1 - resolve,
+    productsRotate: -18 + 18 * productsSettle,
+    productsScale: 1.08 - 0.18 * resolve,
+    phoneX: -96 + 96 * productsSettle - 28 * assemble,
+    phoneY: -54 + 54 * productsSettle - 24 * assemble,
+    phoneRotate: -14 + 14 * productsSettle,
+    phoneScale: 0.86 + 0.14 * productsSettle - 0.16 * resolve,
+    watchX: 104 - 104 * productsSettle + 34 * assemble,
+    watchY: 62 - 62 * productsSettle + 22 * assemble,
+    watchRotate: 16 - 16 * productsSettle,
+    watchScale: 0.86 + 0.14 * productsSettle - 0.16 * resolve,
+  };
+}
+
+function timeSpineFrame(progress) {
+  const value = clamp(progress);
+  const settle = range(value, 0.002, 0.032);
+  const exit = range(value, 0.94, 0.995);
+  return {
+    opacity: (0.2 + 0.62 * settle) * (1 - exit),
+    x: -42 * (1 - settle),
+    y: 18 * (1 - settle),
+    rotate: 90 * (1 - settle),
+    scale: 0.56 + 0.44 * settle + 0.18 * Math.sin(value * Math.PI),
+    marker: value,
   };
 }
 
 const reducedMotionMedia = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)");
+const desktopCinematicMedia = globalThis.matchMedia?.("(min-width: 901px) and (min-height: 700px)");
+const tabletStoryMedia = globalThis.matchMedia?.("(min-width: 761px) and (min-height: 640px)");
 const supportsScrollMotion = !(reducedMotionMedia?.matches ?? false) && "requestAnimationFrame" in globalThis;
 const scrollPosition = () => globalThis.scrollY || document.documentElement?.scrollTop || 0;
 const scrollMotionTasks = [];
@@ -298,7 +498,7 @@ function setNumber(element, name, value, unit = "") {
   element?.style?.setProperty(name, `${value.toFixed(3)}${unit}`);
 }
 
-function addPinnedScene({ root, sticky, count, frame, apply }) {
+function addPinnedScene({ root, sticky, count, frame, apply, media }) {
   if (!root || !sticky || !supportsScrollMotion) return;
   let start = 0;
   let distance = 1;
@@ -315,6 +515,10 @@ function addPinnedScene({ root, sticky, count, frame, apply }) {
       lastProgress = Number.NaN;
     },
     render() {
+      if (media && !media.matches) {
+        lastProgress = Number.NaN;
+        return;
+      }
       const progress = clamp((scrollPosition() - start) / distance);
       if (progress === lastProgress) return;
       lastProgress = progress;
@@ -331,6 +535,7 @@ if (hero && heroSticky && supportsScrollMotion) {
     sticky: heroSticky,
     count: 1,
     frame: heroFrame,
+    media: desktopCinematicMedia,
     apply(frame) {
       setNumber(hero, "--hero-copy-opacity", frame.copyOpacity);
       setNumber(hero, "--hero-copy-x", frame.copyX, "px");
@@ -349,9 +554,76 @@ if (hero && heroSticky && supportsScrollMotion) {
       setNumber(hero, "--hero-rail-rotate", frame.railRotate, "deg");
       setNumber(hero, "--hero-rail-scale", frame.railScale);
       setNumber(hero, "--hero-cue-opacity", frame.cueOpacity);
+      setNumber(hero, "--hero-pill-opacity", frame.pillOpacity);
+      setNumber(hero, "--hero-pill-x", frame.pillX, "px");
+      setNumber(hero, "--hero-pill-y", frame.pillY, "px");
+      setNumber(hero, "--hero-pill-scale", frame.pillScale);
+      setNumber(hero, "--hero-atmosphere-opacity", frame.atmosphereOpacity);
     },
   });
   document.documentElement?.classList.add("hero-ready");
+}
+
+const commandStory = document.querySelector?.("[data-command-story]");
+const commandSteps = commandStory?.querySelectorAll?.("[data-command-step]") || [];
+if (commandStory && commandSteps.length && supportsScrollMotion) {
+  addPinnedScene({
+    root: commandStory,
+    sticky: commandStory.querySelector(".command-visual-sticky"),
+    count: commandSteps.length,
+    frame: commandFrame,
+    media: desktopCinematicMedia,
+    apply(frame) {
+      setNumber(commandStory, "--scene-progress", frame.progress);
+      setNumber(commandStory, "--command-stage-opacity", frame.stageOpacity);
+      setNumber(commandStory, "--command-stage-x", frame.stageX, "px");
+      setNumber(commandStory, "--command-stage-y", frame.stageY, "px");
+      setNumber(commandStory, "--command-stage-scale", frame.stageScale);
+      for (let index = 0; index < commandSteps.length; index += 1) {
+        const state = frame.steps[index];
+        setNumber(commandSteps[index], "--step-opacity", state.copyOpacity);
+        setNumber(commandSteps[index], "--copy-y", state.copyY, "px");
+        setNumber(commandSteps[index], "--copy-scale", state.productScale);
+      }
+      for (const name of ["phone", "input", "review", "timeline"]) {
+        for (const prop of ["X", "Y", "Z", "Scale", "Opacity", "RotateY", "RotateZ"]) {
+          const key = name + prop;
+          if (frame[key] === undefined) continue;
+          const unit = prop === "X" || prop === "Y" || prop === "Z" ? "px" : prop.startsWith("Rotate") ? "deg" : "";
+          const cssProp = prop.replace(/[A-Z]/g, (letter) => "-" + letter.toLowerCase()).replace(/^-/, "");
+          setNumber(commandStory, "--command-" + name + "-" + cssProp, frame[key], unit);
+        }
+      }
+      setNumber(commandStory, "--command-type-progress", frame.typeProgress);
+      setNumber(commandStory, "--command-type-complete", frame.typeComplete);
+      setNumber(commandStory, "--command-token-opacity", frame.tokenOpacity);
+      setNumber(commandStory, "--command-token-y", frame.tokenY, "px");
+      setNumber(commandStory, "--command-token-scale", frame.tokenScale);
+      setNumber(commandStory, "--command-result-y", frame.resultY, "px");
+      setNumber(commandStory, "--command-result-scale", frame.resultScale);
+      setNumber(commandStory, "--command-ambiguity-opacity", frame.ambiguityOpacity);
+      setNumber(commandStory, "--command-ambiguity-y", frame.ambiguityY, "px");
+      setNumber(commandStory, "--command-apply-opacity", frame.applyOpacity);
+      for (const name of ["voice", "flight"]) {
+        for (const prop of ["Opacity", "X", "Y", "Scale", "Rotate"]) {
+          const key = name + prop;
+          if (frame[key] === undefined) continue;
+          const unit = prop === "X" || prop === "Y" ? "px" : prop === "Rotate" ? "deg" : "";
+          setNumber(commandStory, "--command-" + name + "-" + prop.toLowerCase(), frame[key], unit);
+        }
+      }
+      setNumber(commandStory, "--command-orbit-opacity", frame.orbitOpacity);
+      setNumber(commandStory, "--command-orbit-rotate", frame.orbitRotate, "deg");
+      setNumber(commandStory, "--command-orbit-scale", frame.orbitScale);
+      for (const name of ["red", "blue"]) {
+        setNumber(commandStory, "--command-" + name + "-opacity", frame[name + "Opacity"]);
+        setNumber(commandStory, "--command-" + name + "-x", frame[name + "X"], "px");
+        setNumber(commandStory, "--command-" + name + "-scale", frame[name + "Scale"]);
+      }
+      setNumber(commandStory, "--command-now-y", frame.nowY, "%");
+    },
+  });
+  document.documentElement?.classList.add("command-ready");
 }
 
 const story = document.querySelector?.("[data-scroll-story]");
@@ -363,6 +635,7 @@ if (story && storySteps.length && storySteps.length === storyProducts.length && 
     sticky: story.querySelector(".story-visual-sticky"),
     count: storySteps.length,
     frame: storyFrame,
+    media: tabletStoryMedia,
     apply(frame) {
       setNumber(story, "--story-progress", frame.progress);
       setNumber(story, "--story-stage-opacity", frame.stageOpacity);
@@ -391,27 +664,81 @@ if (school && schoolSteps.length && supportsScrollMotion) {
     sticky: school.querySelector(".school-visual-sticky"),
     count: schoolSteps.length,
     frame: schoolFrame,
+    media: desktopCinematicMedia,
     apply(frame) {
       const root = school.querySelector(".school-shell");
       setNumber(root, "--scene-progress", frame.progress);
+      setNumber(root, "--school-stage-x", frame.stageX, "px");
       setNumber(root, "--school-stage-y", frame.stageY, "px");
       setNumber(root, "--school-stage-rotate", frame.stageRotate, "deg");
+      setNumber(root, "--school-stage-rotate-y", frame.stageRotateY, "deg");
       setNumber(root, "--school-stage-scale", frame.stageScale);
-      setNumber(root, "--school-class-opacity", frame.classOpacity);
+      setNumber(root, "--school-class-build-opacity", frame.classOpacity);
+      setNumber(root, "--school-aura-opacity", frame.auraOpacity);
+      setNumber(root, "--school-aura-scale", frame.auraScale);
       for (let index = 0; index < schoolSteps.length; index += 1) {
         const state = frame.steps[index];
         setNumber(schoolSteps[index], "--step-opacity", state.copyOpacity);
         setNumber(schoolSteps[index], "--copy-y", state.copyY, "px");
       }
-      for (const [name, state] of [["selector", frame.selector], ["timetable", frame.timetable], ["meal", frame.meal]]) {
-        setNumber(root, `--school-${name}-opacity`, state.opacity);
-        setNumber(root, `--school-${name}-x`, state.productRotate * 8, "px");
-        setNumber(root, `--school-${name}-y`, state.productY, "px");
-        setNumber(root, `--school-${name}-scale`, state.productScale);
+      for (const name of ["search", "class", "elective", "timetable", "meal"]) {
+        const state = frame[name];
+        setNumber(root, "--school-" + name + "-opacity", state.opacity);
+        setNumber(root, "--school-" + name + "-x", state.productRotate * 8, "px");
+        setNumber(root, "--school-" + name + "-y", state.productY, "px");
+        setNumber(root, "--school-" + name + "-scale", state.productScale);
       }
     },
   });
   document.documentElement?.classList.add("school-ready");
+}
+
+const rhythm = document.querySelector?.("[data-rhythm-story]");
+const rhythmSteps = rhythm?.querySelectorAll?.("[data-rhythm-step]") || [];
+if (rhythm && rhythmSteps.length && supportsScrollMotion) {
+  addPinnedScene({
+    root: rhythm,
+    sticky: rhythm.querySelector(".rhythm-visual-sticky"),
+    count: rhythmSteps.length,
+    frame: rhythmFrame,
+    media: desktopCinematicMedia,
+    apply(frame) {
+      setNumber(rhythm, "--scene-progress", frame.progress);
+      for (let index = 0; index < rhythmSteps.length; index += 1) {
+        const state = frame.steps[index];
+        setNumber(rhythmSteps[index], "--step-opacity", state.copyOpacity);
+        setNumber(rhythmSteps[index], "--copy-y", state.copyY, "px");
+        setNumber(rhythmSteps[index], "--copy-scale", state.productScale);
+      }
+      setNumber(rhythm, "--rhythm-phone-x", frame.phoneX, "px");
+      setNumber(rhythm, "--rhythm-phone-y", frame.phoneY, "px");
+      setNumber(rhythm, "--rhythm-phone-scale", frame.phoneScale);
+      setNumber(rhythm, "--rhythm-phone-rotate-y", frame.phoneRotateY, "deg");
+      setNumber(rhythm, "--rhythm-phone-rotate-z", frame.phoneRotateZ, "deg");
+      setNumber(rhythm, "--rhythm-chrome-opacity", frame.chromeOpacity);
+      setNumber(rhythm, "--rhythm-chrome-y", frame.chromeY, "px");
+      setNumber(rhythm, "--rhythm-chrome-scale", frame.chromeScale);
+      setNumber(rhythm, "--rhythm-grid-top", frame.gridTop, "px");
+      setNumber(rhythm, "--rhythm-grid-y", frame.gridY, "px");
+      setNumber(rhythm, "--rhythm-grid-scale", frame.gridScale);
+      setNumber(rhythm, "--rhythm-event-opacity", frame.eventOpacity);
+      setNumber(rhythm, "--rhythm-event-x", frame.eventX, "px");
+      setNumber(rhythm, "--rhythm-event-y", frame.eventY, "px");
+      setNumber(rhythm, "--rhythm-event-scale-y", frame.eventScaleY);
+      setNumber(rhythm, "--rhythm-handle-opacity", frame.handleOpacity);
+      setNumber(rhythm, "--rhythm-now-y", frame.nowY, "%");
+      setNumber(rhythm, "--rhythm-live-opacity", frame.liveOpacity);
+      setNumber(rhythm, "--rhythm-live-x", frame.liveX, "px");
+      setNumber(rhythm, "--rhythm-live-y", frame.liveY, "px");
+      setNumber(rhythm, "--rhythm-live-scale", frame.liveScale);
+      setNumber(rhythm, "--rhythm-morning-opacity", frame.morningOpacity);
+      setNumber(rhythm, "--rhythm-day-opacity", frame.dayOpacity);
+      setNumber(rhythm, "--rhythm-evening-opacity", frame.eveningOpacity);
+      setNumber(rhythm, "--rhythm-clock-opacity", frame.clockOpacity);
+      setNumber(rhythm, "--rhythm-clock-y", frame.clockY, "px");
+    },
+  });
+  document.documentElement?.classList.add("rhythm-ready");
 }
 
 const devices = document.querySelector?.("[data-device-story]");
@@ -422,6 +749,7 @@ if (devices && deviceSteps.length && supportsScrollMotion) {
     sticky: devices.querySelector(".device-visual-sticky"),
     count: deviceSteps.length,
     frame: deviceFrame,
+    media: desktopCinematicMedia,
     apply(frame) {
       const root = devices.querySelector(".device-story-shell");
       setNumber(root, "--scene-progress", frame.progress);
@@ -437,11 +765,59 @@ if (devices && deviceSteps.length && supportsScrollMotion) {
         setNumber(root, `--device-${name}-scale`, frame[`${name}Scale`]);
         setNumber(root, `--device-${name}-rotate`, frame[`${name}Rotate`], "deg");
       }
+      setNumber(root, "--device-tablet-opacity", frame.tabletOpacity);
+      setNumber(root, "--device-tablet-x", frame.tabletX, "px");
+      setNumber(root, "--device-tablet-y", frame.tabletY, "px");
+      setNumber(root, "--device-tablet-scale", frame.tabletScale);
+      setNumber(root, "--device-tablet-rotate", frame.tabletRotate, "deg");
+      setNumber(root, "--device-live-opacity", frame.liveOpacity);
+      setNumber(root, "--device-live-x", frame.liveX, "px");
+      setNumber(root, "--device-live-y", frame.liveY, "px");
+      setNumber(root, "--device-live-scale", frame.liveScale);
+      setNumber(root, "--device-island-opacity", frame.islandOpacity);
+      setNumber(root, "--device-island-x", frame.islandX, "px");
+      setNumber(root, "--device-island-y", frame.islandY, "px");
+      setNumber(root, "--device-island-scale", frame.islandScale);
+      setNumber(root, "--device-mac-event-opacity", frame.macEventOpacity);
+      setNumber(root, "--device-mac-event-y", frame.macEventY, "px");
       setNumber(root, "--device-aura-opacity", frame.auraOpacity);
       setNumber(root, "--device-aura-scale", frame.auraScale);
     },
   });
   document.documentElement?.classList.add("device-ready");
+}
+
+const privacy = document.querySelector?.("[data-privacy-story]");
+const privacySteps = privacy?.querySelectorAll?.("[data-privacy-step]") || [];
+if (privacy && privacySteps.length && supportsScrollMotion) {
+  addPinnedScene({
+    root: privacy,
+    sticky: privacy.querySelector(".privacy-visual-sticky"),
+    count: privacySteps.length,
+    frame: privacyFrame,
+    media: desktopCinematicMedia,
+    apply(frame) {
+      setNumber(privacy, "--scene-progress", frame.progress);
+      for (let index = 0; index < privacySteps.length; index += 1) {
+        const state = frame.steps[index];
+        setNumber(privacySteps[index], "--step-opacity", state.copyOpacity);
+        setNumber(privacySteps[index], "--copy-y", state.copyY, "px");
+        setNumber(privacySteps[index], "--copy-scale", state.productScale);
+      }
+      for (const name of ["device", "cloud", "relay", "expiry"]) {
+        setNumber(privacy, "--privacy-" + name + "-opacity", frame[name + "Opacity"]);
+        setNumber(privacy, "--privacy-" + name + "-x", frame[name + "X"], "px");
+        setNumber(privacy, "--privacy-" + name + "-y", frame[name + "Y"], "px");
+        setNumber(privacy, "--privacy-" + name + "-scale", frame[name + "Scale"]);
+      }
+      setNumber(privacy, "--privacy-expiry-rotate", frame.expiryRotate, "deg");
+      setNumber(privacy, "--privacy-path-a", frame.pathA);
+      setNumber(privacy, "--privacy-path-b", frame.pathB);
+      setNumber(privacy, "--privacy-shield-scale", frame.shieldScale);
+      setNumber(privacy, "--privacy-shield-opacity", frame.shieldOpacity);
+    },
+  });
+  document.documentElement?.classList.add("privacy-ready");
 }
 
 const flowSections = supportsScrollMotion
@@ -484,24 +860,27 @@ const piecePositions = [
   [-92, -52, -14], [-66, 64, 9], [-22, -88, -5], [6, 88, 4], [50, -72, 10], [86, 52, -8], [102, -18, 15],
 ];
 if (finalScene && finalPieces.length && supportsScrollMotion) {
-  let top = 0;
-  let height = 1;
-  let lastProgress = Number.NaN;
-  scrollMotionTasks.push({
-    measure() {
-      const y = scrollPosition();
-      top = finalScene.getBoundingClientRect().top + y;
-      height = Math.max(finalScene.offsetHeight, 1);
-      lastProgress = Number.NaN;
-    },
-    render() {
-      const progress = clamp((scrollPosition() + (globalThis.innerHeight || 1) - top) / (height + (globalThis.innerHeight || 1) * 0.45));
-      if (progress === lastProgress) return;
-      lastProgress = progress;
-      const frame = finalFrame(progress);
+  addPinnedScene({
+    root: finalScene,
+    sticky: finalScene.querySelector(".final-cta-inner"),
+    count: 1,
+    frame: finalFrame,
+    media: desktopCinematicMedia,
+    apply(frame) {
       setNumber(finalScene, "--final-piece-opacity", frame.pieceOpacity);
       setNumber(finalScene, "--final-icon-scale", frame.iconScale);
       setNumber(finalScene, "--final-atmosphere-scale", frame.atmosphereScale);
+      setNumber(finalScene, "--final-products-opacity", frame.productsOpacity);
+      setNumber(finalScene, "--final-products-rotate", frame.productsRotate, "deg");
+      setNumber(finalScene, "--final-products-scale", frame.productsScale);
+      setNumber(finalScene, "--final-phone-x", frame.phoneX, "px");
+      setNumber(finalScene, "--final-phone-y", frame.phoneY, "px");
+      setNumber(finalScene, "--final-phone-r", frame.phoneRotate, "deg");
+      setNumber(finalScene, "--final-phone-scale", frame.phoneScale);
+      setNumber(finalScene, "--final-watch-x", frame.watchX, "px");
+      setNumber(finalScene, "--final-watch-y", frame.watchY, "px");
+      setNumber(finalScene, "--final-watch-r", frame.watchRotate, "deg");
+      setNumber(finalScene, "--final-watch-scale", frame.watchScale);
       for (let index = 0; index < finalPieces.length; index += 1) {
         const [x, y, rotation] = piecePositions[index];
         setNumber(finalPieces[index], "--piece-x", x * frame.spread, "px");
@@ -510,9 +889,11 @@ if (finalScene && finalPieces.length && supportsScrollMotion) {
       }
     },
   });
+  document.documentElement?.classList.add("final-ready");
 }
 
 const siteHeader = document.querySelector?.("[data-site-header]");
+const timeSpine = document.querySelector?.("[data-time-spine]");
 const navLinks = Array.from(document.querySelectorAll?.('.nav-links a[href^="#"]') || []);
 const navSections = navLinks.map((link) => ({ link, section: document.querySelector?.(link.getAttribute("href")), top: 0 }));
 let navLastProgress = Number.NaN;
@@ -528,6 +909,13 @@ scrollMotionTasks.push({
     if (progress !== navLastProgress) {
       navLastProgress = progress;
       setNumber(document.documentElement, "--page-progress", progress);
+      const spine = timeSpineFrame(progress);
+      setNumber(timeSpine, "--spine-opacity", spine.opacity);
+      setNumber(timeSpine, "--spine-x", spine.x, "vw");
+      setNumber(timeSpine, "--spine-y", spine.y, "vh");
+      setNumber(timeSpine, "--spine-rotate", spine.rotate, "deg");
+      setNumber(timeSpine, "--spine-scale", spine.scale);
+      setNumber(timeSpine, "--spine-marker", spine.marker);
       siteHeader?.classList.toggle("is-compact", y > 20);
       hero?.classList.toggle("is-active", y < (hero?.offsetHeight || globalThis.innerHeight || 1));
     }
