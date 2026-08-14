@@ -156,6 +156,7 @@ struct NEISClient {
     static func cleanSubject(_ raw: String) -> String {
         var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
             .replacingOccurrences(of: "[보강]", with: "")
+        if s.contains("방학") { return "" }   // NEIS가 방학 중 모든 교시의 과목 칸에 넣는 표식
         let pattern = #"^\s*(\d+\s*학기)?\s*(\d+\s*차)?\s*(정기시험|정기고사|중간고사|기말고사|지필평가|수행평가)\s*"#
         if let r = s.range(of: pattern, options: .regularExpression) { s.removeSubrange(r) }
         return s.trimmingCharacters(in: .whitespacesAndNewlines)
