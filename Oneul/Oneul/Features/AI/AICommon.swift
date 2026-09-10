@@ -39,5 +39,24 @@ struct ExistingEvent: Hashable {
     let start: Date
     let end: Date
     let location: String
-}
 
+    /// ponytail: title/date ranking within the fetched 60-day window; use indexed retrieval if that window grows.
+    static func modelContext(for text: String, now: Date, events: [ExistingEvent]) -> [ExistingEvent] {
+        let query = text.lowercased().filter { !$0.isWhitespace }
+        let day = AIKoreanDate.parse(text, now: now).relativeDay.flatMap {
+            Calendar.current.date(byAdding: .day, value: $0, to: Calendar.current.startOfDay(for: now))
+        }
+        func score(_ event: ExistingEvent) -> Int {
+            let title = event.title.lowercased().filter { !$0.isWhitespace }
+            let named = !title.isEmpty && query.contains(title)
+            let dated = day.map { Calendar.current.isDate(event.start, inSameDayAs: $0) } ?? false
+            return (named ? 100 : 0) + (dated ? 10 : 0)
+        }
+        return Array(events.sorted {
+            let lhs = score($0), rhs = score($1)
+            if lhs != rhs { return lhs > rhs }
+            let a = abs($0.start.timeIntervalSince(now)), b = abs($1.start.timeIntervalSince(now))
+            return a == b ? $0.id.uuidString < $1.id.uuidString : a < b
+        }.prefix(15))
+    }
+}

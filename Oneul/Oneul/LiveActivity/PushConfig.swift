@@ -8,6 +8,6 @@ enum PushConfig {
     static let registerKey = Secrets.pushRegisterKey
 
     static var enabled: Bool {
-        registerKey.count >= 32 && serverURL?.host?.contains("example") == false
+        registerKey.count >= 32 && serverURL?.scheme == "https" && serverURL?.host?.contains("example") == false
     }
 }

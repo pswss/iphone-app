@@ -16,28 +16,31 @@ extension Notification.Name {
 
 @main
 struct OneulApp: App {
-    let container = Persistence.makeContainer()
+    @State private var storage: Persistence
     #if os(macOS)
     @AppStorage("menuBarTimeline") private var menuBarTimeline = true   // 메뉴바 타임라인 표시(설정 토글)
     @AppStorage("menuBarAI") private var menuBarAI = true               // 메뉴바 AI 표시(설정 토글)
     #endif
 
     init() {
+        let storage = Persistence()
+        _storage = State(initialValue: storage)
         _ = NotificationManager.shared   // delegate 연결(권한 요청은 온보딩 완료 후 — HIG 컨텍스트 요청)
         #if os(iOS)
         Task { @MainActor in PushSync.shared.begin() }   // push-to-start 토큰 구독(앱 꺼져도 LA 자동 시작)
-        BackgroundRefresh.register(container: container)   // 백그라운드 갱신 작업 등록(launch 전)
+        BackgroundRefresh.register(storage: storage)   // 백그라운드 갱신 작업 등록(launch 전)
         #endif
         #if DEBUG
-        Task { @MainActor [container] in DemoSeed.runIfRequested(container: container) }   // 스크린샷용
+        if let container = storage.container {
+            Task { @MainActor in DemoSeed.runIfRequested(container: container) }
+        }   // 스크린샷용
         #endif
     }
 
     var body: some Scene {
         WindowGroup {
-            RootView()
+            withStorage { RootView() }
         }
-        .modelContainer(container)
         #if os(macOS)
         .defaultSize(width: 1080, height: 720)
         .commands {
@@ -77,16 +80,14 @@ struct OneulApp: App {
 
         #if os(macOS)
         Settings {
-            SettingsView()
-                .modelContainer(container)
+            withStorage { SettingsView() }
                 .frame(width: 480, height: 600)
         }
 
         // 타임라인 = 메뉴바 아이콘 (클릭→오늘 일정 한눈에) — 위에서 미끄러져 내려오는 등장
         MenuBarExtra(AppLanguage.shared.tr("Oneul 타임라인"), systemImage: "calendar.day.timeline.left",
                      isInserted: $menuBarTimeline) {
-            MenuBarTimelineView()
-                .modelContainer(container)
+            withStorage { MenuBarTimelineView() }
                 .frame(width: 340)
                 .fixedSize(horizontal: false, vertical: true)
                 .menuBarPopIn(.slideDown)
@@ -95,14 +96,26 @@ struct OneulApp: App {
 
         // AI = 메뉴바 상단 ✨ (클릭→자연어 입력 팝오버, 바깥 클릭으로 닫힘) — 반짝 튀어나오는 등장
         MenuBarExtra("Oneul AI", systemImage: "sparkles", isInserted: $menuBarAI) {
-            AIScheduleView()
-                .eventDeletionUndoHost()
-                .modelContainer(container)
+            withStorage { AIScheduleView().eventDeletionUndoHost() }
                 .frame(width: 420)
                 .menuBarPopIn(.sparklePop)
         }
         .menuBarExtraStyle(.window)
         #endif
+    }
+    @ViewBuilder
+    private func withStorage<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        if let container = storage.container {
+            content().modelContainer(container)
+        } else {
+            ContentUnavailableView {
+                Label(AppLanguage.shared.tr("저장된 자료를 열 수 없어요"), systemImage: "externaldrive.badge.exclamationmark")
+            } description: {
+                Text(AppLanguage.shared.tr("기존 자료는 그대로 보관되어 있어요. 저장 공간과 iCloud 설정을 확인한 뒤 다시 시도해 주세요. 앱을 삭제하거나 데이터를 초기화하지 않아도 됩니다."))
+            } actions: {
+                Button(AppLanguage.shared.tr("다시 시도")) { storage.retry() }
+            }
+        }
     }
 }
 

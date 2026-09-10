@@ -60,13 +60,13 @@
 
 [FastScheduleParser.swift](Oneul/Oneul/Features/AI/FastScheduleParser.swift)가 지원되는 생성·수정·삭제 표현을 먼저 처리합니다. [AppleIntelligenceClient.swift](Oneul/Oneul/Features/AI/AppleIntelligenceClient.swift)는 규칙으로 처리하지 못한 입력을 보완합니다. 모델은 의미를 추출하고 실제 날짜·시각 계산은 Swift 코드가 맡습니다.
 
-일정 적용은 저장 결과를 확인하고, 삭제 후에는 잠시 실행 취소를 제공합니다. AI 기능을 사용한다고 모든 입력이 모델에 전달되는 것은 아닙니다. 현재 입력 화면은 텍스트와 사진 중심이며, 별도의 마이크 버튼은 제공하지 않습니다.
+일정 적용은 저장 결과를 확인하고, 삭제 후에는 잠시 실행 취소를 제공합니다. AI 기능을 사용한다고 모든 입력이 모델에 전달되는 것은 아닙니다. 현재 입력 화면은 텍스트와 사진 중심이며, 별도의 마이크 버튼은 제공하지 않습니다. 모델에는 요청의 제목·날짜와 관련 있는 최대 15개 일정을 전달하고, 수정·삭제 후보 검사는 가져온 전체 60일 범위를 사용합니다. 목록을 생략한 재시도에서는 모델이 만든 번호를 수정 대상으로 사용하지 않습니다.
 
 ## 데이터가 저장되고 이동하는 곳
 
 | 기능 | 데이터 경로 |
 | --- | --- |
-| 일정·메모 | SwiftData. 사용 가능한 구성에서는 App Group·개인 CloudKit, 컨테이너 생성 실패 시 다른 저장 구성으로 폴백 |
+| 일정·메모 | SwiftData. App Group을 사용할 수 있으면 개인 CloudKit 구성, 그 외에는 명시적인 로컬 구성. 열기 실패 시 기존 파일을 보존하고 재시도 화면 표시 |
 | 위젯 | App Group 공유 스냅샷 |
 | Watch | WatchConnectivity로 일정 스냅샷 전달 |
 | 자연어·사진 인식 | 기기 내 규칙·Vision·Foundation Models |
@@ -74,9 +74,9 @@
 | Live Activity 서버 푸시 | 활성화된 경우 임의 기기 ID·APNs 토큰·당일 표시 상태를 Cloudflare Worker에 전달 |
 | 캘린더 가져오기 | 사용자 요청으로 Apple Calendar를 읽거나 지정한 Google iCal URL에 요청 |
 
-푸시 Worker는 등록 내용을 최대 3일 TTL로 저장합니다. 기기 내 갱신, WidgetKit 타임라인, 서버 푸시가 역할을 나눕니다. 실제 표시 시점은 OS의 백그라운드·푸시 정책에 영향을 받으며 초 단위 갱신을 보장하지 않습니다.
+푸시 Worker는 등록 시점부터 최대 3일간 저장합니다. 일시적인 통신 오류·429·5xx는 간격을 늘려 최대 3회 시도하며, 영구적인 요청 오류는 재시도하지 않습니다. 재시도가 보관 기한을 연장하지 않습니다. 기기 내 갱신, WidgetKit 타임라인, 서버 푸시가 역할을 나눕니다. 실제 표시 시점은 OS의 백그라운드·푸시 정책에 영향을 받으며 초 단위 갱신을 보장하지 않습니다.
 
-**문서 정합성 과제:** 공개 웹 정책은 CloudKit과 Live Activity 전송을 설명하지만, 앱 안의 정책과 `PrivacyInfo.xcprivacy`에는 여전히 “기기에만 저장 / 수집 없음”에 해당하는 내용이 남아 있습니다. 다음 배포 전에 실제 데이터 흐름과 함께 정리해야 합니다. README 수정으로 앱 안의 정책까지 바뀌지는 않습니다.
+앱 안의 한국어·영어 정책과 개인정보 매니페스트는 개인 CloudKit 저장 및 당일 푸시 전송을 반영합니다. 매니페스트는 기기 식별자와 사용자 콘텐츠를 앱 기능 목적으로 선언하며 추적에 사용하지 않습니다.
 
 ## 소스 빌드
 
@@ -115,6 +115,9 @@ for script in harness/run_*contract.sh; do
   bash "$script" || exit 1
 done
 bash harness/run_series_edit.sh
+bash harness/run_school_import.sh
+bash harness/run_cloud_config.sh
+node server/push-worker/test.mjs
 ```
 
 계약 검사는 접근성 액션, 조밀한 일정 배치, 학교 흐름, Mac AI 팝오버, Watch 시간 상태의 소스 조건을 확인합니다. Swift 하네스는 별도의 실행 검증입니다. 일부 하네스는 `/Applications/Xcode-beta.app` 경로를 사용하므로 설치 환경에 맞춰 확인해야 합니다.
@@ -149,7 +152,25 @@ Oneul/
 proxy/                    # NEIS 프록시 Worker
 ```
 
-Xcode Cloud는 [ci_post_clone.sh](Oneul/ci_scripts/ci_post_clone.sh)에서 `ONEUL_PUSH_SERVER_URL_HEX`, `ONEUL_PUSH_REGISTER_KEY`, `ONEUL_NEIS_PROXY_BASE_HEX`로 `Secrets.swift`를 생성합니다. 실제 값은 CI의 Secret 설정에 보관합니다. APNs 키와 NEIS 키도 각 Worker의 비밀 설정으로 관리합니다.
+## Xcode Cloud
+
+1. Xcode Cloud workflow의 프로젝트를 `Oneul/Oneul.xcodeproj`, 공유 스킴을 `Oneul`로 선택합니다. iOS 26 이상 SDK가 있는 Xcode를 사용하고 Archive는 Release로 설정합니다.
+2. 저장소에 커밋된 프로젝트와 `Oneul/ci_scripts/ci_post_clone.sh`를 사용합니다. 스크립트는 프로젝트 바로 옆 `ci_scripts/`에서 자동 실행됩니다. Cloud에서 XcodeGen을 별도 설치할 필요는 없습니다.
+3. 기능별 비밀값을 workflow의 **Secret 환경변수**에 설정합니다. 모두 비어 있어도 컴파일되며 서버 푸시는 비활성화됩니다.
+
+| Secret 변수 | 형식 |
+| --- | --- |
+| `ONEUL_PUSH_SERVER_URL_HEX` | HTTPS Worker URL을 UTF-8 hex로 인코딩 |
+| `ONEUL_PUSH_REGISTER_KEY` | 32자 이상 등록 키. 위 URL과 함께 설정 |
+| `ONEUL_NEIS_PROXY_BASE_HEX` | NEIS HTTPS 프록시 `/hub/` URL을 UTF-8 hex로 인코딩. 선택 사항 |
+
+스크립트는 형식 오류를 비밀값 출력 없이 중단하고, 따옴표·줄바꿈·Swift 보간 문자를 이스케이프해서 `Secrets.swift`를 생성합니다. 로컬의 실제 `Secrets.swift`는 계속 Git에서 제외합니다.
+
+기존 Cloud Build·Analyze·Archive 오류는 `DayGridView.swift`의 긴 modifier 체인에서 발생한 타입 검사 시간 초과였습니다. 스타일·입력·배치·접근성 표현식으로 나눠 컴파일 부담을 줄였습니다. **2026-09-10, Xcode 27 beta 27A5209h에서 비밀값 없는 깨끗한 소스 복사본으로 iOS Release Archive와 macOS Release 빌드가 성공했습니다.** 이는 서명 없는 컴파일 검증입니다. Cloud의 서명·프로비저닝과 실제 workflow 성공 여부는 해당 커밋 반영 후 별도로 확인해야 합니다.
+
+[Apple 사용자 빌드 스크립트 문서](https://developer.apple.com/documentation/xcode/writing-custom-build-scripts) · [데이터 수집 매니페스트 문서](https://developer.apple.com/documentation/technotes/tn3184-adding-data-collection-details-to-your-privacy-manifest)
+
+APNs 키와 NEIS 키는 각 Worker의 비밀 설정으로 관리합니다. 푸시 Worker 회귀 검사는 가짜 APNs와 메모리 KV를 사용하며 실제 알림을 발송하지 않습니다.
 
 과거 `SETUP.md`와 일부 설계 문서에는 이전 AI·키 설정이 남아 있으므로 현재 설치는 이 README와 실제 소스를 기준으로 합니다. 변경 시 지켜야 할 디자인 규칙은 [CLAUDE.md](CLAUDE.md)에 있습니다.
 

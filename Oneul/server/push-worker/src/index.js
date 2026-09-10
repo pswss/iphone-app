@@ -15,20 +15,22 @@ export default {
     if (request.method !== "POST" || new URL(request.url).pathname !== "/register") {
       return new Response("not found", { status: 404 });
     }
-    if (request.headers.get("x-oneul-key") !== env.REG_KEY) {
+    if (!env.REG_KEY || request.headers.get("x-oneul-key") !== env.REG_KEY) {
       return new Response("unauthorized", { status: 401 });
     }
     let body;
     try { body = await request.json(); } catch { return new Response("bad json", { status: 400 }); }
 
-    const { deviceID, updateToken, startToken, sandbox, items, staleAt } = body;
-    if (!deviceID || !Array.isArray(items)) return new Response("bad request", { status: 400 });
+    const { deviceID, updateToken, startToken, sandbox, items, staleAt } = body ?? {};
+    if (typeof deviceID !== "string" || !/^[\w-]{1,128}$/.test(deviceID) || !Array.isArray(items) || items.length > 64) return new Response("bad request", { status: 400 });
 
+    const now = Math.floor(Date.now() / 1000);
     const record = {
+      expiresAt: now + 3 * 86400,
       updateToken: updateToken || null,
       startToken: startToken || null,
       sandbox: !!sandbox,
-      staleAt: Number(staleAt) || Math.floor(Date.now() / 1000) + 86400,
+      staleAt: Math.min(Number(staleAt) || now + 86400, now + 2 * 86400),
       // item: { at(unix초), event: "start"|"update", state: {...content-state...}, attributes?: {...}, sent?: bool }
       items: items.slice(0, 64).map(i => ({
         at: Number(i.at), event: i.event === "start" ? "start" : "update",
@@ -36,7 +38,7 @@ export default {
       })).filter(i => i.at > 0 && i.state),
     };
     await env.SCHEDULES.put(`dev:${deviceID}`, JSON.stringify(record), {
-      expirationTtl: 3 * 86400,
+      expiration: record.expiresAt,
     });
     return Response.json({ ok: true, count: record.items.length });
   },
@@ -46,9 +48,11 @@ export default {
   },
 };
 
-async function tick(env) {
+export async function tick(env) {
   const now = Math.floor(Date.now() / 1000);
-  const list = await env.SCHEDULES.list({ prefix: "dev:" });
+  let cursor;
+  do {
+  const list = await env.SCHEDULES.list({ prefix: "dev:", cursor });
   for (const key of list.keys) {
     const raw = await env.SCHEDULES.get(key.name);
     if (!raw) continue;
@@ -67,19 +71,26 @@ async function tick(env) {
         if (!item.sent && now - item.at > 600) { item.sent = true; changed = true; }
         continue;
       }
+      if (item.nextAttemptAt > now) continue;
       if (item.at > now + 65) continue;                  // 다음 분 크론 몫
       if (item.at > now) {                               // 60초 내 도래 → 정각까지 대기 후 발사(±1초)
-        await new Promise(r => setTimeout(r, (item.at - now) * 1000));
+        await new Promise(r => setTimeout(r, Math.max(0, item.at * 1000 - Date.now())));
       }
-      const ok = await sendLA(env, rec, item, Math.floor(Date.now() / 1000));
-      item.sent = true;                                  // 실패해도 1회만(무한 재시도 방지)
-      item.sentOK = ok;
+      const result = await sendLA(env, rec, item, Math.floor(Date.now() / 1000));
+      item.attempts = (item.attempts || 0) + 1;
+      item.sent = result.ok || !result.retry || item.attempts >= 3;
+      item.sentOK = result.ok;
+      if (!item.sent) item.nextAttemptAt = Math.floor(Date.now() / 1000) + 60 * 2 ** (item.attempts - 1);
+      if (!result.ok) console.warn(JSON.stringify({ event: "apns_failed", status: result.status, attempt: item.attempts, retry: !item.sent }));
       changed = true;
       firedNow = true;
     }
-    if (changed) await env.SCHEDULES.put(key.name, JSON.stringify(rec), { expirationTtl: 3 * 86400 });
-    if (!firedNow) await maybeRefresh(env, rec, now);    // 경계 사이에도 '남은 n분'이 스스로 줄게
+    // ponytail: KV is eventually consistent; move per-device scheduling to Durable Objects if concurrent registrations cause lost updates.
+    if (changed) await env.SCHEDULES.put(key.name, JSON.stringify(rec), { expiration: rec.expiresAt || now + 3 * 86400 });
+    if (!firedNow) await maybeRefresh(env, rec, now);
   }
+  cursor = list.list_complete ? undefined : list.cursor;
+  } while (cursor);
 }
 
 // 경계 푸시 사이의 분 단위 재렌더 — 상태는 그대로 다시 보내고, 기기가 렌더 시점의
@@ -87,7 +98,7 @@ async function tick(env) {
 // 1시간 넘게 남은 구간은 표기가 'n시간'이라 시간 단위가 바뀌는 분에만 보낸다.
 async function maybeRefresh(env, rec, now) {
   if (!rec.updateToken) return;
-  const past = rec.items.filter(i => i.at <= now);
+  const past = rec.items.filter(i => i.at <= now && i.sentOK);
   if (!past.length) return;                              // 아직 LA 시작 전
   const next = rec.items.filter(i => i.at > now).map(i => i.at).sort((a, b) => a - b)[0];
   if (!next) return;                                     // 마지막 경계 이후 — 셀 대상 없음
@@ -100,7 +111,9 @@ async function maybeRefresh(env, rec, now) {
 async function sendLA(env, rec, item, now) {
   const isStart = item.event === "start" && rec.startToken;
   const token = isStart ? rec.startToken : rec.updateToken;
-  if (!token) return false;
+  if (!token) return { ok: false, retry: true, status: 0 };
+
+  try {
 
   const aps = {
     timestamp: now,
@@ -117,6 +130,7 @@ async function sendLA(env, rec, item, now) {
   const jwt = await apnsJWT(env);
   const res = await fetch(`https://${host}/3/device/${token}`, {
     method: "POST",
+    signal: AbortSignal.timeout(10_000),
     headers: {
       authorization: `bearer ${jwt}`,
       "apns-topic": TOPIC_LA,
@@ -126,7 +140,10 @@ async function sendLA(env, rec, item, now) {
     },
     body: JSON.stringify({ aps }),
   });
-  return res.ok;
+  return { ok: res.ok, retry: res.status === 429 || res.status >= 500, status: res.status };
+  } catch {
+    return { ok: false, retry: true, status: 0 };
+  }
 }
 
 // ── APNs JWT (ES256) — 50분 캐시 ──

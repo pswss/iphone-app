@@ -287,7 +287,8 @@ struct DayGridView: View {
         let dispStart = e.start.addingTimeInterval((moveMin + resizeTopMin) * 60)
         let dispEnd = e.end.addingTimeInterval((moveMin + resizeMin) * 60)
 
-        return blockContent(e, h: h, start: dispStart, end: dispEnd, color: color)
+        // 긴 modifier 체인을 나눠 Xcode Cloud에서도 각 식의 타입을 따로 검사하게 한다.
+        let styledBlock = blockContent(e, h: h, start: dispStart, end: dispEnd, color: color)
             .frame(width: colW, height: h, alignment: .topLeading)
             // 하이라이트: 원래 모습 유지하되 색만 진하게 + 은은한 색 글로우(유리 느낌). 두꺼운 흰 테두리 X
             .background(color.opacity(lifted ? 0.9 : (selected ? 0.72 : 0.5)), in: shape)
@@ -296,6 +297,8 @@ struct DayGridView: View {
             .shadow(color: glowing ? color.opacity(0.7) : .black.opacity(lifted ? 0.4 : 0.12),
                     radius: glowing ? 13 : (lifted ? 10 : 3),
                     y: glowing ? 0 : (lifted ? 6 : 2))
+
+        let interactiveBlock = styledBlock
             .overlay(alignment: .topTrailing) { bubble(e, dy: dy, show: dragging) }
             .overlay { if selected { cornerHighlight(shape).allowsHitTesting(false) } }  // 왼쪽 아래 코너 곡선만 흰색
             .overlay {
@@ -322,12 +325,16 @@ struct DayGridView: View {
                 Button(lang.tr("삭제"), role: .destructive) { deleteEvent(e) }
             }
             #endif
+
+        let positionedBlock = interactiveBlock
             .offset(x: leftInset + CGFloat(item.col) * (colW + colGap) + (dragging ? dragDX : 0), y: top + dy)
             .zIndex(dragging || resizing || deleteBubbleID == e.id ? 100000 : (selected ? 10000 : Double(item.order)))
             .animation(reduceMotion ? nil : .snappy(duration: 0.2), value: deleteBubbleID)
             .animation(reduceMotion ? nil : .snappy(duration: 0.16), value: dragID)
             .animation(reduceMotion ? nil : .snappy(duration: 0.16), value: selectedID)
-            // VoiceOver: 블록 전체를 하나의 요소로, 제목·시간 낭독 + 수정/삭제 액션
+
+        // VoiceOver: 블록 전체를 하나의 요소로, 제목·시간 낭독 + 수정/삭제 액션
+        return positionedBlock
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("\(e.title.isEmpty ? lang.tr("제목 없음") : e.title), \(timeText(e.start)) – \(timeText(e.end))")
             .accessibilityAddTraits(.isButton)

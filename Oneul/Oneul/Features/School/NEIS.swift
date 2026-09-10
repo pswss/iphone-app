@@ -43,13 +43,13 @@ struct AcademicEvent {
     let date: String          // yyyyMMdd (AA_YMD)
     let name: String          // EVENT_NM
     let kind: String          // SBTR_DD_SC_NM (수업일/휴업일 등)
-    let gradeFlags: [String]  // [1학년, 2학년, 3학년] 적용 YN ("Y"/"N"/"")
+    let gradeFlags: [String]  // 1~6학년 적용 YN
 
     /// 해당 학년에 적용되는 일정인지 — 그 학년 플래그가 명시적으로 "N"이면 제외(예: 고2한테 대수능모의평가),
     /// 그 외(Y/빈값/학년정보 없음)는 포함.
     func applies(toGrade g: Int) -> Bool {
         guard g >= 1, g <= gradeFlags.count else { return true }
-        return gradeFlags[g - 1] != "N"
+        return gradeFlags[g - 1].trimmingCharacters(in: .whitespacesAndNewlines).uppercased() != "N"
     }
 }
 
@@ -154,12 +154,19 @@ struct NEISClient {
 
     /// 과목명 정리: 시험기간명("1학기 2차 정기시험"), [보강] 등 접두어를 떼어 순수 과목만.
     static func cleanSubject(_ raw: String) -> String {
-        var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        var s = raw.precomposedStringWithCompatibilityMapping
             .replacingOccurrences(of: "[보강]", with: "")
+            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
         if s.contains("방학") { return "" }   // NEIS가 방학 중 모든 교시의 과목 칸에 넣는 표식
+        let compact = s.replacingOccurrences(of: " ", with: "")
+        // 시험일 표식은 과목이 아니다. 남겨 두면 그 시험이 매주 반복 일정으로 만들어진다.
+        if compact == "수능" || ["전국연합", "학력평가", "모의평가", "모의고사", "수학능력시험"]
+            .contains(where: compact.contains) { return "" }
         let pattern = #"^\s*(\d+\s*학기)?\s*(\d+\s*차)?\s*(정기시험|정기고사|중간고사|기말고사|지필평가|수행평가)\s*"#
         if let r = s.range(of: pattern, options: .regularExpression) { s.removeSubrange(r) }
-        return s.trimmingCharacters(in: .whitespacesAndNewlines)
+        s = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        return ["-", "–", "—", "공강"].contains(s) ? "" : s
     }
 
     func fetchMeal(school: School, date: Date) async throws -> [Meal] {
@@ -188,18 +195,19 @@ struct NEISClient {
     }
 
     /// 학사일정(시험·행사 등).
-    func fetchSchedule(school: School, from: Date, to: Date) async throws -> [AcademicEvent] {
+    func fetchSchedule(school: School, grade: Int, from: Date, to: Date) async throws -> [AcademicEvent] {
         let rows = try await fetch("SchoolSchedule", [
             "ATPT_OFCDC_SC_CODE": school.office, "SD_SCHUL_CODE": school.code,
             "AA_FROM_YMD": ymd(from), "AA_TO_YMD": ymd(to), "pSize": "500"
         ], service: "SchoolSchedule")
-        return rows.compactMap {
-            let name = str($0["EVENT_NM"])
+        return rows.compactMap { row -> AcademicEvent? in
+            let name = str(row["EVENT_NM"]).trimmingCharacters(in: .whitespacesAndNewlines)
             guard !name.isEmpty else { return nil }
-            return AcademicEvent(date: str($0["AA_YMD"]), name: name, kind: str($0["SBTR_DD_SC_NM"]),
-                                 gradeFlags: [str($0["ONE_GRADE_EVENT_YN"]),
-                                              str($0["TW_GRADE_EVENT_YN"]),
-                                              str($0["THREE_GRADE_EVENT_YN"])])
+            let event = AcademicEvent(date: str(row["AA_YMD"]), name: name, kind: str(row["SBTR_DD_SC_NM"]),
+                                      gradeFlags: ["ONE", "TW", "THREE", "FR", "FIV", "SIX"].map {
+                                          str(row["\($0)_GRADE_EVENT_YN"])
+                                      })
+            return event.applies(toGrade: grade) ? event : nil
         }
     }
 
@@ -261,7 +269,7 @@ enum TimetableImporter {
 
         // 학사일정 먼저 — 시험일을 시간표에서 제외하려고
         let academic = try await NEISClient.shared.fetchSchedule(
-            school: school, from: cal.startOfDay(for: Date()), to: until)
+            school: school, grade: grade, from: cal.startOfDay(for: Date()), to: until)
         let excludeDays = examDateSet(academic).union(noClassDateSet(academic))
         let entries = try await fetchTimetable(school: school, grade: grade, classNm: classNm)
 
@@ -282,8 +290,7 @@ enum TimetableImporter {
         let gradEnd = graduationDate(kind: school.kind, grade: grade)
         // 학년에 맞는 일정만 (예: 고2한테 대수능모의평가·고3 전용 학평 제외)
         let academic = try await NEISClient.shared.fetchSchedule(
-            school: school, from: cal.startOfDay(for: Date()), to: gradEnd)
-            .filter { $0.applies(toGrade: grade) }
+            school: school, grade: grade, from: cal.startOfDay(for: Date()), to: gradEnd)
 
         return try EventActions.replaceSources(["timetable", "academic"], in: context) { replacement in
             let (vacationDays, semesterEnd, ac) = processAcademic(academic, into: replacement)
@@ -309,7 +316,7 @@ enum TimetableImporter {
                 guard let date = cal.date(byAdding: .day, value: offset, to: mon),
                       let start = cal.date(bySettingHour: t.0, minute: t.1, second: 0, of: date),
                       let end = cal.date(bySettingHour: t.2, minute: t.3, second: 0, of: date) else { continue }
-                EventActions.stageCreate(title: sel.subject, start: start, end: end, location: "",
+                _ = EventActions.stageCreate(title: sel.subject, start: start, end: end, location: "",
                                          reminderMinutes: -1, recurrence: .weekly, weekdays: [sel.weekday],
                                          endDate: until, source: "timetable", excludeDays: excludeDays,
                                          into: replacement)
@@ -354,7 +361,7 @@ enum TimetableImporter {
         // 시험·행사 → 단일일
         for o in others {
             guard let (start, end) = academicSpan(name: o.name, isExam: o.isExam, day: o.day, cal: cal) else { continue }
-            EventActions.stageCreate(title: o.name, start: start, end: end, location: "",
+            _ = EventActions.stageCreate(title: o.name, start: start, end: end, location: "",
                                      reminderMinutes: -1, recurrence: .none,
                                      source: "academic", into: context)
             count += 1
@@ -392,7 +399,7 @@ enum TimetableImporter {
                   let start = cal.date(bySettingHour: t.0, minute: t.1, second: 0, of: date),
                   let end = cal.date(bySettingHour: t.2, minute: t.3, second: 0, of: date) else { continue }
             let wd = cal.component(.weekday, from: date)
-            EventActions.stageCreate(title: e.subject, start: start, end: end, location: "",
+            _ = EventActions.stageCreate(title: e.subject, start: start, end: end, location: "",
                                      reminderMinutes: -1, recurrence: .weekly,
                                      weekdays: [wd], endDate: until, source: "timetable",
                                      excludeDays: excludeDays, into: context)
@@ -413,7 +420,7 @@ enum TimetableImporter {
             guard let day = f.date(from: e.date), !cal.isDateInWeekend(day) else { continue }   // 학교 일정은 월~금만
             let exam = examWords.contains(where: e.name.contains)
             guard let (start, end) = academicSpan(name: e.name, isExam: exam, day: day, cal: cal) else { continue }
-            EventActions.stageCreate(title: e.name, start: start, end: end, location: "",
+            _ = EventActions.stageCreate(title: e.name, start: start, end: end, location: "",
                                      reminderMinutes: -1, recurrence: .none,
                                      source: "academic", into: context)
             count += 1
@@ -456,7 +463,7 @@ enum TimetableImporter {
 
     private static let examWords = ["고사", "시험", "평가", "모의", "수능", "학력"]
     /// 수업을 빼야 하는 진짜 시험일(수행평가·봉사평가 등은 제외). "지필"=지필평가/지필고사도 수업 없음.
-    private static let examDayWords = ["고사", "시험", "지필", "모의", "수능", "학력평가"]
+    private static let examDayWords = ["고사", "시험", "지필", "모의", "수능", "학력평가", "전국연합"]
     private static let majorWords = ["방학", "개학", "입학식", "졸업식", "시업식", "축제",
                                      "체육대회", "수련회", "수학여행", "현장체험", "재량휴업",
                                      "대체공휴일", "개교기념일", "소풍", "발표회"]
@@ -488,14 +495,10 @@ enum TimetableImporter {
         var failed = false                          // 네트워크 실패(데이터 없음과 구분 — 재시도 안내용)
     }
 
-    /// 오버라이드(공통 선언) 매칭 전용 정규화 — 분류·표시엔 영향 없음. 공백 제거 + 로마숫자 통일.
+    /// 분류·선택·자동 갱신이 같은 과목 키를 사용한다. 표시 이름의 띄어쓰기는 보존.
     static func normalizeSubject(_ s: String) -> String {
-        var r = s.replacingOccurrences(of: " ", with: "")
-        let roman = [("Ⅰ", "I"), ("Ⅱ", "II"), ("Ⅲ", "III"), ("Ⅳ", "IV"), ("Ⅴ", "V"),
-                     ("Ⅵ", "VI"), ("Ⅶ", "VII"), ("Ⅷ", "VIII"), ("Ⅸ", "IX"), ("Ⅹ", "X"),
-                     ("ⅰ", "I"), ("ⅱ", "II"), ("ⅲ", "III"), ("ⅳ", "IV")]
-        for (a, b) in roman { r = r.replacingOccurrences(of: a, with: b) }
-        return r
+        NEISClient.cleanSubject(s).replacingOccurrences(of: #"\s+"#, with: "", options: .regularExpression)
+            .uppercased()
     }
 
     /// 학년 전체 반 조회 → "일부 반만 듣는 과목 = 선택과목" 판별 + 본인 반 시간표 + 교시별 선택지.
@@ -507,7 +510,7 @@ enum TimetableImporter {
             return GradeTimetable(failed: true)
         }
         let canClassifyElectives = !classes.isEmpty
-        let useClasses = classes.isEmpty ? [classNm] : classes
+        let useClasses = Array(Set(classes + [classNm])).sorted()
         let cal = Calendar.current
         let todayMid = cal.startOfDay(for: Date())
         let daysFromMon = (cal.component(.weekday, from: todayMid) + 5) % 7
@@ -515,13 +518,7 @@ enum TimetableImporter {
               let fri = cal.date(byAdding: .day, value: 4, to: mon) else { return GradeTimetable() }
         // 분류·표시 안정화: 최근 ~5주를 모아 슬롯별 최근 정상 수업을 찾음(시험/공강 주만 보면 교시가 통째로 누락되는 문제 방지).
         let windowStart = cal.date(byAdding: .day, value: -28, to: mon) ?? mon
-        let f = DateFormatter(); f.dateFormat = "yyyyMMdd"; f.locale = Locale(identifier: "ko_KR")
-
-        var classOf: [String: Set<String>] = [:]   // 과목 → 듣는 반(3주 합집합)
-        var slotSubs: [String: Set<String>] = [:]  // "wd-p" → 과목들
-        var mine: [String: (date: Date, subject: String)] = [:]   // "wd-p" → 본인 반 최근 non-empty 과목(시험주 공백은 정상 주로 backfill)
-        var responded = Set<String>()              // 시간표를 실제로 돌려준 반(분류 분모 — 요청 실패한 반은 제외)
-        var fetchErrors = 0                        // 요청 자체가 실패한 반 수(네트워크/서버 오류)
+        var timetables: [String: [TimetableEntry]] = [:]
         await withTaskGroup(of: (String, [TimetableEntry], Bool).self) { group in
             for c in useClasses {
                 group.addTask {
@@ -533,59 +530,92 @@ enum TimetableImporter {
                 }
             }
             for await (c, entries, errored) in group {
-                if errored { fetchErrors += 1 }
-                if !entries.isEmpty { responded.insert(c) }
-                for e in entries where !e.subject.isEmpty {
-                    guard let date = f.date(from: e.date) else { continue }
-                    let s = e.subject.replacingOccurrences(of: "[보강]", with: "")
-                    let key = "\(cal.component(.weekday, from: date))-\(e.period)"
-                    classOf[s, default: []].insert(c)
-                    slotSubs[key, default: []].insert(s)
-                    if c == classNm, (mine[key].map { date > $0.date } ?? true) {
-                        mine[key] = (date, s)   // 슬롯별 최근 non-empty — 시험주(공백)면 직전 정상 주 과목 유지
-                    }
-                }
+                if !errored { timetables[c] = entries }
             }
         }
+        // 일부 반 요청이 실패하면 선택지가 빠진 시간표로 기존 배치를 덮어쓰지 않는다.
+        guard timetables.count == useClasses.count else { return GradeTimetable(failed: true) }
+        return analyzeGrade(timetables, classNm: classNm, canClassifyElectives: canClassifyElectives,
+                            commonOverride: Set(UserDefaults.standard.stringArray(forKey: "ttCommonOverride") ?? []))
+    }
 
-        let threshold = max(2, responded.count - 1)   // 응답한 반 기준 — 일부 요청 실패해도 공통과목 오분류 방지
+    /// 원격 조회와 분리해 실제 시간표 행으로 분류·배치를 검증한다.
+    static func analyzeGrade(_ timetables: [String: [TimetableEntry]], classNm: String,
+                             canClassifyElectives: Bool = true,
+                             commonOverride: Set<String> = []) -> GradeTimetable {
+        let cal = Calendar.current
+        let f = DateFormatter(); f.dateFormat = "yyyyMMdd"; f.locale = Locale(identifier: "ko_KR")
+        var classOf: [String: Set<String>] = [:]
+        var slotSubs: [String: Set<String>] = [:]
+        var mine: [String: (date: Date, subject: String)] = [:]
+        var names: [String: String] = [:]
+        var responded = Set<String>()
+        for c in timetables.keys.sorted() {
+            var latest: [String: (date: Date, subject: String)] = [:]
+            for e in timetables[c] ?? [] {
+                let name = NEISClient.cleanSubject(e.subject)
+                let s = normalizeSubject(name)
+                guard !s.isEmpty, let date = f.date(from: e.date), !cal.isDateInWeekend(date),
+                      (1...PeriodSchedule.count).contains(e.period) else { continue }
+                responded.insert(c)
+                names[s] = min(names[s] ?? name, name)
+                let key = "\(cal.component(.weekday, from: date))-\(e.period)"
+                classOf[s, default: []].insert(c)
+                if latest[key].map({ date > $0.date || (date == $0.date && s < $0.subject) }) ?? true {
+                    latest[key] = (date, s)
+                }
+            }
+            // 지난달 같은 교시에 있던 다른 과목을 현재 선택지로 섞지 않는다.
+            for (key, value) in latest { slotSubs[key, default: []].insert(value.subject) }
+            if c == classNm { mine = latest }
+        }
+
+        // ponytail: 반별 수강 빈도로 선택과목을 추정. 개인 수강 정보가 없으므로 최종 교시는 미리보기에서 지정.
+        let threshold = max(2, responded.count - 1)
         func isActivity(_ s: String) -> Bool {
             ["자율", "동아리", "진로", "봉사", "자치", "창의적", "체험"].contains { s.contains($0) }
         }
-        let rawElective = canClassifyElectives
+        let rawElective = canClassifyElectives && responded.count > 1
             ? classOf.keys.filter { !isActivity($0) && (classOf[$0]?.count ?? 0) < threshold }
             : []
-        // 사용자가 '선택 아님'으로 직접 뺀 과목 제외(표기 차이 무관 매칭). 분류 공식은 그대로.
-        let overrideN = Set((UserDefaults.standard.stringArray(forKey: "ttCommonOverride") ?? []).map { normalizeSubject($0) })
-        let electiveSet = Set(rawElective.filter { !overrideN.contains(normalizeSubject($0)) })
+        let overrideN = Set(commonOverride.map(normalizeSubject))
+        let electiveKeys = Set(rawElective).subtracting(overrideN)
+        let electiveSet = Set(electiveKeys.compactMap { names[$0] })
         var offered: [String: Set<String>] = [:]
         for (key, subs) in slotSubs {
-            let e = subs.filter { electiveSet.contains($0) }
+            let e = Set(subs.intersection(electiveKeys).compactMap { names[$0] })
             if !e.isEmpty { offered[key] = e }
         }
         let classTT: [(weekday: Int, period: Int, subject: String)] = mine.compactMap { (key, val) in
             let p = key.split(separator: "-")
             guard p.count == 2, let wd = Int(p[0]), let per = Int(p[1]) else { return nil }
-            return (wd, per, val.subject)
+            return (wd, per, names[val.subject] ?? val.subject)
         }.sorted { ($0.0, $0.1) < ($1.0, $1.1) }
         return GradeTimetable(electiveSet: electiveSet, electives: electiveSet.sorted(),
-                              classTT: classTT, offered: offered,
-                              failed: classTT.isEmpty && fetchErrors == useClasses.count && !useClasses.isEmpty)
+                              classTT: classTT, offered: offered)
     }
 
     /// 체크한 선택과목 → (요일,교시,과목) 선택 목록. 공통/창체는 본인 반 그대로.
-    static func resolveSelections(_ g: GradeTimetable, checked: Set<String>) -> [(weekday: Int, period: Int, subject: String)] {
+    static func resolveSelections(_ g: GradeTimetable, checked: Set<String>,
+                                  picks: [String: String] = [:]) -> [(weekday: Int, period: Int, subject: String)] {
+        let checkedKeys = Set(checked.map(normalizeSubject))
         var out: [(weekday: Int, period: Int, subject: String)] = []
         for slot in g.classTT {
             if g.electiveSet.contains(slot.subject) {
-                let opts = g.offered["\(slot.weekday)-\(slot.period)"] ?? []
-                let mineHere = opts.intersection(checked)
+                let key = "\(slot.weekday)-\(slot.period)"
+                let opts = g.offered[key] ?? []
+                if let saved = picks[key] {
+                    if saved.isEmpty { continue }   // 사용자가 지정한 공강도 유지
+                    if let subject = opts.sorted().first(where: { normalizeSubject($0) == normalizeSubject(saved) }) {
+                        out.append((slot.weekday, slot.period, subject))
+                        continue
+                    }
+                }
+                let mineHere = opts.filter { checkedKeys.contains(normalizeSubject($0)) }
                 if mineHere.contains(slot.subject) {
                     out.append((slot.weekday, slot.period, slot.subject))
-                } else if let chosen = mineHere.first {
+                } else if let chosen = mineHere.sorted().first {
                     out.append((slot.weekday, slot.period, chosen))
-                } else {
-                    out.append((slot.weekday, slot.period, slot.subject))   // 체크 없어도 내 반 과목 유지(교시 보존)
                 }
             } else {
                 out.append((slot.weekday, slot.period, slot.subject))
@@ -599,26 +629,31 @@ enum TimetableImporter {
 
 /// 자동 갱신용 시간표 설정 (학교는 neis* @AppStorage 재사용).
 enum TimetableSetup {
-    static func save(grade: Int, classNm: String, electives: Set<String>, commonOverride: Set<String>) {
+    static func save(grade: Int, classNm: String, electives: Set<String>, commonOverride: Set<String>,
+                     picks: [String: String]) {
         let d = UserDefaults.standard
         d.set(grade, forKey: "ttGrade")
         d.set(classNm, forKey: "ttClass")
         d.set(Array(electives), forKey: "ttElectives")
         d.set(Array(commonOverride), forKey: "ttCommonOverride")   // '선택 아님'으로 뺀 과목
+        d.set(picks, forKey: "ttPicks")   // 과목 목록만으로는 교시별 수동 배치를 복원할 수 없다.
+        d.set(d.string(forKey: "neisCode") ?? "", forKey: "ttSchoolCode")
         d.set(true, forKey: "ttSetup")
         // 학년도(3월 시작) 기록 — 새 학년 진급 안내 배너 조건용
         let c = Calendar.current.dateComponents([.year, .month], from: Date())
         d.set((c.month ?? 1) >= 3 ? (c.year ?? 0) : (c.year ?? 1) - 1, forKey: "ttYear")
     }
-    static func load() -> (grade: Int, classNm: String, electives: Set<String>, commonOverride: Set<String>)? {
+    static func load() -> (grade: Int, classNm: String, electives: Set<String>, commonOverride: Set<String>, picks: [String: String])? {
         let d = UserDefaults.standard
         guard d.bool(forKey: "ttSetup") else { return nil }
+        if let code = d.string(forKey: "ttSchoolCode"), code != (d.string(forKey: "neisCode") ?? "") { return nil }
         let grade = d.integer(forKey: "ttGrade")
         let classNm = d.string(forKey: "ttClass") ?? ""
         guard grade > 0, !classNm.isEmpty else { return nil }
         let electives = Set((d.array(forKey: "ttElectives") as? [String]) ?? [])
         let commonOverride = Set((d.array(forKey: "ttCommonOverride") as? [String]) ?? [])
-        return (grade, classNm, electives, commonOverride)
+        let picks = d.dictionary(forKey: "ttPicks") as? [String: String] ?? [:]
+        return (grade, classNm, electives, commonOverride, picks)
     }
 }
 
@@ -633,7 +668,7 @@ enum SchoolAutoRefresh {
         guard let setup = TimetableSetup.load(), let school = currentSchool() else { return }
         let g = await TimetableImporter.analyzeGrade(school: school, grade: setup.grade, classNm: setup.classNm)
         guard !g.classTT.isEmpty else { return }   // 네트워크 실패 시 기존 유지(덮어쓰지 않음)
-        let sels = TimetableImporter.resolveSelections(g, checked: setup.electives)
+        let sels = TimetableImporter.resolveSelections(g, checked: setup.electives, picks: setup.picks)
         if (try? await TimetableImporter.importSelections(
             school: school, grade: setup.grade, selections: sels, into: context)) != nil {
             d.set(Date(), forKey: "lastSchoolRefresh")

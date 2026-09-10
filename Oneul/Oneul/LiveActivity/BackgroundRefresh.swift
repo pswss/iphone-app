@@ -9,10 +9,16 @@ import BackgroundTasks
 enum BackgroundRefresh {
     static let taskID = "com.oneul.app.refresh"
 
-    static func register(container: ModelContainer) {
+    static func register(storage: Persistence) {
         BGTaskScheduler.shared.register(forTaskWithIdentifier: taskID, using: nil) { task in
             guard let task = task as? BGAppRefreshTask else { return }
-            handle(task, container: container)
+            Task { @MainActor in
+                guard let container = storage.container else {
+                    task.setTaskCompleted(success: false)
+                    return
+                }
+                handle(task, container: container)
+            }
         }
     }
 

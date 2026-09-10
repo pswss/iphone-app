@@ -19,6 +19,12 @@ struct AIScheduleTableHarness {
     static let now = calendar.date(from: DateComponents(year: 2026, month: 7, day: 24, hour: 8))!
 
     static func main() {
+        let later = ExistingEvent(id: UUID(), title: "졸업 전시 상담", start: now.addingTimeInterval(30 * 86400), end: now.addingTimeInterval(30 * 86400 + 3600), location: "")
+        let nearby = (0..<40).map { ExistingEvent(id: UUID(), title: "수업 \($0)", start: now.addingTimeInterval(Double($0 + 1) * 3600), end: now.addingTimeInterval(Double($0 + 2) * 3600), location: "") }
+        let ranked = ExistingEvent.modelContext(for: "졸업 전시 상담 시간을 바꿔줘", now: now, events: nearby + [later])
+        assert(ranked.count == 15 && ranked.first?.id == later.id)
+        assert(Set(ranked.map(\.id)).count == ranked.count)
+
         let weekly = """
         교시\t시간\t월요일\t화요일\t수요일\t목요일\t금요일
         1교시\t09:00–09:50\t국어\t수학\t-\t과학\t영어

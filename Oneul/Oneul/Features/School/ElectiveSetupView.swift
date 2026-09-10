@@ -24,7 +24,7 @@ struct ElectiveSetupView: View {
     @State private var message = ""
     @AccessibilityFocusState private var messageFocused: Bool
 
-    private let noneTag = "(없음)"
+    private let noneTag = ""
 
     var body: some View {
         ZStack {
@@ -166,7 +166,7 @@ struct ElectiveSetupView: View {
                     Picker(weekdayName(wd) + " " + (lang.isEnglish ? "Period \(slot.period)" : "\(slot.period)교시"),
                            selection: pickBinding(key)) {
                         ForEach((g.offered[key] ?? []).sorted(), id: \.self) { Text($0).tag($0) }
-                        Text(lang.tr(noneTag)).tag(noneTag)
+                        Text(lang.tr("(없음)")).tag(noneTag)
                     }
                     .labelsHidden().pickerStyle(.menu).tint(Color.appAccentText)
                 }
@@ -223,21 +223,31 @@ struct ElectiveSetupView: View {
     // MARK: 동작
     private func load() async {
         loading = true
-        commonOverride = TimetableSetup.load()?.commonOverride ?? []   // 저장된 제외 목록 시드
+        let saved = TimetableSetup.load()
+        let setup = saved?.grade == grade && saved?.classNm == classNm ? saved : nil
+        commonOverride = setup?.commonOverride ?? []
         g = await TimetableImporter.analyzeGrade(school: school, grade: grade, classNm: classNm)
-        checked = Set(g.classTT.map { $0.subject }.filter { g.electiveSet.contains($0) })
+        if let setup {
+            let keys = Set(setup.electives.map(TimetableImporter.normalizeSubject))
+            checked = Set(g.electives.filter { keys.contains(TimetableImporter.normalizeSubject($0)) })
+        } else {
+            checked = Set(g.classTT.map { $0.subject }.filter { g.electiveSet.contains($0) })
+        }
+        picks = setup?.picks ?? [:]
         loading = false
     }
 
     /// 자동배치 결과를 picks에 채우고 미리보기로.
     private func startReview() {
+        let checkedKeys = Set(checked.map(TimetableImporter.normalizeSubject))
+        let retained = picks.filter { $0.value.isEmpty || checkedKeys.contains(TimetableImporter.normalizeSubject($0.value)) }
+        let selections = TimetableImporter.resolveSelections(g, checked: checked, picks: retained)
         var p: [String: String] = [:]
         for slot in g.classTT where g.electiveSet.contains(slot.subject) {
-            let key = "\(slot.weekday)-\(slot.period)"
-            let mineHere = (g.offered[key] ?? []).intersection(checked)
-            if mineHere.contains(slot.subject) { p[key] = slot.subject }
-            else if let c = mineHere.sorted().first { p[key] = c }   // 정렬 → 실행마다 같은 결과(결정적)
-            else { p[key] = noneTag }
+            p["\(slot.weekday)-\(slot.period)"] = noneTag
+        }
+        for slot in selections where g.electiveSet.contains(slot.subject) {
+            p["\(slot.weekday)-\(slot.period)"] = slot.subject
         }
         picks = p
         // 체크했지만 아무 교시에도 배치되지 않은 과목은 조용히 사라지지 않게 안내
@@ -253,19 +263,13 @@ struct ElectiveSetupView: View {
     private func confirm() async {
         importing = true
         defer { importing = false }
-        var selections: [(weekday: Int, period: Int, subject: String)] = []
-        for slot in g.classTT {
-            if g.electiveSet.contains(slot.subject) {
-                let v = picks["\(slot.weekday)-\(slot.period)"] ?? noneTag
-                if v != noneTag, !v.isEmpty { selections.append((slot.weekday, slot.period, v)) }
-            } else {
-                selections.append((slot.weekday, slot.period, slot.subject))
-            }
-        }
+        let selections = TimetableImporter.resolveSelections(g, checked: checked, picks: picks)
         do {
             let r = try await TimetableImporter.importSelections(
                 school: school, grade: grade, selections: selections, into: context)
-            TimetableSetup.save(grade: grade, classNm: classNm, electives: checked, commonOverride: commonOverride)
+            let electives = Set(selections.map { $0.subject }.filter { g.electiveSet.contains($0) })
+            TimetableSetup.save(grade: grade, classNm: classNm, electives: electives,
+                                commonOverride: commonOverride, picks: picks)
             message = String(format: lang.tr("시간표를 추가했어요 (수업 %d개). 새 학사일정·다음 학기는 자동으로 갱신돼요."), r.timetable)
             try? await Task.sleep(nanoseconds: 800_000_000)
             dismiss()

@@ -48,8 +48,7 @@ struct AppleIntelligenceClient {
         }
         #if canImport(FoundationModels)
         if #available(iOS 26, macOS 26, *) {
-            // 규칙 경로는 60일치 큰 목록을 그대로 쓰지만, 모델은 컨텍스트 예산상 가까운 15개만(기존과 동일)
-            return try await AppleAI.generate(from: text, now: now, existing: Array(existing.prefix(15)))
+            return try await AppleAI.generate(from: text, now: now, existing: existing)
         }
         #endif
         throw AppleIntelligenceUnavailable(
@@ -190,8 +189,9 @@ enum AppleAI {
                 reason: "Apple Intelligence를 사용할 수 없어요 (설정에서 켜야 할 수 있어요).")
         }
 
-        func finish(_ cmds: [GenCommand]) async -> AIResult {
-            var result = route(cmds, text: text, now: now, existing: existing)
+        let modelExisting = ExistingEvent.modelContext(for: text, now: now, events: existing)
+        func finish(_ cmds: [GenCommand], indexed: [ExistingEvent]) async -> AIResult {
+            var result = route(cmds, text: text, now: now, existing: existing, indexed: indexed)
             result = await resolveLocations(in: result)   // 장소를 실제 존재하는 곳으로 검증(지어내기 방지)
             lastRequest = text
             return result
@@ -199,13 +199,13 @@ enum AppleAI {
 
         // 1) 평소: 기존 일정 포함 한 번에. 가드레일(자극적/민감 내용) 차단은 폴백해도 소용없으니 즉시 안내로.
         do {
-            return await finish(try await respondCommands(text: text, now: now, existing: existing, includeExisting: true))
+            return await finish(try await respondCommands(text: text, now: now, existing: modelExisting, includeExisting: true), indexed: modelExisting)
         } catch let e as LanguageModelSession.GenerationError {
             if case .guardrailViolation = e { throw AIContentBlocked() }
         } catch { }
         // 2) 컨텍스트(글자수) 초과 → 기존 일정 목록 빼고 한 번에
         if let cmds = try? await respondCommands(text: text, now: now, existing: existing, includeExisting: false) {
-            return await finish(cmds)
+            return await finish(cmds, indexed: [])
         }
         // 3) 그래도 크면: 입력을 조각으로 나눠 알맞게 끊어 모델에 먹임.
         //    다음 조각은 직전 조각의 마지막 날짜를 "현재 날짜"로 이어받아 날짜 맥락을 유지(형식 무관).
@@ -219,7 +219,7 @@ enum AppleAI {
             let chunkSegs = buf; buf = []
             let chunk = chunkSegs.joined(separator: ", ")
             guard let cmds = try? await respondCommands(text: chunk, now: refDate, existing: existing, includeExisting: false) else { return }
-            let r = route(cmds, text: chunk, now: refDate, existing: existing)
+            let r = route(cmds, text: chunk, now: refDate, existing: existing, indexed: [])
             for e in r.events where e.targetID == nil || seen.insert(e.targetID!).inserted { events.append(e) }
             actions += r.actions
             // 다음 조각 기준일 = 이 조각에서 마지막으로 언급된 날짜(머리글 포함). 고정 base로 계산해 누적 오류 방지.
@@ -245,7 +245,8 @@ enum AppleAI {
         if let last = lastRequest { p += "직전 질문: \(last)\n" }
         if includeExisting, !existing.isEmpty {
             p += "기존 일정(수정/삭제 대상):\n"
-            for (i, e) in existing.enumerated() { p += "[\(i + 1)] \(shortDate(e.start)) \(e.title)\n" }
+            p += "전체 일정 중 요청과 관련 있는 일부입니다. 보이지 않는 일정을 없다고 단정하거나 번호를 추측하지 마세요.\n"
+            for (i, e) in existing.enumerated() { p += "[\(i + 1)] \(shortDate(e.start)) \(e.title.prefix(160))\n" }
         }
         p += "\n요청: \(text)"
         return p
@@ -287,7 +288,7 @@ enum AppleAI {
 
     // MARK: 슬롯 → 결과(미리보기 일정 + 즉시 액션)
     private static func route(_ commands: [GenCommand], text: String,
-                              now: Date, existing: [ExistingEvent]) -> AIResult {
+                              now: Date, existing: [ExistingEvent], indexed: [ExistingEvent]) -> AIResult {
         var events: [ParsedEvent] = []
         var actions: [AIAction] = []
         var seen = Set<UUID>()
@@ -349,7 +350,7 @@ enum AppleAI {
                                           action: .create, recurrence: rec, weekdays: wds))
 
             case "scheduleUpdate":
-                guard let t = target(c, text: text, existing: existing) else { break }
+                guard let t = target(c, text: text, existing: existing, indexed: indexed) else { break }
                 if seen.insert(t.id).inserted { events.append(makeUpdate(c, t, now: now)) }
 
             case "scheduleDelete":
@@ -371,7 +372,7 @@ enum AppleAI {
                     actions.append(.clarifyDelete(
                         candidates: cands.map { DeleteCandidate(id: $0.id, title: $0.title, start: $0.start) },
                         prompt: "어떤 것을 삭제할까요?"))
-                } else if let t = cands.first ?? target(c, text: text, existing: existing) {
+                } else if let t = cands.first ?? target(c, text: text, existing: existing, indexed: indexed) {
                     AIDeleteContext.lastKeyword = FastScheduleParser.deleteKeyword(text, existing)
                     AIDeleteContext.lastChosen = t.id
                     if seen.insert(t.id).inserted {
@@ -474,10 +475,12 @@ enum AppleAI {
     }
 
     /// 대상: 번호 우선, 없으면 입력에 제목이 든 기존 일정(가장 긴 제목).
-    private static func target(_ c: GenCommand, text: String, existing: [ExistingEvent]) -> ExistingEvent? {
-        if existing.indices.contains(c.targetIndex - 1) { return existing[c.targetIndex - 1] }
-        return existing.filter { !$0.title.isEmpty && text.contains($0.title) }
-            .max(by: { $0.title.count < $1.title.count })
+    private static func target(_ c: GenCommand, text: String, existing: [ExistingEvent], indexed: [ExistingEvent]) -> ExistingEvent? {
+        let named = existing.filter { !$0.title.isEmpty && text.contains($0.title) }
+        if named.count == 1 { return named[0] }
+        guard indexed.indices.contains(c.targetIndex - 1) else { return nil }
+        let selected = indexed[c.targetIndex - 1]
+        return named.isEmpty || named.contains(where: { $0.id == selected.id }) ? selected : nil
     }
 
     /// 키워드에 해당하는 삭제 후보 전부(시간 순). 키워드 추출은 FastScheduleParser.deleteKeyword 공용.

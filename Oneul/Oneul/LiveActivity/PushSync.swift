@@ -1,6 +1,7 @@
 #if os(iOS)
 import Foundation
 import ActivityKit
+import OSLog
 
 /// Live Activity 푸시 동기화 — 오늘 일정의 "경계 시각별 콘텐츠 상태"를 서버(Cloudflare Worker)에 등록.
 /// 서버 cron이 각 시각에 APNs로 쏘면:
@@ -17,6 +18,7 @@ final class PushSync {
     private var lastLabel = ""
     private var uploadTask: Task<Void, Never>?
     private var observingActivityID: String?
+    private let logger = Logger(subsystem: "com.oneul.app", category: "PushSync")
 
     private var deviceID: String {
         let d = UserDefaults.standard
@@ -124,8 +126,8 @@ final class PushSync {
 
         let body: [String: Any] = [
             "deviceID": deviceID,
-            "updateToken": updateToken as Any,
-            "startToken": startToken as Any,
+            "updateToken": updateToken ?? NSNull() as Any,
+            "startToken": startToken ?? NSNull() as Any,
             "sandbox": sandbox,
             "staleAt": Int(plan.dayEnd.timeIntervalSince1970),
             "items": items,
@@ -134,8 +136,29 @@ final class PushSync {
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue(PushConfig.registerKey, forHTTPHeaderField: "X-Oneul-Key")
-        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        _ = try? await URLSession.shared.data(for: req)
+        guard let data = try? JSONSerialization.data(withJSONObject: body) else {
+            logger.error("Push registration could not encode its payload")
+            return
+        }
+        req.httpBody = data
+        req.timeoutInterval = 15
+        for attempt in 0..<3 {
+            guard !Task.isCancelled else { return }
+            do {
+                let (_, response) = try await URLSession.shared.data(for: req)
+                guard let http = response as? HTTPURLResponse else { return }
+                if (200..<300).contains(http.statusCode) { return }
+                logger.error("Push registration HTTP status: \(http.statusCode)")
+                guard http.statusCode == 429 || http.statusCode >= 500 else { return }
+            } catch {
+                guard !Task.isCancelled else { return }
+                logger.error("Push registration network failure; attempt \(attempt + 1)")
+            }
+            if attempt < 2 {
+                do { try await Task.sleep(for: .seconds(attempt == 0 ? 2 : 8)) }
+                catch { return }
+            }
+        }
     }
 
     private static func hex(_ data: Data) -> String {

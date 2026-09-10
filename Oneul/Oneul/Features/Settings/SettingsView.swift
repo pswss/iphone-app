@@ -584,23 +584,25 @@ struct PrivacyPolicyView: View {
     private var sections: [(String, String)] {
         if lang.isEnglish {
             return [
-                ("", "Oneul does not collect your personal data or store it on any server. This policy explains what the app does with your information."),
-                ("Your schedule", "All events you create are stored only on your device (SwiftData). They are never sent to us or any third party."),
-                ("AI assistant", "The AI assistant runs fully on-device through Apple Intelligence. What you type or say never leaves your device."),
+                ("", "Oneul works without a Oneul account. This policy explains where data is stored and when optional features send it outside your device."),
+                ("Your schedule", "Schedules, memos, checklist items and attachments are stored on your device and, when available, synced through your personal iCloud (CloudKit private database). The developer cannot browse your private CloudKit database."),
+                ("Live Activity push", "To update the Lock Screen while the app is closed, a random device ID, push tokens and today’s display data (titles, times and display state) are sent to Oneul’s Cloudflare server. Records expire within 3 days of registration and are used only for push delivery, without ads or analytics."),
+                ("AI assistant", "Schedule interpretation runs on-device using rules and, on supported devices, Apple Intelligence. Photo text recognition uses on-device Vision. Voice transcription uses Apple Speech Recognition under Apple’s privacy policy."),
                 ("Student features (NEIS)", "When you use student features, the school name, grade and class you enter are sent to the Ministry of Education's NEIS open data portal (via a relay server) to fetch your timetable, meals and academic calendar. No name, contact or other identifying information is sent. Only the results are saved on your device."),
                 ("No tracking", "The app contains no third-party analytics or advertising SDKs and does not track you."),
-                ("Permissions", "Location (when setting an event place), microphone and speech recognition (when adding events by voice) are used only while you use those features, and are processed on-device."),
-                ("Deleting your data", "You can permanently erase all data on this device at any time from Settings → Reset all data.")
+                ("Permissions", "Location or place search text may be sent to Apple Maps when choosing a place. The microphone is used while dictating. Apple Calendar is read only when you request an import. A private Google iCal URL is stored in device settings and requested directly from Google."),
+                ("Deleting your data", "Settings → Reset all data removes local schedules and memos. Deletions may sync to your personal iCloud. Temporary push records expire within 3 days of registration.")
             ]
         } else {
             return [
-                ("", "Oneul은 사용자의 개인정보를 수집하거나 서버에 저장하지 않습니다. 이 방침은 앱이 정보를 어떻게 다루는지 설명합니다."),
-                ("일정 데이터", "사용자가 만든 모든 일정은 기기에만 저장됩니다(SwiftData). 당사나 제3자에게 전송되지 않습니다."),
-                ("AI 비서", "AI 비서는 Apple Intelligence로 기기에서 완전히 동작합니다. 입력하거나 말한 내용은 기기를 벗어나지 않습니다."),
+                ("", "Oneul은 별도의 Oneul 계정 없이 동작합니다. 이 방침은 자료의 저장 위치와 선택 기능을 사용할 때 기기 밖으로 전송되는 정보를 설명합니다."),
+                ("일정 데이터", "일정·메모·체크 항목·첨부파일은 기기에 저장되며, iCloud를 사용할 수 있으면 개인 CloudKit 비공개 데이터베이스에 동기화됩니다. 개발자는 이 비공개 데이터베이스를 열람할 수 없습니다."),
+                ("라이브 액티비티 푸시", "앱을 닫아도 잠금화면을 갱신하기 위해 임의 기기 식별자·푸시 토큰·당일 표시 자료(제목·시각·표시 상태)가 Oneul의 Cloudflare 서버에 전송됩니다. 등록 후 최대 3일 안에 삭제하며 푸시 전송에만 사용하고 광고·분석에는 쓰지 않습니다."),
+                ("AI 비서", "일정 해석은 기기 내 규칙과 지원 기기의 Apple Intelligence로 처리합니다. 사진의 글자는 기기 내 Vision으로 인식합니다. 음성 변환에는 Apple 음성 인식이 사용되며 Apple 개인정보 정책이 적용됩니다."),
                 ("학생 기능 (NEIS)", "학생 기능을 쓸 때, 입력한 학교명·학년·반이 시간표·급식·학사일정 조회를 위해 교육부 「나이스(NEIS) 교육정보 개방 포털」(중계 서버 경유)로 전송됩니다. 이름·연락처 등 개인 식별정보는 전송하지 않으며, 조회 결과만 기기에 저장됩니다."),
                 ("추적 안 함", "제3자 분석·광고 SDK가 없으며 사용자를 추적하지 않습니다."),
-                ("권한", "위치(일정 장소 지정 시), 마이크·음성 인식(음성으로 일정 입력 시)은 해당 기능을 쓸 때만 사용되며 기기에서 처리됩니다."),
-                ("데이터 삭제", "설정 → 모든 데이터 초기화에서 이 기기의 모든 데이터를 언제든 영구 삭제할 수 있습니다.")
+                ("권한", "장소를 선택할 때 현재 위치 또는 장소 검색어가 Apple 지도에 전달될 수 있습니다. 마이크는 음성 입력 중에만 사용합니다. 요청한 경우에만 Apple 캘린더를 읽으며, Google 비공개 iCal URL은 기기 설정에 저장하고 Google에 직접 요청합니다."),
+                ("데이터 삭제", "설정 → 모든 데이터 초기화에서 기기의 일정과 메모를 삭제합니다. 삭제 내용은 개인 iCloud에도 동기화될 수 있습니다. 푸시 서버의 임시 자료는 등록 후 최대 3일 안에 삭제됩니다.")
             ]
         }
     }
